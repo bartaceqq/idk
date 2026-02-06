@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -5,6 +6,7 @@ public class CutTree : MonoBehaviour
 {
     public List<GameObject> treeparts = new List<GameObject>();
     public GameObject topofthetree;
+    [SerializeField] private float destroyDelaySeconds = 1f;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -16,12 +18,25 @@ public class CutTree : MonoBehaviour
     {
 
     }
+    private IEnumerator DestroyAfterSeconds(GameObject target, float delaySeconds)
+    {
+        yield return new WaitForSeconds(delaySeconds);
+        if (target != null)
+        {
+            Destroy(target);
+        }
+    }
     public void CutPart()
     {
         if (treeparts.Count == 0)
         {
+            MeshCollider meshCollider = topofthetree.GetComponent<MeshCollider>();
+            meshCollider.convex = true;
+            meshCollider.providesContacts = true;
             Rigidbody rigidbody = topofthetree.GetComponent<Rigidbody>();
             rigidbody.useGravity = true;
+            StartCoroutine(DestroyAfterSeconds(topofthetree, destroyDelaySeconds));
+            
         }
         else
         {
@@ -38,6 +53,7 @@ public class CutTree : MonoBehaviour
                 return;
             }
             renderer.enabled = false;
+            StartCoroutine(DestroyAfterSeconds(treepart, destroyDelaySeconds));
             treeparts.RemoveAt(treeparts.Count - 1);
         }
     }
