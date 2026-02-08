@@ -4,8 +4,10 @@ using UnityEngine.InputSystem; // nový Input System
 [RequireComponent(typeof(CharacterController))]
 public class FPSController : MonoBehaviour
 {
+    public ActionScript actionScript;
     [Header("Movement")]
     public float moveSpeed = 6f;
+    public float runSpeed = 10f;
     public float jumpSpeed = 8f;
     public float gravity = 20f;
     public float groundedStickForce = 2f; // malé přitlačení k zemi
@@ -21,10 +23,21 @@ public class FPSController : MonoBehaviour
     private InputAction _moveAction;
     private InputAction _lookAction;
     private InputAction _jumpAction;
+    private InputAction _runAction;
 
     private CharacterController _cc;
     private float _pitch;         // akumulovaná vertikální rotace (X)
     private Vector3 _velocity;    // vnitřní rychlost (vč. Y)
+    private bool _isJumping;
+    private bool _isIdle;
+    private bool _isForwardWalk;
+    private bool _isForwardRun;
+    private bool _isBackwardWalk;
+    private bool _isBackwardRun;
+    private bool _isLeftWalk;
+    private bool _isLeftRun;
+    private bool _isRightWalk;
+    private bool _isRightRun;
 
     void Awake()
     {
@@ -47,11 +60,13 @@ public class FPSController : MonoBehaviour
             _moveAction = _playerInput.actions.FindAction("Move");
             _lookAction = _playerInput.actions.FindAction("Look");
             _jumpAction = _playerInput.actions.FindAction("Jump");
+            _runAction = _playerInput.actions.FindAction("Run");
 
             // Bezpečí, ať neháže NRE, když akce neexistuje
             _moveAction?.Enable();
             _lookAction?.Enable();
             _jumpAction?.Enable();
+            _runAction?.Enable();
         }
 
         Cursor.lockState = CursorLockMode.Locked;
@@ -62,6 +77,7 @@ public class FPSController : MonoBehaviour
         _moveAction?.Disable();
         _lookAction?.Disable();
         _jumpAction?.Disable();
+        _runAction?.Disable();
         Cursor.lockState = CursorLockMode.None;
     }
 
@@ -86,7 +102,11 @@ public class FPSController : MonoBehaviour
 
         // --- MOVE (WASD) ---
         Vector2 moveInput = _moveAction.ReadValue<Vector2>(); // x=strafe, y=forward
-        Vector3 move = (transform.right * moveInput.x + transform.forward * moveInput.y) * moveSpeed;
+        bool isRunning = _runAction != null ? _runAction.IsPressed() : (Keyboard.current?.leftShiftKey?.isPressed ?? false);
+        float currentSpeed = isRunning ? runSpeed : moveSpeed;
+        Vector3 move = (transform.right * moveInput.x + transform.forward * moveInput.y) * currentSpeed;
+
+        UpdateMovementFlags(moveInput, isRunning);
 
         // --- GRAVITY + JUMP ---
         if (_cc.isGrounded)
@@ -104,8 +124,145 @@ public class FPSController : MonoBehaviour
             _velocity.y -= gravity * Time.deltaTime;
         }
 
+        _isJumping = _jumpAction != null && _jumpAction.triggered;
+        RunCallbacks();
+
         // kombinace horizontálního pohybu + vertikální rychlosti
         Vector3 finalVelocity = new Vector3(move.x, _velocity.y, move.z);
         _cc.Move(finalVelocity * Time.deltaTime);
+    }
+
+    private void UpdateMovementFlags(Vector2 moveInput, bool isRunning)
+    {
+        const float deadzone = 0.1f;
+        bool hasInput = moveInput.sqrMagnitude >= deadzone * deadzone;
+        bool forwardDominant = Mathf.Abs(moveInput.y) >= Mathf.Abs(moveInput.x);
+
+        bool forward = hasInput && forwardDominant && moveInput.y > 0f;
+        bool backward = hasInput && forwardDominant && moveInput.y < 0f;
+        bool right = hasInput && !forwardDominant && moveInput.x > 0f;
+        bool left = hasInput && !forwardDominant && moveInput.x < 0f;
+
+        _isIdle = !hasInput;
+        _isForwardWalk = forward && !isRunning;
+        _isForwardRun = forward && isRunning;
+        _isBackwardWalk = backward && !isRunning;
+        _isBackwardRun = backward && isRunning;
+        _isLeftWalk = left && !isRunning;
+        _isLeftRun = left && isRunning;
+        _isRightWalk = right && !isRunning;
+        _isRightRun = right && isRunning;
+    }
+
+    private void RunCallbacks()
+    {
+        OnJump(_isJumping);
+        OnIdle(_isIdle);
+        OnForwardWalk(_isForwardWalk);
+        OnForwardRun(_isForwardRun);
+        OnBackwardWalk(_isBackwardWalk);
+        OnBackwardRun(_isBackwardRun);
+        OnLeftWalk(_isLeftWalk);
+        OnLeftRun(_isLeftRun);
+        OnRightWalk(_isRightWalk);
+        OnRightRun(_isRightRun);
+    }
+
+    public void OnJump(bool active)
+    {
+        if (active)
+        {
+        }
+        else
+        {
+        }
+    }
+
+    public void OnIdle(bool active)
+    {
+        if (active)
+        {
+            
+            actionScript.Idle(true);
+        }
+        else
+        {
+            actionScript.Idle(false);
+        }
+    }
+
+    public void OnForwardWalk(bool active)
+    {
+        if (active)
+        {
+            actionScript.Walk(true);
+        }
+        else
+        {
+            actionScript.Walk(false);
+        }
+    }
+    public void OnForwardRun(bool active)
+    {
+        if (active)
+        {
+        }
+        else
+        {
+        }
+    }
+    public void OnBackwardWalk(bool active)
+    {
+        if (active)
+        {
+        }
+        else
+        {
+        }
+    }
+    public void OnBackwardRun(bool active)
+    {
+        if (active)
+        {
+        }
+        else
+        {
+        }
+    }
+    public void OnLeftWalk(bool active)
+    {
+        if (active)
+        {
+        }
+        else
+        {
+        }
+    }
+    public void OnLeftRun(bool active)
+    {
+        if (active)
+        {
+        }
+        else
+        {
+        }
+    }
+    public void OnRightWalk(bool active)
+    {
+        if (active)
+        {
+        }
+        else
+        {
+        }
+    }
+    public void OnRightRun(bool active)
+    {
+        if (active)
+        {
+        }
+        else
+        {
+        }
     }
 }
