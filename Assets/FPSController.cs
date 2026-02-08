@@ -38,6 +38,7 @@ public class FPSController : MonoBehaviour
     private bool _isLeftRun;
     private bool _isRightWalk;
     private bool _isRightRun;
+    private bool _sprintLocked;
 
     void Awake()
     {
@@ -102,7 +103,22 @@ public class FPSController : MonoBehaviour
 
         // --- MOVE (WASD) ---
         Vector2 moveInput = _moveAction.ReadValue<Vector2>(); // x=strafe, y=forward
-        bool isRunning = _runAction != null ? _runAction.IsPressed() : (Keyboard.current?.leftShiftKey?.isPressed ?? false);
+        bool runPressed = _runAction != null ? _runAction.IsPressed() : (Keyboard.current?.leftShiftKey?.isPressed ?? false);
+        bool canSprint = actionScript != null && actionScript.staminaScript != null ? actionScript.staminaScript.enoughstamina : true;
+
+        if (_sprintLocked)
+        {
+            if (!runPressed)
+            {
+                _sprintLocked = false; // must release shift before sprinting again
+            }
+        }
+        if (!canSprint && runPressed)
+        {
+            _sprintLocked = true;
+        }
+
+        bool isRunning = runPressed && canSprint && !_sprintLocked;
         float currentSpeed = isRunning ? runSpeed : moveSpeed;
         Vector3 move = (transform.right * moveInput.x + transform.forward * moveInput.y) * currentSpeed;
 
@@ -206,9 +222,11 @@ public class FPSController : MonoBehaviour
     {
         if (active)
         {
+            actionScript.Sprint(true);
         }
         else
         {
+            actionScript.Sprint(false);
         }
     }
     public void OnBackwardWalk(bool active)

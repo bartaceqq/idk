@@ -25,6 +25,17 @@ public class MovementAnimationScript : MonoBehaviour
             animator.SetBool("Foreward", false);   
         }
     }
+    public void RunAnimation_Foreward(bool status)
+
+    {
+        if(status){
+            animator.SetBool("Sprinting", true);   
+        }
+        else
+        {
+            animator.SetBool("Sprinting", false);   
+        }
+    }
     public void IdleAnimation(bool status)
     {
         if (status)

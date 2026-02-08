@@ -1,9 +1,13 @@
 using System.Collections;
 using System.Collections.Generic;
+using Microsoft.Unity.VisualStudio.Editor;
 using UnityEngine;
 
 public class CutTree : MonoBehaviour
 {
+    public string texttoshow;
+    public Sprite sprite;
+    public InfoHandler infoHandler;
     public List<GameObject> treeparts = new List<GameObject>();
     public GameObject topofthetree;
     [SerializeField] private float destroyDelaySeconds = 1f;
@@ -36,6 +40,9 @@ public class CutTree : MonoBehaviour
             Rigidbody rigidbody = topofthetree.GetComponent<Rigidbody>();
             rigidbody.useGravity = true;
             StartCoroutine(DestroyAfterSeconds(topofthetree, destroyDelaySeconds));
+            infoHandler.texttoshow = this.texttoshow;       
+            infoHandler.toshowimage = this.sprite;
+            StartCoroutine(infoHandler.showinfo());
             
         }
         else
