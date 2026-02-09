@@ -3,7 +3,9 @@ using UnityEngine;
 
 public class RayScript : MonoBehaviour
 {
-    public ActionScript actionScrip;
+    public ParticleSystem stoneparticle;
+    public ItemSwitchScript itemSwitchScript;
+    public ActionScript actionScript;
     public Camera camera;
     public float range = 100f;
     public float sphereRadius = 0.25f;
@@ -40,23 +42,39 @@ public class RayScript : MonoBehaviour
         if (hitSomething)
         {
             Debug.Log(hit.collider.gameObject.name);
-            if (hit.collider.CompareTag("Tree") || hit.collider.transform.root.CompareTag("Tree"))
+            switch (itemSwitchScript.currentitemid)
             {
+                case 1:
 
-                ColliderScript colliderScript = hit.collider.gameObject.GetComponent<ColliderScript>();
-                if (colliderScript == null)
-                {
-                    colliderScript = hit.collider.gameObject.GetComponentInParent<ColliderScript>();
-                }
-                if (colliderScript != null)
-                {
-                    Debug.Log("proslo");
-                    StartCoroutine(TriggerAfterDelay(colliderScript, cutDelaySeconds));
-                }
+
+                    if (hit.collider.CompareTag("Tree") || hit.collider.transform.root.CompareTag("Tree"))
+                    {
+
+                        ColliderScript colliderScript = hit.collider.gameObject.GetComponent<ColliderScript>();
+                        if (colliderScript == null)
+                        {
+                            colliderScript = hit.collider.gameObject.GetComponentInParent<ColliderScript>();
+                        }
+                        if (colliderScript != null)
+                        {
+                            Debug.Log("proslo");
+                            StartCoroutine(TriggerAfterDelay(colliderScript, cutDelaySeconds));
+                            actionScript.Chop();
+
+                        }
+                    }
+                    break;
+                    case 2:
+                    stoneparticle.Play();
+
+                    break;
+
             }
-            actionScrip.Chop();
+
+
         }
     }
+
 
     private IEnumerator TriggerAfterDelay(ColliderScript colliderScript, float delaySeconds)
     {

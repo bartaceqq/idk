@@ -1,9 +1,11 @@
-using System.Collections.Generic;
 using UnityEngine;
 
-public class AxeAnimationScript : MonoBehaviour
+public class Item : MonoBehaviour
 {
-    public Animator axeanimator;
+    public int ID;
+    public string name;
+    public KeyCode key;
+    public GameObject itemobject;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -14,9 +16,5 @@ public class AxeAnimationScript : MonoBehaviour
     void Update()
     {
         
-    }
-    public void ChopAnimation()
-    {
-        axeanimator.SetTrigger("Swing");
     }
 }
