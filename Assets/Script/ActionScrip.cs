@@ -7,6 +7,8 @@ public class ActionScript : MonoBehaviour
     public string currentutil;
     public MovementAnimationScript movementAnimationScript;
     public AxeAnimationScript axeAnimationScript;
+    public PickaxeAnimationScript pickaxeAnimationScript;
+    public SwordAnimationScript swordAnimationScript;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -50,6 +52,14 @@ public class ActionScript : MonoBehaviour
     public void Idle(bool status)
     {
         movementAnimationScript.IdleAnimation(status);
+    }
+    public void Mine()
+    {
+        pickaxeAnimationScript.Mine();
+    }
+    public void Attack()
+    {
+        swordAnimationScript.Attack();
     }
     
 

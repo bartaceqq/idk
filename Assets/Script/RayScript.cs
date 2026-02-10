@@ -11,8 +11,9 @@ public class RayScript : MonoBehaviour
     public float sphereRadius = 0.25f;
     public LayerMask hitMask = ~0;
     public float cutDelaySeconds = 0.13f;
-    public float swingCooldownSeconds = 0.5f;
+    public float swingCooldownSeconds = 1f;
     private float _nextSwingTime;
+   
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -45,7 +46,7 @@ public class RayScript : MonoBehaviour
             switch (itemSwitchScript.currentitemid)
             {
                 case 1:
-
+                    actionScript.Chop();
 
                     if (hit.collider.CompareTag("Tree") || hit.collider.transform.root.CompareTag("Tree"))
                     {
@@ -58,14 +59,35 @@ public class RayScript : MonoBehaviour
                         if (colliderScript != null)
                         {
                             Debug.Log("proslo");
-                            StartCoroutine(TriggerAfterDelay(colliderScript, cutDelaySeconds));
-                            actionScript.Chop();
+                          
+                            }
+                            StartCoroutine(TriggerAfterDelayAxe(colliderScript, cutDelaySeconds));
+                           
 
                         }
-                    }
+                    
                     break;
                     case 2:
-                    stoneparticle.Play();
+                    actionScript.Mine();
+                     if (hit.collider.CompareTag("Stone") || hit.collider.transform.root.CompareTag("Stone"))
+                    {
+
+                        StoneColliderScript stoneColliderScript = hit.collider.GetComponent<StoneColliderScript>();
+                        MineStone mineStone = stoneColliderScript.mineStone;
+                        if(mineStone != null)
+                        {
+                            Debug.Log("proslooooooo volle");
+                        }
+                       
+                            StartCoroutine(TriggerAfterDelayPixkaxe(mineStone, cutDelaySeconds));
+                        
+
+                        
+                    }
+                    break;
+                    case 3:
+                    actionScript.Attack();
+
 
                     break;
 
@@ -76,12 +98,20 @@ public class RayScript : MonoBehaviour
     }
 
 
-    private IEnumerator TriggerAfterDelay(ColliderScript colliderScript, float delaySeconds)
+    private IEnumerator TriggerAfterDelayAxe(ColliderScript colliderScript, float delaySeconds)
     {
         yield return new WaitForSeconds(delaySeconds);
         if (colliderScript != null)
         {
             colliderScript.Trigger();
+        }
+    }
+     private IEnumerator TriggerAfterDelayPixkaxe(MineStone mineStone, float delaySeconds)
+    {
+        yield return new WaitForSeconds(delaySeconds);
+        if (mineStone != null)
+        {
+            mineStone.Mine();
         }
     }
 }
