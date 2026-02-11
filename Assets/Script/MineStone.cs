@@ -31,9 +31,9 @@ public class MineStone : MonoBehaviour
         if (counter > 0)
         {
             counter--;
-            int value = Random.Range(0, 11);
+            int value = Random.Range(0, 4);
             while(chosen.Contains(value)){
-                value = Random.Range(0, 11);
+                value = Random.Range(0, 4);
             }
             chosen.Add(value);
             MeshRenderer renderer = parts[value].GetComponent<MeshRenderer>();
