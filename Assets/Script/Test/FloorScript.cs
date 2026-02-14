@@ -1,20 +1,15 @@
+using System;
 using UnityEngine;
 
 public class FloorScript : MonoBehaviour
 {
-    public Transform snapA;
-     public Transform snapB;
-      public Transform snapC;
-       public Transform snapD;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
+    public SnapPoint[] snapPoints = new SnapPoint[4];
 
-    // Update is called once per frame
-    void Update()
+    private void OnValidate()
     {
-        
+        if (snapPoints == null || snapPoints.Length != 4)
+        {
+            Array.Resize(ref snapPoints, 4);
+        }
     }
 }
