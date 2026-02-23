@@ -70800,11 +70800,11 @@ MonoBehaviour:
   enemiesHandler: {fileID: 431685990}
   thrownItemPrefab: {fileID: 3798601392323420681, guid: 5cb7b7f733ec8fa4a942526250a54877, type: 3}
   throwOrigin: {fileID: 0}
-  throwSpawnDelay: 0.35
+  throwSpawnDelay: 0.05
   throwArcHeight: 1.2
   throwTravelTime: 0.7
   throwTargetHeightOffset: 1
-  thrownItemLifetimeAfterImpact: 0.1
+  thrownItemLifetimeAfterImpact: 0.6
 --- !u!114 &1623327945
 MonoBehaviour:
   m_ObjectHideFlags: 0
