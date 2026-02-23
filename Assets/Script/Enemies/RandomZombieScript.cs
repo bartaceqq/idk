@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.VFX;
 
 public class RandomZombieScript : MonoBehaviour
 {
@@ -271,6 +272,8 @@ public class RandomZombieScript : MonoBehaviour
             yield break;
         }
 
+        EnsureProjectileVfxIsPlaying(thrownItem);
+
         Rigidbody rb = thrownItem.GetComponent<Rigidbody>();
         if (rb != null)
         {
@@ -327,6 +330,27 @@ public class RandomZombieScript : MonoBehaviour
         if (projectile != null)
         {
             projectile.position = endPos;
+        }
+    }
+
+    private static void EnsureProjectileVfxIsPlaying(GameObject projectileRoot)
+    {
+        if (projectileRoot == null)
+        {
+            return;
+        }
+
+        VisualEffect[] effects = projectileRoot.GetComponentsInChildren<VisualEffect>(true);
+        foreach (VisualEffect effect in effects)
+        {
+            if (effect == null)
+            {
+                continue;
+            }
+
+            effect.enabled = true;
+            effect.Reinit();
+            effect.Play();
         }
     }
 

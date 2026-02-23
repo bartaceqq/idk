@@ -1,5 +1,5 @@
-using UnityEngine;
-using UnityEngine.InputSystem; // nov˝ Input System
+Ôªøusing UnityEngine;
+using UnityEngine.InputSystem; // nov√Ω Input System
 
 [RequireComponent(typeof(CharacterController))]
 public class FPSController : MonoBehaviour
@@ -10,18 +10,18 @@ public class FPSController : MonoBehaviour
     public float runSpeed = 10f;
     public float jumpSpeed = 8f;
     public float gravity = 20f;
-    public float groundedStickForce = 2f; // malÈ p¯itlaËenÌ k zemi
+    public float groundedStickForce = 2f; // mal√© p√∏itla√®en√≠ k zemi
     public bool disableExtraCapsuleCollider = true;
 
     
 
     [Header("Look")]
-    public float mouseSensitivity = 0.1f; // n·sobÌ delta myöi
+    public float mouseSensitivity = 0.1f; // n√°sob√≠ delta my≈°i
     public float minPitch = -90f;
     public float maxPitch = 90f;
-    public Transform playerCamera; // odkaz na kameru (child) ñ nastav v Inspectoru
+    public Transform playerCamera; // odkaz na kameru (child) ‚Äì nastav v Inspectoru
 
-    // Input System (p¯es PlayerInput)
+    // Input System (p√∏es PlayerInput)
     private PlayerInput _playerInput;
     private InputAction _moveAction;
     private InputAction _lookAction;
@@ -30,8 +30,8 @@ public class FPSController : MonoBehaviour
 
     private CharacterController _cc;
     private CapsuleCollider _extraCapsuleCollider;
-    private float _pitch;         // akumulovan· vertik·lnÌ rotace (X)
-    private Vector3 _velocity;    // vnit¯nÌ rychlost (vË. Y)
+    private float _pitch;         // akumulovan√° vertik√°ln√≠ rotace (X)
+    private Vector3 _velocity;    // vnit√∏n√≠ rychlost (v√®. Y)
     private bool _isJumping;
     private bool _isIdle;
     private bool _isForwardWalk;
@@ -58,11 +58,11 @@ public class FPSController : MonoBehaviour
 
         if (_playerInput == null)
         {
-            Debug.LogError("P¯idej na Player komponentu PlayerInput a p¯i¯aÔ akce (Action Map: Player).");
+            Debug.LogError("P√∏idej na Player komponentu PlayerInput a p√∏i√∏a√Ø akce (Action Map: Player).");
         }
         if (playerCamera == null)
         {
-            Debug.LogWarning("ChybÌ reference na kameru");
+            Debug.LogWarning("Chyb√≠ reference na kameru");
         }
     }
 
@@ -74,8 +74,11 @@ public class FPSController : MonoBehaviour
             _moveAction = _playerInput.actions.FindAction("Move");
             _lookAction = _playerInput.actions.FindAction("Look");
             _jumpAction = _playerInput.actions.FindAction("Jump");
-            _runAction = _playerInput.actions.FindAction("Run");
-        }
+            _runAction = _playerInput.actions.FindAction("Sprint");
+            if (_runAction == null)
+            {
+                _runAction = _playerInput.actions.FindAction("Run");
+            }        }
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -96,18 +99,18 @@ public class FPSController : MonoBehaviour
     {
         if (_playerInput == null || _moveAction == null || _lookAction == null) return;
 
-        // --- LOOK (myö/gamepad) ---
+        // --- LOOK (my≈°/gamepad) ---
         Vector2 look = _lookAction.ReadValue<Vector2>();
 
 
-        // U myöi je look v pixelech per-frame; ök·luj citlivostÌ a neVIS Time.deltaTime
+        // U my≈°i je look v pixelech per-frame; ≈°k√°luj citlivost√≠ a neVIS Time.deltaTime
         float yaw = look.x * mouseSensitivity;
         float pitchDelta = -look.y * mouseSensitivity;
 
         _pitch = Mathf.Clamp(_pitch + pitchDelta, minPitch, maxPitch);
-        // otoËenÌ tÏla (yaw)
+        // oto√®en√≠ t√¨la (yaw)
         transform.Rotate(0f, yaw, 0f);
-        // otoËenÌ kamery (pitch)
+        // oto√®en√≠ kamery (pitch)
         if (playerCamera != null)
             playerCamera.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
 
@@ -137,7 +140,7 @@ public class FPSController : MonoBehaviour
         // --- GRAVITY + JUMP ---
         if (_cc.isGrounded)
         {
-            // drû lehce z·pornou Y, aby Ñneplavalì na hran·ch
+            // dr≈æ lehce z√°pornou Y, aby ‚Äûneplaval‚Äú na hran√°ch
             _velocity.y = -groundedStickForce;
 
             if (_jumpAction != null && _jumpAction.triggered)
@@ -153,7 +156,7 @@ public class FPSController : MonoBehaviour
         _isJumping = _jumpAction != null && _jumpAction.triggered;
         RunCallbacks();
 
-        // kombinace horizont·lnÌho pohybu + vertik·lnÌ rychlosti
+        // kombinace horizont√°ln√≠ho pohybu + vertik√°ln√≠ rychlosti
         Vector3 finalVelocity = new Vector3(move.x, _velocity.y, move.z);
         _cc.Move(finalVelocity * Time.deltaTime);
     }
@@ -206,6 +209,23 @@ public class FPSController : MonoBehaviour
         }
     }
 
+    // Keep these Input System message handlers so PlayerInput Send Messages mode
+    // does not throw MissingMethodException for mapped actions.
+    public void OnJump(InputValue value)
+    {
+    }
+
+    public void OnMove(InputValue value)
+    {
+    }
+
+    public void OnLook(InputValue value)
+    {
+    }
+
+    public void OnSprint(InputValue value)
+    {
+    }
     public void OnIdle(bool active)
     {
         if (active)
@@ -296,3 +316,4 @@ public class FPSController : MonoBehaviour
         }
     }
 }
+
