@@ -5,11 +5,17 @@ public class StaminaScript : MonoBehaviour
 {
     public bool enoughstamina;
     public Image image;
-    public float valuereduce = 0.01f;
+    public float valuereduce = 0.6f;
+    public float valueadd = -1f;
     public float swordSwingCost = 0.5f;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        if (valueadd < 0f)
+        {
+            valueadd = valuereduce;
+        }
+
         if (image != null)
         {
             enoughstamina = image.fillAmount > 0f;
@@ -29,14 +35,9 @@ public class StaminaScript : MonoBehaviour
             return;
         }
 
-        if (image.fillAmount < 1f)
-        {
-            image.fillAmount += valuereduce;
-        }
-        if (image.fillAmount > 0f)
-        {
-            enoughstamina = true;
-        }
+        float delta = valueadd * Time.deltaTime;
+        image.fillAmount = Mathf.Clamp01(image.fillAmount + delta);
+        enoughstamina = image.fillAmount > 0f;
         
     }
     public void ReduceStamina()
@@ -47,16 +48,9 @@ public class StaminaScript : MonoBehaviour
             return;
         }
 
-        if (image.fillAmount > 0f)
-        {
-            image.fillAmount -= valuereduce;
-        }
-
-        if (image.fillAmount <= 0f)
-        {
-            image.fillAmount = 0f;
-            enoughstamina = false; 
-        }
+        float delta = valuereduce * Time.deltaTime;
+        image.fillAmount = Mathf.Clamp01(image.fillAmount - delta);
+        enoughstamina = image.fillAmount > 0f;
 
     }
     public bool SwordSwing()

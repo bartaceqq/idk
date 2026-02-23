@@ -6106,8 +6106,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StaminaScript
   enoughstamina: 0
   image: {fileID: 252720915}
-  valuereduce: 0.0005
-  swordSwingCost: 0.5
+  valuereduce: 0.05
+  valueadd: 0.1
+  swordSwingCost: 0.4
 --- !u!114 &126293352
 MonoBehaviour:
   m_ObjectHideFlags: 0

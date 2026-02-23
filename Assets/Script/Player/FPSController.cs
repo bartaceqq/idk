@@ -70,28 +70,26 @@ public class FPSController : MonoBehaviour
     {
         if (_playerInput != null && _playerInput.actions != null)
         {
+            _playerInput.ActivateInput();
             _moveAction = _playerInput.actions.FindAction("Move");
             _lookAction = _playerInput.actions.FindAction("Look");
             _jumpAction = _playerInput.actions.FindAction("Jump");
             _runAction = _playerInput.actions.FindAction("Run");
-
-            // BezpeËÌ, aù neh·ûe NRE, kdyû akce neexistuje
-            _moveAction?.Enable();
-            _lookAction?.Enable();
-            _jumpAction?.Enable();
-            _runAction?.Enable();
         }
 
         Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     void OnDisable()
     {
-        _moveAction?.Disable();
-        _lookAction?.Disable();
-        _jumpAction?.Disable();
-        _runAction?.Disable();
+        _playerInput?.DeactivateInput();
+        _moveAction = null;
+        _lookAction = null;
+        _jumpAction = null;
+        _runAction = null;
         Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     void Update()

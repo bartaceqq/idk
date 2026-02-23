@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class LookingController : MonoBehaviour
 {
@@ -10,6 +11,11 @@ public class LookingController : MonoBehaviour
     public Transform position;
     public Transform normalLookTransform;
     public Transform buildingLookTransform;
+
+    private void Start()
+    {
+        SyncSwitchStateFromActiveCapsule();
+    }
 
     private void Update()
     {
@@ -27,10 +33,13 @@ public class LookingController : MonoBehaviour
             return;
         }
 
-        GameObject sourceCapsule = switched ? buildingcapsule : normalcapsule;
-        GameObject targetCapsule = switched ? normalcapsule : buildingcapsule;
-        Transform sourceLook = ResolveLookTransform(sourceCapsule, switched ? buildingLookTransform : normalLookTransform);
-        Transform targetLook = ResolveLookTransform(targetCapsule, switched ? normalLookTransform : buildingLookTransform);
+        SyncSwitchStateFromActiveCapsule();
+
+        bool switchToBuilding = !switched;
+        GameObject sourceCapsule = switchToBuilding ? normalcapsule : buildingcapsule;
+        GameObject targetCapsule = switchToBuilding ? buildingcapsule : normalcapsule;
+        Transform sourceLook = ResolveLookTransform(sourceCapsule, switchToBuilding ? normalLookTransform : buildingLookTransform);
+        Transform targetLook = ResolveLookTransform(targetCapsule, switchToBuilding ? buildingLookTransform : normalLookTransform);
 
         Vector3 sharedPosition = sourceCapsule.transform.position;
         Quaternion sharedRotation = sourceCapsule.transform.rotation;
@@ -45,25 +54,28 @@ public class LookingController : MonoBehaviour
         targetCapsule.transform.position = sharedPosition;
         targetCapsule.transform.rotation = sharedRotation;
 
+        // Disable source first so its OnDisable runs before target OnEnable.
+        sourceCapsule.SetActive(false);
+        targetCapsule.SetActive(true);
+        switched = switchToBuilding;
+
         if (switched)
         {
-            normalcapsule.SetActive(true);
-            buildingcapsule.SetActive(false);
-            switched = false;
-            if (animator != null) animator.enabled = true;
+            if (animator != null) animator.enabled = false;
         }
         else
         {
-            normalcapsule.SetActive(false);
-            buildingcapsule.SetActive(true);
-            switched = true;
-            if (animator != null) animator.enabled = false;
+            if (animator != null) animator.enabled = true;
         }
 
         if (targetLook != null)
         {
             targetLook.rotation = sharedLookRotation;
         }
+
+        ActivatePrimaryPlayerInput(targetCapsule);
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     private static Transform ResolveLookTransform(GameObject capsule, Transform explicitLookTransform)
@@ -85,5 +97,36 @@ public class LookingController : MonoBehaviour
         }
 
         return capsule.transform;
+    }
+
+    private void SyncSwitchStateFromActiveCapsule()
+    {
+        bool normalActive = normalcapsule != null && normalcapsule.activeInHierarchy;
+        bool buildingActive = buildingcapsule != null && buildingcapsule.activeInHierarchy;
+
+        if (normalActive && !buildingActive)
+        {
+            switched = false;
+            return;
+        }
+
+        if (buildingActive && !normalActive)
+        {
+            switched = true;
+        }
+    }
+
+    private static void ActivatePrimaryPlayerInput(GameObject capsule)
+    {
+        if (capsule == null)
+        {
+            return;
+        }
+
+        PlayerInput playerInput = capsule.GetComponent<PlayerInput>();
+        if (playerInput != null)
+        {
+            playerInput.ActivateInput();
+        }
     }
 }
