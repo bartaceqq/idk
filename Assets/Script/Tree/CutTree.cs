@@ -10,8 +10,31 @@ public class CutTree : MonoBehaviour
     public List<GameObject> treeparts = new List<GameObject>();
     public GameObject topofthetree;
     [SerializeField] private float destroyDelaySeconds = 1f;
+    [SerializeField] private float rebuildDelaySeconds = 30f;
     public InventoryItem inventoryItem;
     public bool broken = false;
+    private readonly List<GameObject> initialTreeParts = new List<GameObject>();
+    private readonly Dictionary<Transform, TransformSnapshot> initialTransforms = new Dictionary<Transform, TransformSnapshot>();
+    private Rigidbody topRigidbody;
+    private MeshCollider topMeshCollider;
+    private bool topInitialUseGravity;
+    private bool topInitialIsKinematic;
+    private bool topInitialConvex;
+    private bool topInitialProvidesContacts;
+    private bool isRebuilding;
+
+    private struct TransformSnapshot
+    {
+        public Vector3 localPosition;
+        public Quaternion localRotation;
+        public Vector3 localScale;
+    }
+
+    private void Awake()
+    {
+        CacheInitialState();
+    }
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -23,51 +46,205 @@ public class CutTree : MonoBehaviour
     {
 
     }
-    private IEnumerator DestroyAfterSeconds(GameObject target, float delaySeconds)
+    private void CacheInitialState()
+    {
+        initialTreeParts.Clear();
+        initialTransforms.Clear();
+
+        foreach (GameObject treePart in treeparts)
+        {
+            if (treePart == null)
+            {
+                continue;
+            }
+
+            initialTreeParts.Add(treePart);
+            CacheTransform(treePart.transform);
+        }
+
+        if (topofthetree != null)
+        {
+            CacheTransform(topofthetree.transform);
+            topRigidbody = topofthetree.GetComponent<Rigidbody>();
+            topMeshCollider = topofthetree.GetComponent<MeshCollider>();
+
+            if (topRigidbody != null)
+            {
+                topInitialUseGravity = topRigidbody.useGravity;
+                topInitialIsKinematic = topRigidbody.isKinematic;
+            }
+
+            if (topMeshCollider != null)
+            {
+                topInitialConvex = topMeshCollider.convex;
+                topInitialProvidesContacts = topMeshCollider.providesContacts;
+            }
+        }
+
+        treeparts.Clear();
+        treeparts.AddRange(initialTreeParts);
+    }
+
+    private void CacheTransform(Transform targetTransform)
+    {
+        if (targetTransform == null || initialTransforms.ContainsKey(targetTransform))
+        {
+            return;
+        }
+
+        initialTransforms[targetTransform] = new TransformSnapshot
+        {
+            localPosition = targetTransform.localPosition,
+            localRotation = targetTransform.localRotation,
+            localScale = targetTransform.localScale
+        };
+    }
+
+    private void RestoreTransform(Transform targetTransform)
+    {
+        if (targetTransform == null || !initialTransforms.TryGetValue(targetTransform, out TransformSnapshot snapshot))
+        {
+            return;
+        }
+
+        targetTransform.localPosition = snapshot.localPosition;
+        targetTransform.localRotation = snapshot.localRotation;
+        targetTransform.localScale = snapshot.localScale;
+    }
+
+    private IEnumerator SetActiveAfterSeconds(GameObject target, float delaySeconds, bool active)
     {
         yield return new WaitForSeconds(delaySeconds);
         if (target != null)
         {
-            Destroy(target);
+            target.SetActive(active);
         }
     }
+
+    private IEnumerator RebuildTreeAfterSeconds(float delaySeconds)
+    {
+        yield return new WaitForSeconds(delaySeconds);
+        RebuildTree();
+    }
+
+    private void RebuildTree()
+    {
+        broken = false;
+        isRebuilding = false;
+
+        treeparts.Clear();
+        treeparts.AddRange(initialTreeParts);
+
+        foreach (GameObject treePart in initialTreeParts)
+        {
+            if (treePart == null)
+            {
+                continue;
+            }
+
+            RestoreTransform(treePart.transform);
+            treePart.SetActive(true);
+
+            Renderer renderer = treePart.GetComponent<MeshRenderer>();
+            if (renderer == null)
+            {
+                renderer = treePart.GetComponentInChildren<MeshRenderer>(true);
+            }
+            if (renderer != null)
+            {
+                renderer.enabled = true;
+            }
+        }
+
+        if (topofthetree != null)
+        {
+            RestoreTransform(topofthetree.transform);
+            topofthetree.SetActive(true);
+        }
+
+        if (topRigidbody != null)
+        {
+            topRigidbody.linearVelocity = Vector3.zero;
+            topRigidbody.angularVelocity = Vector3.zero;
+            topRigidbody.useGravity = topInitialUseGravity;
+            topRigidbody.isKinematic = topInitialIsKinematic;
+        }
+
+        if (topMeshCollider != null)
+        {
+            topMeshCollider.convex = topInitialConvex;
+            topMeshCollider.providesContacts = topInitialProvidesContacts;
+        }
+    }
+
     public void CutPart()
     {
-        if (!broken)
+        if (broken || isRebuilding)
         {
-            if (treeparts.Count == 0)
-            {
-                MeshCollider meshCollider = topofthetree.GetComponent<MeshCollider>();
-                meshCollider.convex = true;
-                meshCollider.providesContacts = true;
-                Rigidbody rigidbody = topofthetree.GetComponent<Rigidbody>();
-                rigidbody.useGravity = true;
-                StartCoroutine(DestroyAfterSeconds(topofthetree, destroyDelaySeconds));
-                infoHandler.texttoshow = this.texttoshow;
-                infoHandler.toshowimage = this.sprite;
-                inventoryItem.slotManager.AddItem(inventoryItem);
-                StartCoroutine(infoHandler.showinfo());
-                broken = true;
+            return;
+        }
 
+        if (treeparts.Count == 0)
+        {
+            if (topMeshCollider != null)
+            {
+                topMeshCollider.convex = true;
+                topMeshCollider.providesContacts = true;
+            }
+
+            if (topRigidbody != null)
+            {
+                topRigidbody.useGravity = true;
+                topRigidbody.isKinematic = false;
+            }
+
+            StartCoroutine(SetActiveAfterSeconds(topofthetree, destroyDelaySeconds, false));
+            if (inventoryItem != null && inventoryItem.slotManager != null)
+            {
+                inventoryItem.slotManager.AddItem(inventoryItem);
             }
             else
             {
-
-                GameObject treepart = treeparts[treeparts.Count - 1];
-                Renderer renderer = treepart.GetComponent<MeshRenderer>();
-                if (renderer == null)
-                {
-                    renderer = treepart.GetComponentInChildren<MeshRenderer>();
-                }
-                if (renderer == null)
-                {
-                    Debug.LogWarning($"CutTree: No Renderer found on {treepart.name}");
-                    return;
-                }
-                renderer.enabled = false;
-                StartCoroutine(DestroyAfterSeconds(treepart, destroyDelaySeconds));
-                treeparts.RemoveAt(treeparts.Count - 1);
+                Debug.LogWarning($"{name}: Missing InventoryItem or SlotManager reference.", this);
             }
+
+            if (infoHandler != null)
+            {
+                infoHandler.ShowInfoNow(texttoshow, sprite);
+            }
+            else
+            {
+                Debug.LogWarning($"{name}: Missing InfoHandler reference.", this);
+            }
+
+            broken = true;
+            isRebuilding = true;
+            StartCoroutine(RebuildTreeAfterSeconds(destroyDelaySeconds + rebuildDelaySeconds));
+        }
+        else
+        {
+            GameObject treepart = treeparts[treeparts.Count - 1];
+            if (treepart == null)
+            {
+                treeparts.RemoveAt(treeparts.Count - 1);
+                return;
+            }
+
+            Renderer renderer = treepart.GetComponent<MeshRenderer>();
+            if (renderer == null)
+            {
+                renderer = treepart.GetComponentInChildren<MeshRenderer>();
+            }
+            if (renderer == null)
+            {
+                Debug.LogWarning($"CutTree: No Renderer found on {treepart.name}");
+            }
+            else
+            {
+                renderer.enabled = false;
+            }
+            StartCoroutine(SetActiveAfterSeconds(treepart, destroyDelaySeconds, false));
+            treeparts.RemoveAt(treeparts.Count - 1);
         }
     }
 }

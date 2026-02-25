@@ -12,20 +12,23 @@ public class InfoHandler : MonoBehaviour
     public Sprite toshowimage;
     public float fadeDuration = 0.25f;
     public float showDuration = 2f;
-   
+    private Coroutine showInfoCoroutine;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public void ShowInfoNow(string message, Sprite icon)
     {
-        
+        texttoshow = message;
+        toshowimage = icon;
+
+        if (showInfoCoroutine != null)
+        {
+            StopCoroutine(showInfoCoroutine);
+            showInfoCoroutine = null;
+        }
+
+        showInfoCoroutine = StartCoroutine(ShowInfoRoutine());
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-    public IEnumerator showinfo()
+    private IEnumerator ShowInfoRoutine()
     {
         if (text != null) text.text = texttoshow;
         if (image != null && toshowimage != null) image.sprite = toshowimage;
@@ -57,6 +60,7 @@ public class InfoHandler : MonoBehaviour
         }
 
         SetEnabled(false);
+        showInfoCoroutine = null;
     }
 
     private void SetAlpha(float a)
