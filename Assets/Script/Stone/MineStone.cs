@@ -5,6 +5,8 @@ using Unity.VisualScripting;
 using System.Linq;
 public class MineStone : MonoBehaviour
 {
+    public string type;
+    public Material greymat;
       public string texttoshow;
     public Sprite sprite;
       public InfoHandler infoHandler;
@@ -20,7 +22,11 @@ public class MineStone : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-
+        foreach (GameObject part in parts)
+        {
+            MeshRenderer meshRenderer = part.GetComponent<MeshRenderer>();
+            meshRenderer.material = greymat;
+        }
     }
 
     // Update is called once per frame
@@ -30,6 +36,7 @@ public class MineStone : MonoBehaviour
     }
     public void Mine()
     {
+        Debug.Log("mine");
         if (counter > 0)
         {
             counter--;
@@ -47,8 +54,7 @@ public class MineStone : MonoBehaviour
                         {
                             MeshCollider meshCollider = objectik.GetComponent<MeshCollider>();
                         meshCollider.convex = true;
-                            Rigidbody rigidbody = objectik.GetComponent<Rigidbody>();
-                            rigidbody.useGravity = true;
+                          
                         }
                  StartCoroutine(DestroyAfterSeconds(fullstone, destroyDelaySeconds));
                   infoHandler.texttoshow = this.texttoshow;       

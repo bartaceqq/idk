@@ -100,15 +100,21 @@ public class RayScript : MonoBehaviour
                     }
                     if (hit.collider.CompareTag("Stone") || hit.collider.transform.root.CompareTag("Stone"))
                     {
-
                         StoneColliderScript stoneColliderScript = hit.collider.GetComponent<StoneColliderScript>();
-                        MineStone mineStone = stoneColliderScript.mineStone;
-                        if (mineStone != null)
+                        if (stoneColliderScript == null)
                         {
-                            Debug.Log("proslooooooo volle");
+                            stoneColliderScript = hit.collider.GetComponentInParent<StoneColliderScript>();
                         }
 
-                        StartCoroutine(TriggerAfterDelayPixkaxe(mineStone, cutDelaySeconds));
+                        if (stoneColliderScript != null && stoneColliderScript.mineStone != null)
+                        {
+                            Debug.Log("proslooooooo volle");
+                            StartCoroutine(TriggerAfterDelayPixkaxe(stoneColliderScript.mineStone, cutDelaySeconds));
+                        }
+                        else
+                        {
+                            Debug.LogWarning("Stone hit but MineStone reference is missing on hit object/parent.");
+                        }
 
 
 
