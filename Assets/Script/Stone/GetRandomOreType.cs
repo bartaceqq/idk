@@ -5,21 +5,20 @@ public class GetRandomOreType : MonoBehaviour
 {
     private readonly List<Ore> orelist = new List<Ore>();
     private Ore noore;
-    [SerializeField, Range(0f, 100f)] private float stoneChance = 60f;
-    private const float BaseIronChance = 25f;
-    private const float BaseGoldChance = 10f;
-    private const float BaseDiamondChance = 10f;
-    private const float BaseRadiumChance = 5f;
-    private const float BasePlasmaChance = 5f;
-    private const float BaseFlamingOreChance = 5f;
-    private const float BaseOreTotalChance = 60f;
+    [Header("Ore Chances (Percent)")]
+    [SerializeField, Range(0f, 100f)] private float ironChance = 12f;
+    [SerializeField, Range(0f, 100f)] private float goldChance = 6f;
+    [SerializeField, Range(0f, 100f)] private float diamondChance = 3f;
+    [SerializeField, Range(0f, 100f)] private float radiumChance = 1.5f;
+    [SerializeField, Range(0f, 100f)] private float plasmaChance = 0.5f;
+    [SerializeField, Range(0f, 100f)] private float flamingOreChance = 0.2f;
     public Material ironmaterial;
     public Material goldmaterial;
     public Material diamondmaterial;
     public Material radiummaterial;
     public Material plasmamaterial;
     public Material flaming_ore_material;
-     public Sprite ironsprite;
+    public Sprite ironsprite;
     public Sprite goldsprite;
     public Sprite diamondsprite;
     public Sprite radiumsprite;
@@ -64,54 +63,65 @@ public class GetRandomOreType : MonoBehaviour
             InitializeOreList();
         }
 
-        float clampedStoneChance = Mathf.Clamp(stoneChance, 0f, 100f);
-        float remainingChance = 100f - clampedStoneChance;
-        if (remainingChance <= 0f)
+        float clampedIronChance = Mathf.Clamp(ironChance, 0f, 100f);
+        float clampedGoldChance = Mathf.Clamp(goldChance, 0f, 100f);
+        float clampedDiamondChance = Mathf.Clamp(diamondChance, 0f, 100f);
+        float clampedRadiumChance = Mathf.Clamp(radiumChance, 0f, 100f);
+        float clampedPlasmaChance = Mathf.Clamp(plasmaChance, 0f, 100f);
+        float clampedFlamingOreChance = Mathf.Clamp(flamingOreChance, 0f, 100f);
+
+        float totalOreChance = clampedIronChance + clampedGoldChance + clampedDiamondChance +
+                               clampedRadiumChance + clampedPlasmaChance + clampedFlamingOreChance;
+
+        if (totalOreChance <= 0f)
         {
             return noore;
         }
 
-        float scale = remainingChance / BaseOreTotalChance;
-        float ironChance = BaseIronChance * scale;
-        float goldChance = BaseGoldChance * scale;
-        float diamondChance = BaseDiamondChance * scale;
-        float radiumChance = BaseRadiumChance * scale;
-        float plasmaChance = BasePlasmaChance * scale;
-        float flamingOreChance = BaseFlamingOreChance * scale;
+        if (totalOreChance > 100f)
+        {
+            float normalizeScale = 100f / totalOreChance;
+            clampedIronChance *= normalizeScale;
+            clampedGoldChance *= normalizeScale;
+            clampedDiamondChance *= normalizeScale;
+            clampedRadiumChance *= normalizeScale;
+            clampedPlasmaChance *= normalizeScale;
+            clampedFlamingOreChance *= normalizeScale;
+        }
 
         float roll = Random.Range(0f, 100f);
 
-        if (roll < ironChance)
+        if (roll < clampedIronChance)
         {
             return GetOreByName("iron");
         }
 
-        roll -= ironChance;
-        if (roll < goldChance)
+        roll -= clampedIronChance;
+        if (roll < clampedGoldChance)
         {
             return GetOreByName("gold");
         }
 
-        roll -= goldChance;
-        if (roll < diamondChance)
+        roll -= clampedGoldChance;
+        if (roll < clampedDiamondChance)
         {
             return GetOreByName("diamond");
         }
 
-        roll -= diamondChance;
-        if (roll < radiumChance)
+        roll -= clampedDiamondChance;
+        if (roll < clampedRadiumChance)
         {
             return GetOreByName("radium");
         }
 
-        roll -= radiumChance;
-        if (roll < plasmaChance)
+        roll -= clampedRadiumChance;
+        if (roll < clampedPlasmaChance)
         {
             return GetOreByName("plasma");
         }
 
-        roll -= plasmaChance;
-        if (roll < flamingOreChance)
+        roll -= clampedPlasmaChance;
+        if (roll < clampedFlamingOreChance)
         {
             return GetOreByName("flaming_ore");
         }
