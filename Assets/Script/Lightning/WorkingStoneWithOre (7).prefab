@@ -1,0 +1,691 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &3615194963071834970
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8833626623846584336, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: beee339ecec715048992fb8d03504ae8, type: 2}
+    - target: {fileID: -8679921383154817045, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -3
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 500
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -18.9
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.99945813
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.032917034
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: -3.773
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8079316942218868237, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: -7640558969779515294, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: -7230384925663580280, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: beee339ecec715048992fb8d03504ae8, type: 2}
+    - target: {fileID: -7146521406498821007, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: -6278865150895040424, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: beee339ecec715048992fb8d03504ae8, type: 2}
+    - target: {fileID: -5669767703265108083, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: beee339ecec715048992fb8d03504ae8, type: 2}
+    - target: {fileID: -5466136277637560987, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: -1184789509609642697, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: -516098083770646512, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_Name
+      value: WorkingStoneWithOre (7)
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: 2635624801654167351, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: beee339ecec715048992fb8d03504ae8, type: 2}
+    - target: {fileID: 5269788806354847629, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: 5424868935580826515, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: 6998466559314713455, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: 8416272007918961125, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: -8079316942218868237, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: -7640558969779515294, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: -7146521406498821007, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: -6093592463355912122, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: -6478536213147159724, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+    - target: {fileID: -1461304994638716399, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: -6478536213147159724, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+    - target: {fileID: -804731622281664130, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: -6478536213147159724, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+    - target: {fileID: -678588488315902003, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: -6478536213147159724, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+    - target: {fileID: -516098083770646512, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    - target: {fileID: 8416272007918961125, guid: 448f35a7be472304b85c5d32ebe46720, type: 3}
+      propertyPath: m_TagString
+      value: Stone
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3693612111959601465}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7690849955164106592}
+    - targetCorrespondingSourceObject: {fileID: -516098083770646512, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4044020694499048345}
+    - targetCorrespondingSourceObject: {fileID: -516098083770646512, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 660816174358776860}
+    - targetCorrespondingSourceObject: {fileID: 8416272007918961125, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 828263909428347534}
+    - targetCorrespondingSourceObject: {fileID: 8416272007918961125, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6143114921192559091}
+    - targetCorrespondingSourceObject: {fileID: -7146521406498821007, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6730546377491979336}
+    - targetCorrespondingSourceObject: {fileID: -7146521406498821007, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7369273863305536854}
+    - targetCorrespondingSourceObject: {fileID: -7640558969779515294, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3930686339488540641}
+    - targetCorrespondingSourceObject: {fileID: -7640558969779515294, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6143712515530234953}
+    - targetCorrespondingSourceObject: {fileID: -8079316942218868237, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7383565918085494589}
+    - targetCorrespondingSourceObject: {fileID: -8079316942218868237, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3009664297364870976}
+    - targetCorrespondingSourceObject: {fileID: 6998466559314713455, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6906760304038400404}
+    - targetCorrespondingSourceObject: {fileID: 6998466559314713455, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3302116607214091870}
+    - targetCorrespondingSourceObject: {fileID: 5269788806354847629, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 207171259557012756}
+    - targetCorrespondingSourceObject: {fileID: 5269788806354847629, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7121351830603514775}
+    - targetCorrespondingSourceObject: {fileID: -1184789509609642697, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8184417346621524367}
+    - targetCorrespondingSourceObject: {fileID: -1184789509609642697, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4587546591853620938}
+    - targetCorrespondingSourceObject: {fileID: 5424868935580826515, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3620339747652263339}
+    - targetCorrespondingSourceObject: {fileID: 5424868935580826515, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4306999951997418141}
+    - targetCorrespondingSourceObject: {fileID: -5466136277637560987, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 199942716483198579}
+    - targetCorrespondingSourceObject: {fileID: -5466136277637560987, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6035815401939230430}
+  m_SourcePrefab: {fileID: 100100000, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+--- !u!1 &436746557122158143 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -5466136277637560987, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+  m_PrefabInstance: {fileID: 3615194963071834970}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &199942716483198579
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 436746557122158143}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -5814115666759885941, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+--- !u!114 &6035815401939230430
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 436746557122158143}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d19ba56f5027ced4aa5423915af5a3c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneColliderScript
+  mineStone: {fileID: 3693612111959601465}
+--- !u!1 &2872320965263723320 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -7640558969779515294, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+  m_PrefabInstance: {fileID: 3615194963071834970}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &3930686339488540641
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2872320965263723320}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -5053925668127403250, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+--- !u!114 &6143712515530234953
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2872320965263723320}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d19ba56f5027ced4aa5423915af5a3c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneColliderScript
+  mineStone: {fileID: 3693612111959601465}
+--- !u!1 &3384934572105152299 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -7146521406498821007, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+  m_PrefabInstance: {fileID: 3615194963071834970}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &6730546377491979336
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3384934572105152299}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -8678823145569952518, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+--- !u!114 &7369273863305536854
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3384934572105152299}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d19ba56f5027ced4aa5423915af5a3c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneColliderScript
+  mineStone: {fileID: 3693612111959601465}
+--- !u!1 &4452723738841076393 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -8079316942218868237, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+  m_PrefabInstance: {fileID: 3615194963071834970}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &7383565918085494589
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4452723738841076393}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 3994466363676942776, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+--- !u!114 &3009664297364870976
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4452723738841076393}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d19ba56f5027ced4aa5423915af5a3c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneColliderScript
+  mineStone: {fileID: 3693612111959601465}
+--- !u!1 &4533622324064200203 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+  m_PrefabInstance: {fileID: 3615194963071834970}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &3693612111959601465
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4533622324064200203}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cb86eca5cfeb4a745ab8567e2fa02b23, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MineStone
+  type: 
+  greymat: {fileID: 2100000, guid: 2d9ca1e6643899049886f8be80ede788, type: 2}
+  texttoshow: Gained Stone
+  sprite: {fileID: 21300000, guid: 1f9c759acd482ac47929c115ff1bfbb8, type: 3}
+  infoHandler: {fileID: 0}
+  parts:
+  - {fileID: 5403672133102132042}
+  - {fileID: 5109151700346690239}
+  - {fileID: 3384934572105152299}
+  - {fileID: 2872320965263723320}
+  fullstone: {fileID: 4533622324064200203}
+  chosen: 
+  blackmaterial: {fileID: 2100000, guid: e334cb82c225d2c4099a7597883815aa, type: 2}
+  counter: 4
+  mainstoneparts:
+  - {fileID: 4452723738841076393}
+  - {fileID: 5995501579221516341}
+  - {fileID: 8865842009511943383}
+  - {fileID: 6747809090538716781}
+  - {fileID: 8746765787440947401}
+  - {fileID: 436746557122158143}
+  destroyDelaySeconds: 0.12
+  rebuildDelaySeconds: 10
+  inventoryItem: {fileID: 7690849955164106592}
+  orelist:
+  - {fileID: 5995501579221516341}
+  - {fileID: 8865842009511943383}
+  - {fileID: 6747809090538716781}
+  - {fileID: 8746765787440947401}
+  - {fileID: 436746557122158143}
+  getRandomOreType: {fileID: 0}
+  currentore: 
+--- !u!114 &7690849955164106592
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4533622324064200203}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22bbd1596f53f98429a95c658beef0b7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InventoryItem
+  inventorysprite: {fileID: 21300000, guid: a5920e0dfa637ea41858399efcf7f12b, type: 3}
+  name: Stone
+  mingain: 2
+  maxgain: 5
+  slotManager: {fileID: 0}
+--- !u!1 &5109151700346690239 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8416272007918961125, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+  m_PrefabInstance: {fileID: 3615194963071834970}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &828263909428347534
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5109151700346690239}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -1550514412580984892, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+--- !u!114 &6143114921192559091
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5109151700346690239}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d19ba56f5027ced4aa5423915af5a3c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneColliderScript
+  mineStone: {fileID: 3693612111959601465}
+--- !u!1 &5403672133102132042 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -516098083770646512, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+  m_PrefabInstance: {fileID: 3615194963071834970}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &4044020694499048345
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5403672133102132042}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 4493585093827132993, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+--- !u!114 &660816174358776860
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5403672133102132042}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d19ba56f5027ced4aa5423915af5a3c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneColliderScript
+  mineStone: {fileID: 3693612111959601465}
+--- !u!1 &5995501579221516341 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6998466559314713455, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+  m_PrefabInstance: {fileID: 3615194963071834970}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &6906760304038400404
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5995501579221516341}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 373172561612030820, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+--- !u!114 &3302116607214091870
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5995501579221516341}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d19ba56f5027ced4aa5423915af5a3c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneColliderScript
+  mineStone: {fileID: 3693612111959601465}
+--- !u!1 &6747809090538716781 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -1184789509609642697, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+  m_PrefabInstance: {fileID: 3615194963071834970}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &8184417346621524367
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6747809090538716781}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 409196018217704582, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+--- !u!114 &4587546591853620938
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6747809090538716781}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d19ba56f5027ced4aa5423915af5a3c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneColliderScript
+  mineStone: {fileID: 3693612111959601465}
+--- !u!1 &8746765787440947401 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5424868935580826515, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+  m_PrefabInstance: {fileID: 3615194963071834970}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &3620339747652263339
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8746765787440947401}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 7264693399371968754, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+--- !u!114 &4306999951997418141
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8746765787440947401}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d19ba56f5027ced4aa5423915af5a3c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneColliderScript
+  mineStone: {fileID: 3693612111959601465}
+--- !u!1 &8865842009511943383 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5269788806354847629, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+  m_PrefabInstance: {fileID: 3615194963071834970}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &207171259557012756
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8865842009511943383}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: -7964302587032038642, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}
+--- !u!114 &7121351830603514775
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8865842009511943383}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d19ba56f5027ced4aa5423915af5a3c5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoneColliderScript
+  mineStone: {fileID: 3693612111959601465}

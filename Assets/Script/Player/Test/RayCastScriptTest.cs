@@ -4,6 +4,11 @@ using UnityEngine;
 public class RayCastScriptTest : MonoBehaviour
 {
     private enum BuildType { Wall, Floor, Stair }
+    private static readonly Vector3 CenterViewportPoint = new Vector3(0.5f, 0.5f, 0f);
+    private const float TinyValue = 0.000001f;
+    private const float MinSize = 0.01f;
+    private const float MinTolerance = 0.001f;
+    private const float RotationToleranceDegrees = 1f;
 
     [Header("Placement")]
     public Camera camera;
@@ -58,7 +63,7 @@ public class RayCastScriptTest : MonoBehaviour
     public Color debugLineColorA = Color.red;
     public Color debugLineColorB = Color.yellow;
 
-    private GameObject _previewWall;
+    private GameObject _previewObject;
     private float _previewYRotation;
     private float _bottomOffset;
     private float _lastLoggedDistanceA = -1f;
@@ -105,47 +110,35 @@ public class RayCastScriptTest : MonoBehaviour
 
     private void Start()
     {
-        if (camera == null) camera = Camera.main;
+        EnsureCamera();
         InitializeBuildType();
         CreatePreviewObject();
     }
 
     private void Update()
     {
-        if (camera == null) camera = Camera.main;
-        if (camera == null) return;
+        // 1) Handle global mode input, 2) update preview, 3) place/extrude.
+        if (!EnsureCamera()) return;
 
-        if (Input.GetKeyDown(destroyModeKey))
-        {
-            ToggleDestroyMode();
-        }
-
+        HandleDestroyModeInput();
         if (_isDestroyMode)
         {
             HandleDestroyMode();
             return;
         }
 
-        GameObject activePrefab = GetActivePrefab();
-        if (activePrefab == null) return;
-
-        if (_previewWall == null)
+        if (!TryPrepareBuildPreview(out GameObject activePrefab))
         {
-            CreatePreviewObject();
-            if (_previewWall == null) return;
+            return;
         }
 
-        if (Input.GetMouseButtonDown(1))
+        HandleBuildTypeCycleInput(ref activePrefab);
+        if (activePrefab == null)
         {
-            if (_isExtruding) CancelExtrudeState();
-            ToggleBuildType();
-            activePrefab = GetActivePrefab();
-            if (activePrefab == null) return;
+            return;
         }
 
-        if (Input.GetKeyDown(extrudeKey)) ToggleExtrudeMode();
-        if (!_isExtruding && Input.GetKeyDown(rotateKey)) _previewYRotation += rotateStep;
-
+        HandleExtrudeAndRotationInput();
         if (_isExtruding)
         {
             HandleExtrudeDrag();
@@ -153,18 +146,89 @@ public class RayCastScriptTest : MonoBehaviour
         }
 
         MovePreviewObject();
-
         if (_isExtrudeMode)
         {
             HandleExtrudeIdleInput();
             return;
         }
 
-        if (Input.GetMouseButtonDown(0))
+        TryPlaceSingleObject(activePrefab);
+    }
+
+    private bool EnsureCamera()
+    {
+        if (camera == null)
         {
-            GameObject created = Instantiate(activePrefab, _previewWall.transform.position, _previewWall.transform.rotation);
-            ApplyMaterialToMeshRenderers(created, doneBuildMaterial);
+            camera = Camera.main;
         }
+
+        return camera != null;
+    }
+
+    private void HandleDestroyModeInput()
+    {
+        if (Input.GetKeyDown(destroyModeKey))
+        {
+            ToggleDestroyMode();
+        }
+    }
+
+    private bool TryPrepareBuildPreview(out GameObject activePrefab)
+    {
+        // We always need both: selected prefab + preview instance in scene.
+        activePrefab = GetActivePrefab();
+        if (activePrefab == null)
+        {
+            return false;
+        }
+
+        if (_previewObject != null)
+        {
+            return true;
+        }
+
+        CreatePreviewObject();
+        return _previewObject != null;
+    }
+
+    private void HandleBuildTypeCycleInput(ref GameObject activePrefab)
+    {
+        if (!Input.GetMouseButtonDown(1))
+        {
+            return;
+        }
+
+        if (_isExtruding)
+        {
+            CancelExtrudeState();
+        }
+
+        ToggleBuildType();
+        activePrefab = GetActivePrefab();
+    }
+
+    private void HandleExtrudeAndRotationInput()
+    {
+        if (Input.GetKeyDown(extrudeKey))
+        {
+            ToggleExtrudeMode();
+        }
+
+        if (!_isExtruding && Input.GetKeyDown(rotateKey))
+        {
+            _previewYRotation += rotateStep;
+        }
+    }
+
+    private void TryPlaceSingleObject(GameObject activePrefab)
+    {
+        if (!Input.GetMouseButtonDown(0))
+        {
+            return;
+        }
+
+        GameObject created = Instantiate(activePrefab, _previewObject.transform.position, _previewObject.transform.rotation);
+        ApplyMaterialToMeshRenderers(created, doneBuildMaterial);
     }
 
     private void InitializeBuildType()
@@ -214,25 +278,25 @@ public class RayCastScriptTest : MonoBehaviour
         GameObject activePrefab = GetActivePrefab();
         if (activePrefab == null) return;
 
-        if (_previewWall != null) Destroy(_previewWall);
+        if (_previewObject != null) Destroy(_previewObject);
 
-        _previewWall = Instantiate(activePrefab, Vector3.zero, Quaternion.identity);
-        ApplyMaterialToMeshRenderers(_previewWall, buildingMaterial);
-        _previewYRotation = _previewWall.transform.eulerAngles.y;
-        SetPreviewMode(_previewWall, true);
-        _bottomOffset = GetBottomOffset(_previewWall);
+        _previewObject = Instantiate(activePrefab, Vector3.zero, Quaternion.identity);
+        ApplyMaterialToMeshRenderers(_previewObject, buildingMaterial);
+        _previewYRotation = _previewObject.transform.eulerAngles.y;
+        SetPreviewMode(_previewObject, true);
+        _bottomOffset = GetBottomOffset(_previewObject);
         ClearSnapLock();
         CancelExtrudeState();
     }
 
     private void MovePreviewObject()
     {
-        Ray ray = camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        Ray ray = GetCenterRay();
         if (!Physics.Raycast(ray, out RaycastHit hit, range, hitMask, QueryTriggerInteraction.Ignore)) return;
 
         Vector3 rawPosition = GetRawPlacementPosition(hit);
         Quaternion rawRotation = Quaternion.Euler(0f, _previewYRotation, 0f);
-        _previewWall.transform.SetPositionAndRotation(rawPosition, rawRotation);
+        _previewObject.transform.SetPositionAndRotation(rawPosition, rawRotation);
 
         if (!enableTwoPointSnap)
         {
@@ -249,32 +313,39 @@ public class RayCastScriptTest : MonoBehaviour
 
         if (_buildType == BuildType.Floor)
         {
-            float targetY = hit.point.y;
-
-            // First: if we're aiming at an existing build piece, align Y from that piece type.
-            if (TryGetSnapOwnerFromCollider(hit.collider, out GameObject owner))
-            {
-                if (owner.TryGetComponent(out FloorScript _))
-                {
-                    // Place floor on the same level as existing floor.
-                    targetY = GetBottomY(owner);
-                }
-                else
-                {
-                    // Place floor on top of wall/stair.
-                    targetY = GetTopY(owner);
-                }
-            }
-            else if (floorPreferNearestPointY && TryGetNearestSnapPointYNearReference(out float nearestPointY))
-            {
-                targetY = nearestPointY;
-            }
-
-            rawPosition.y = targetY;
+            rawPosition.y = GetFloorPlacementY(hit);
         }
 
         rawPosition.y += _bottomOffset;
         return rawPosition;
+    }
+
+    private Ray GetCenterRay()
+    {
+        return camera.ViewportPointToRay(CenterViewportPoint);
+    }
+
+    private float GetFloorPlacementY(RaycastHit hit)
+    {
+        float targetY = hit.point.y;
+
+        // If we are aiming at a built object, snap to that object's level first.
+        if (TryGetSnapOwnerFromCollider(hit.collider, out GameObject owner))
+        {
+            if (owner.TryGetComponent(out FloorScript _))
+            {
+                return GetBottomY(owner);
+            }
+
+            return GetTopY(owner);
+        }
+
+        if (floorPreferNearestPointY && TryGetNearestSnapPointYNearReference(out float nearestPointY))
+        {
+            return nearestPointY;
+        }
+
+        return targetY;
     }
 
     private void ToggleDestroyMode()
@@ -284,7 +355,7 @@ public class RayCastScriptTest : MonoBehaviour
         {
             _isExtrudeMode = false;
             if (_isExtruding) CancelExtrudeState();
-            if (_previewWall != null) _previewWall.SetActive(false);
+            if (_previewObject != null) _previewObject.SetActive(false);
             ClearSnapLock();
             ClearDestroyTargetHighlight();
             LogDetectionState("Destroy mode: ON");
@@ -292,13 +363,13 @@ public class RayCastScriptTest : MonoBehaviour
         }
 
         ClearDestroyTargetHighlight();
-        if (_previewWall == null)
+        if (_previewObject == null)
         {
             CreatePreviewObject();
         }
         else
         {
-            _previewWall.SetActive(true);
+            _previewObject.SetActive(true);
         }
 
         LogDetectionState("Destroy mode: OFF");
@@ -306,7 +377,7 @@ public class RayCastScriptTest : MonoBehaviour
 
     private void HandleDestroyMode()
     {
-        Ray ray = camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        Ray ray = GetCenterRay();
         if (TryGetLookedAtBuildTarget(ray, out GameObject target))
         {
             SetDestroyTargetHighlight(target);
@@ -349,7 +420,7 @@ public class RayCastScriptTest : MonoBehaviour
                 continue;
             }
 
-            if (owner == null || owner == _previewWall || !owner.activeInHierarchy)
+            if (owner == null || owner == _previewObject || !owner.activeInHierarchy)
             {
                 continue;
             }
@@ -481,24 +552,24 @@ public class RayCastScriptTest : MonoBehaviour
     private void BeginExtrude()
     {
         _extrudePrefab = GetActivePrefab();
-        if (_previewWall == null || _extrudePrefab == null) return;
+        if (_previewObject == null || _extrudePrefab == null) return;
 
         _isExtruding = true;
         _extrudeBuildType = _buildType;
-        _extrudeStartPosition = _previewWall.transform.position;
-        _extrudeStartRotation = _previewWall.transform.rotation;
+        _extrudeStartPosition = _previewObject.transform.position;
+        _extrudeStartRotation = _previewObject.transform.rotation;
         _extrudeCellOffset = Vector2Int.zero;
 
         _extrudeRight = Vector3.ProjectOnPlane(_extrudeStartRotation * Vector3.right, Vector3.up);
         _extrudeForward = Vector3.ProjectOnPlane(_extrudeStartRotation * Vector3.forward, Vector3.up);
-        if (_extrudeRight.sqrMagnitude < 0.000001f) _extrudeRight = Vector3.right;
+        if (_extrudeRight.sqrMagnitude < TinyValue) _extrudeRight = Vector3.right;
         else _extrudeRight.Normalize();
 
-        if (_extrudeForward.sqrMagnitude < 0.000001f) _extrudeForward = Vector3.forward;
+        if (_extrudeForward.sqrMagnitude < TinyValue) _extrudeForward = Vector3.forward;
         else _extrudeForward.Normalize();
 
-        _extrudeCellSize = GetExtrudeCellSize(_previewWall, _extrudeRight, _extrudeForward);
-        _previewWall.transform.SetPositionAndRotation(_extrudeStartPosition, _extrudeStartRotation);
+        _extrudeCellSize = GetExtrudeCellSize(_previewObject, _extrudeRight, _extrudeForward);
+        _previewObject.transform.SetPositionAndRotation(_extrudeStartPosition, _extrudeStartRotation);
         ClearExtrudeGhosts();
     }
 
@@ -516,7 +587,7 @@ public class RayCastScriptTest : MonoBehaviour
             + (_extrudeRight * (xCells * _extrudeCellSize.x))
             + (_extrudeForward * (zCells * _extrudeCellSize.y));
         snappedPosition.y = _extrudeStartPosition.y;
-        _previewWall.transform.SetPositionAndRotation(snappedPosition, _extrudeStartRotation);
+        _previewObject.transform.SetPositionAndRotation(snappedPosition, _extrudeStartRotation);
         UpdateExtrudeGhosts();
     }
 
@@ -525,7 +596,7 @@ public class RayCastScriptTest : MonoBehaviour
         point = Vector3.zero;
         if (camera == null) return false;
 
-        Ray ray = camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        Ray ray = GetCenterRay();
         if (Physics.Raycast(ray, out RaycastHit hit, range, hitMask, QueryTriggerInteraction.Ignore))
         {
             point = hit.point;
@@ -552,7 +623,7 @@ public class RayCastScriptTest : MonoBehaviour
         int maxZ = Mathf.Max(0, _extrudeCellOffset.y);
 
         float occupyToleranceXZ = GetExtrudeOccupyToleranceXZ(_extrudeBuildType);
-        float occupyToleranceY = Mathf.Max(0.001f, extrudeOccupyToleranceY);
+        float occupyToleranceY = Mathf.Max(MinTolerance, extrudeOccupyToleranceY);
         List<Transform> existing = GetExistingTransformsForBuildType(_extrudeBuildType);
         int placedCount = 0;
         int skippedAsDuplicateCount = 0;
@@ -705,41 +776,31 @@ public class RayCastScriptTest : MonoBehaviour
         switch (type)
         {
             case BuildType.Wall:
-            {
-                WallSnapPoints[] walls = FindObjectsByType<WallSnapPoints>(FindObjectsSortMode.None);
-                for (int i = 0; i < walls.Length; i++)
-                {
-                    if (walls[i] == null || walls[i].gameObject == _previewWall || !walls[i].gameObject.activeInHierarchy) continue;
-                    transforms.Add(walls[i].transform);
-                }
-
+                AddActiveTransforms(FindObjectsByType<WallSnapPoints>(FindObjectsSortMode.None), transforms);
                 break;
-            }
             case BuildType.Floor:
-            {
-                FloorScript[] floors = FindObjectsByType<FloorScript>(FindObjectsSortMode.None);
-                for (int i = 0; i < floors.Length; i++)
-                {
-                    if (floors[i] == null || floors[i].gameObject == _previewWall || !floors[i].gameObject.activeInHierarchy) continue;
-                    transforms.Add(floors[i].transform);
-                }
-
+                AddActiveTransforms(FindObjectsByType<FloorScript>(FindObjectsSortMode.None), transforms);
                 break;
-            }
             case BuildType.Stair:
-            {
-                StairScript[] stairs = FindObjectsByType<StairScript>(FindObjectsSortMode.None);
-                for (int i = 0; i < stairs.Length; i++)
-                {
-                    if (stairs[i] == null || stairs[i].gameObject == _previewWall || !stairs[i].gameObject.activeInHierarchy) continue;
-                    transforms.Add(stairs[i].transform);
-                }
-
+                AddActiveTransforms(FindObjectsByType<StairScript>(FindObjectsSortMode.None), transforms);
                 break;
-            }
         }
 
         return transforms;
+    }
+
+    private void AddActiveTransforms<T>(T[] components, List<Transform> destination) where T : Component
+    {
+        for (int i = 0; i < components.Length; i++)
+        {
+            T component = components[i];
+            if (component == null || component.gameObject == _previewObject || !component.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            destination.Add(component.transform);
+        }
     }
 
     private static bool HasObjectAtPosition(
@@ -760,7 +821,7 @@ public class RayCastScriptTest : MonoBehaviour
             float dz = existingPosition.z - position.z;
             if ((dx * dx) + (dz * dz) > toleranceXZSq) continue;
             if (Mathf.Abs(existingPosition.y - position.y) > toleranceY) continue;
-            if (Quaternion.Angle(candidate.rotation, rotation) > 1f) continue;
+            if (Quaternion.Angle(candidate.rotation, rotation) > RotationToleranceDegrees) continue;
 
             return true;
         }
@@ -774,7 +835,7 @@ public class RayCastScriptTest : MonoBehaviour
         if (camera == null) return false;
 
         Plane plane = new Plane(Vector3.up, new Vector3(0f, planeY, 0f));
-        Ray ray = camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        Ray ray = GetCenterRay();
         if (!plane.Raycast(ray, out float enter)) return false;
 
         point = ray.GetPoint(enter);
@@ -808,15 +869,15 @@ public class RayCastScriptTest : MonoBehaviour
         if (TryGetWallExtrudeReferenceFloor(out GameObject referenceFloor))
         {
             Vector2 floorCell = GetPreviewCellSize(referenceFloor, axisRight, axisForward);
-            if (floorCell.x > 0.01f && floorCell.y > 0.01f)
+            if (floorCell.x > MinSize && floorCell.y > MinSize)
             {
                 cellSize = floorCell;
             }
         }
 
-        float spacingScale = Mathf.Max(0.01f, wallExtrudeSpacingScale);
-        cellSize.x = Mathf.Max(0.01f, cellSize.x * spacingScale);
-        cellSize.y = Mathf.Max(0.01f, cellSize.y * spacingScale);
+        float spacingScale = Mathf.Max(MinSize, wallExtrudeSpacingScale);
+        cellSize.x = Mathf.Max(MinSize, cellSize.x * spacingScale);
+        cellSize.y = Mathf.Max(MinSize, cellSize.y * spacingScale);
         return cellSize;
     }
 
@@ -836,7 +897,7 @@ public class RayCastScriptTest : MonoBehaviour
         for (int i = 0; i < floors.Length; i++)
         {
             FloorScript floorScript = floors[i];
-            if (floorScript == null || !floorScript.gameObject.activeInHierarchy || floorScript.gameObject == _previewWall)
+            if (floorScript == null || !floorScript.gameObject.activeInHierarchy || floorScript.gameObject == _previewObject)
             {
                 continue;
             }
@@ -868,11 +929,11 @@ public class RayCastScriptTest : MonoBehaviour
         switch (type)
         {
             case BuildType.Wall:
-                return Mathf.Max(0.001f, wallExtrudeOccupyToleranceXZ);
+                return Mathf.Max(MinTolerance, wallExtrudeOccupyToleranceXZ);
             case BuildType.Floor:
-                return Mathf.Max(0.001f, floorExtrudeOccupyToleranceXZ);
+                return Mathf.Max(MinTolerance, floorExtrudeOccupyToleranceXZ);
             case BuildType.Stair:
-                return Mathf.Max(0.001f, stairExtrudeOccupyToleranceXZ);
+                return Mathf.Max(MinTolerance, stairExtrudeOccupyToleranceXZ);
             default:
                 return 0.02f;
         }
@@ -886,7 +947,7 @@ public class RayCastScriptTest : MonoBehaviour
     {
         size = Vector2.zero;
         if (snapPoints == null || snapPoints.Length == 0) return false;
-        if (axisRight.sqrMagnitude < 0.000001f || axisForward.sqrMagnitude < 0.000001f) return false;
+        if (axisRight.sqrMagnitude < TinyValue || axisForward.sqrMagnitude < TinyValue) return false;
 
         axisRight.Normalize();
         axisForward.Normalize();
@@ -916,7 +977,7 @@ public class RayCastScriptTest : MonoBehaviour
 
         float sizeRight = maxRight - minRight;
         float sizeForward = maxForward - minForward;
-        if (sizeRight < 0.01f || sizeForward < 0.01f) return false;
+        if (sizeRight < MinSize || sizeForward < MinSize) return false;
 
         size = new Vector2(sizeRight, sizeForward);
         return true;
@@ -930,7 +991,7 @@ public class RayCastScriptTest : MonoBehaviour
     {
         size = Vector2.zero;
         if (!TryGetRenderableBoundsWithoutSnapMarkers(target, out Bounds bounds)) return false;
-        if (axisRight.sqrMagnitude < 0.000001f || axisForward.sqrMagnitude < 0.000001f) return false;
+        if (axisRight.sqrMagnitude < TinyValue || axisForward.sqrMagnitude < TinyValue) return false;
 
         axisRight.Normalize();
         axisForward.Normalize();
@@ -966,7 +1027,7 @@ public class RayCastScriptTest : MonoBehaviour
 
         float sizeRight = maxRight - minRight;
         float sizeForward = maxForward - minForward;
-        if (sizeRight < 0.01f || sizeForward < 0.01f) return false;
+        if (sizeRight < MinSize || sizeForward < MinSize) return false;
 
         size = new Vector2(sizeRight, sizeForward);
         return true;
@@ -978,7 +1039,7 @@ public class RayCastScriptTest : MonoBehaviour
         {
             if (TrySolveFromLockedPairs(rawPosition, rawRotation, out Vector3 lockedPosition, out Quaternion lockedRotation, out float lockedDistanceA, out float lockedDistanceB))
             {
-                _previewWall.transform.SetPositionAndRotation(lockedPosition, lockedRotation);
+                _previewObject.transform.SetPositionAndRotation(lockedPosition, lockedRotation);
                 DrawAndLogDistances(
                     _lockedPreviewA.transform.position,
                     _lockedTargetA.transform.position,
@@ -996,7 +1057,7 @@ public class RayCastScriptTest : MonoBehaviour
             }
 
             ClearSnapLock();
-            _previewWall.transform.SetPositionAndRotation(rawPosition, rawRotation);
+            _previewObject.transform.SetPositionAndRotation(rawPosition, rawRotation);
         }
 
         if (!TryGetClosestTwoPairsOnSameObject(
@@ -1027,7 +1088,7 @@ public class RayCastScriptTest : MonoBehaviour
 
         if (TrySolveFromLockedPairs(rawPosition, rawRotation, out Vector3 snappedPosition, out Quaternion snappedRotation, out float snappedDistanceA, out float snappedDistanceB))
         {
-            _previewWall.transform.SetPositionAndRotation(snappedPosition, snappedRotation);
+            _previewObject.transform.SetPositionAndRotation(snappedPosition, snappedRotation);
             DrawAndLogDistances(
                 _lockedPreviewA.transform.position,
                 _lockedTargetA.transform.position,
@@ -1072,7 +1133,7 @@ public class RayCastScriptTest : MonoBehaviour
         validTargets = 0;
         totalCandidates = 0;
 
-        if (!TryGetSnapPoints(_previewWall, out SnapPoint[] previewSnapPoints))
+        if (!TryGetSnapPoints(_previewObject, out SnapPoint[] previewSnapPoints))
         {
             LogDetectionState("Preview object has no snap points configured.");
             return false;
@@ -1144,7 +1205,7 @@ public class RayCastScriptTest : MonoBehaviour
         ref int validTargets,
         ref int totalCandidates)
     {
-        if (targetObject == null || targetObject == _previewWall || !targetObject.activeInHierarchy)
+        if (targetObject == null || targetObject == _previewObject || !targetObject.activeInHierarchy)
         {
             return;
         }
@@ -1252,7 +1313,7 @@ public class RayCastScriptTest : MonoBehaviour
             Vector3 previewVectorWorld = rawRotation * previewVector;
             Vector3 targetVector = targetWorldB - targetWorldA;
 
-            if (previewVectorWorld.sqrMagnitude > 0.000001f && targetVector.sqrMagnitude > 0.000001f)
+            if (previewVectorWorld.sqrMagnitude > TinyValue && targetVector.sqrMagnitude > TinyValue)
             {
                 Quaternion delta = Quaternion.FromToRotation(previewVectorWorld, targetVector);
                 rotation = delta * rawRotation;
@@ -1303,8 +1364,8 @@ public class RayCastScriptTest : MonoBehaviour
 
     private Vector3 GetScaledLocalPoint(SnapPoint point)
     {
-        Vector3 localPoint = _previewWall.transform.InverseTransformPoint(point.transform.position);
-        return Vector3.Scale(localPoint, _previewWall.transform.lossyScale);
+        Vector3 localPoint = _previewObject.transform.InverseTransformPoint(point.transform.position);
+        return Vector3.Scale(localPoint, _previewObject.transform.lossyScale);
     }
 
     private static void ApplyMaterialToMeshRenderers(GameObject target, Material material)
@@ -1425,118 +1486,81 @@ public class RayCastScriptTest : MonoBehaviour
 
     private static float GetTopY(GameObject target)
     {
-        Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
-        bool foundCollider = false;
-        float topY = float.MinValue;
-        for (int i = 0; i < colliders.Length; i++)
-        {
-            Collider c = colliders[i];
-            if (c == null || IsSnapMarkerTransform(c.transform))
-            {
-                continue;
-            }
-
-            if (!foundCollider)
-            {
-                topY = c.bounds.max.y;
-                foundCollider = true;
-            }
-            else
-            {
-                topY = Mathf.Max(topY, c.bounds.max.y);
-            }
-        }
-
-        if (foundCollider)
-        {
-            return topY;
-        }
-
-        Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
-        bool foundRenderer = false;
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            Renderer r = renderers[i];
-            if (r == null || IsSnapMarkerTransform(r.transform))
-            {
-                continue;
-            }
-
-            if (!foundRenderer)
-            {
-                topY = r.bounds.max.y;
-                foundRenderer = true;
-            }
-            else
-            {
-                topY = Mathf.Max(topY, r.bounds.max.y);
-            }
-        }
-
-        if (foundRenderer)
-        {
-            return topY;
-        }
-
-        return target.transform.position.y;
+        return TryGetExtremeY(target, searchTop: true, out float y) ? y : target.transform.position.y;
     }
 
     private static float GetBottomY(GameObject target)
     {
-        Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
-        bool foundCollider = false;
-        float bottomY = float.MaxValue;
+        return TryGetExtremeY(target, searchTop: false, out float y) ? y : target.transform.position.y;
+    }
+
+    private static bool TryGetExtremeY(GameObject target, bool searchTop, out float y)
+    {
+        // Prefer collider bounds, then renderer bounds if colliders are missing.
+        y = 0f;
+        if (target == null)
+        {
+            return false;
+        }
+
+        if (TryGetExtremeYFromColliders(target.GetComponentsInChildren<Collider>(true), searchTop, out y))
+        {
+            return true;
+        }
+
+        return TryGetExtremeYFromRenderers(target.GetComponentsInChildren<Renderer>(true), searchTop, out y);
+    }
+
+    private static bool TryGetExtremeYFromColliders(Collider[] colliders, bool searchTop, out float y)
+    {
+        y = searchTop ? float.MinValue : float.MaxValue;
+        bool found = false;
         for (int i = 0; i < colliders.Length; i++)
         {
-            Collider c = colliders[i];
-            if (c == null || IsSnapMarkerTransform(c.transform))
+            Collider collider = colliders[i];
+            if (collider == null || IsSnapMarkerTransform(collider.transform))
             {
                 continue;
             }
 
-            if (!foundCollider)
+            float candidate = searchTop ? collider.bounds.max.y : collider.bounds.min.y;
+            if (!found)
             {
-                bottomY = c.bounds.min.y;
-                foundCollider = true;
+                y = candidate;
+                found = true;
+                continue;
             }
-            else
-            {
-                bottomY = Mathf.Min(bottomY, c.bounds.min.y);
-            }
+
+            y = searchTop ? Mathf.Max(y, candidate) : Mathf.Min(y, candidate);
         }
 
-        if (foundCollider)
-        {
-            return bottomY;
-        }
+        return found;
+    }
 
-        Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
-        bool foundRenderer = false;
+    private static bool TryGetExtremeYFromRenderers(Renderer[] renderers, bool searchTop, out float y)
+    {
+        y = searchTop ? float.MinValue : float.MaxValue;
+        bool found = false;
         for (int i = 0; i < renderers.Length; i++)
         {
-            Renderer r = renderers[i];
-            if (r == null || IsSnapMarkerTransform(r.transform))
+            Renderer renderer = renderers[i];
+            if (renderer == null || IsSnapMarkerTransform(renderer.transform))
             {
                 continue;
             }
 
-            if (!foundRenderer)
+            float candidate = searchTop ? renderer.bounds.max.y : renderer.bounds.min.y;
+            if (!found)
             {
-                bottomY = r.bounds.min.y;
-                foundRenderer = true;
+                y = candidate;
+                found = true;
+                continue;
             }
-            else
-            {
-                bottomY = Mathf.Min(bottomY, r.bounds.min.y);
-            }
+
+            y = searchTop ? Mathf.Max(y, candidate) : Mathf.Min(y, candidate);
         }
 
-        if (foundRenderer)
-        {
-            return bottomY;
-        }
-
-        return target.transform.position.y;
+        return found;
     }
 
     private void ClearSnapLock()
@@ -1615,7 +1639,7 @@ public class RayCastScriptTest : MonoBehaviour
             return false;
         }
 
-        float radius = Mathf.Max(0.01f, floorNearestPointRadius);
+        float radius = Mathf.Max(MinSize, floorNearestPointRadius);
         float maxDistanceSqr = radius * radius;
         Vector3 referencePosition = reference.position;
         bool found = false;
@@ -1630,7 +1654,7 @@ public class RayCastScriptTest : MonoBehaviour
                 continue;
             }
 
-            if (_previewWall != null && snapPoint.transform.IsChildOf(_previewWall.transform))
+            if (_previewObject != null && snapPoint.transform.IsChildOf(_previewObject.transform))
             {
                 continue;
             }
@@ -1661,3 +1685,4 @@ public class RayCastScriptTest : MonoBehaviour
         return found;
     }
 }
+
