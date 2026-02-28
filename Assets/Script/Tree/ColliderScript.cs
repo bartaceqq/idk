@@ -3,19 +3,23 @@ using UnityEngine;
 public class ColliderScript : MonoBehaviour
 {
     public CutTree cutTree;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+
+    private void Awake()
     {
-        
+        if (cutTree == null)
+        {
+            cutTree = GetComponentInParent<CutTree>();
+        }
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
     public void Trigger()
     {
-        cutTree.CutPart();
+        if (cutTree != null)
+        {
+            cutTree.CutPart();
+            return;
+        }
+
+        Debug.LogWarning($"{name}: Missing CutTree reference.", this);
     }
 }

@@ -8,6 +8,18 @@ namespace Sydewa
 [ExecuteAlways]
 public class LightingManager : MonoBehaviour
 {
+        private static readonly int SkyboxBlendProperty = Shader.PropertyToID("_Blend");
+        private static readonly int SkyboxFaceBlendProperty = Shader.PropertyToID("_FaceBlend");
+        private static readonly string[] SkyboxTextureProps =
+        {
+            "_FrontTex",
+            "_BackTex",
+            "_LeftTex",
+            "_RightTex",
+            "_UpTex",
+            "_DownTex"
+        };
+
         //Credits to "Probably Spoonie" in youtube and his video https://www.youtube.com/watch?v=m9hj9PdO328&ab_channel=ProbablySpoonie
         //He made the original script and i've HEAVILY modified it to fit my needs. 
         //Hopefully this modified version is useful to you
@@ -49,7 +61,20 @@ public class LightingManager : MonoBehaviour
         public bool IsSkyBoxOn;
         public Material skyboxMat;
         public string customPropertyName;
+        [Space(5)]
+        [Tooltip("If enabled, the manager blends between two 6-sided skyboxes using TimeOfDay.")]
+        public bool UseDayNightSkyboxBlend;
+        public Material DaySkyboxMaterial;
+        public Material NightSkyboxMaterial;
+        [SerializeField] private Shader DayNightSkyboxBlendShader;
+        [SerializeField][Range(0.1f, 20f)] private float skyboxBlendSmoothness = 6f;
+        [SerializeField][Range(0.5f, 16f)] private float skyboxFaceSeamSoftness = 2f;
         private float skyboxParam;
+        private float currentSkyboxBlend;
+        private float previousSkyboxBlend = -1f;
+        private Material runtimeDayNightSkyboxMaterial;
+        private Material lastDaySkyboxRef;
+        private Material lastNightSkyboxRef;
 
         [Space(10)]
 
@@ -90,6 +115,9 @@ public class LightingManager : MonoBehaviour
                 }
             }
 
+            currentSkyboxBlend = EvaluateNightBlend(TimeOfDay / 24f);
+            previousSkyboxBlend = currentSkyboxBlend;
+
             if(IsEventsOn)
             {
                 ResetEvents();
@@ -100,6 +128,11 @@ public class LightingManager : MonoBehaviour
         {
             if (Preset == null)
                 return;
+
+            if (!UseDayNightSkyboxBlend && runtimeDayNightSkyboxMaterial != null)
+            {
+                CleanupRuntimeSkyboxMaterial();
+            }
 
             if (Application.isPlaying)
             {
@@ -197,9 +230,7 @@ public class LightingManager : MonoBehaviour
                     // Morning
                     float morningNormalizedTime = (timePercent - morningInterval.x) / (morningInterval.y - morningInterval.x);
                     intensity = Mathf.Lerp(lightIntensity.x, lightIntensity.y, morningNormalizedTime);
-
-                    if(IsSkyBoxOn)
-                        skyboxParam = Mathf.Lerp(1f, 0f, morningNormalizedTime);
+                    skyboxParam = Mathf.Lerp(1f, 0f, morningNormalizedTime);
 
                     _shadowStrength = Mathf.Lerp(0f, shadowStrength, morningNormalizedTime);
                 }
@@ -215,9 +246,7 @@ public class LightingManager : MonoBehaviour
                     // Afternoon
                     float afternoonNormalizedTime = (timePercent - afterNoonInterval.x) / (afterNoonInterval.y - afterNoonInterval.x);
                     intensity = Mathf.Lerp(lightIntensity.y, lightIntensity.x, afternoonNormalizedTime);
-
-                    if(IsSkyBoxOn)
-                        skyboxParam = Mathf.Lerp(0f, 1f, afternoonNormalizedTime);
+                    skyboxParam = Mathf.Lerp(0f, 1f, afternoonNormalizedTime);
                         
                     _shadowStrength = Mathf.Lerp(0f, shadowStrength, afternoonNormalizedTime);
                 }
@@ -228,13 +257,167 @@ public class LightingManager : MonoBehaviour
                     SunDirectionalLight.shadowStrength = _shadowStrength;
 
                 // Set skybox parameter
-                if(IsSkyBoxOn)
-                {
-                    skyboxMat.SetFloat(customPropertyName, skyboxParam);
-                }
+                ApplySkyboxValue(skyboxParam);
             
             }
 
+        }
+
+        private float EvaluateNightBlend(float timePercent)
+        {
+            if (timePercent < morningInterval.x || timePercent > afterNoonInterval.y)
+                return 1f;
+
+            if (timePercent >= morningInterval.x && timePercent <= morningInterval.y)
+            {
+                float range = morningInterval.y - morningInterval.x;
+                if (Mathf.Approximately(range, 0f))
+                    return 0f;
+
+                return 1f - ((timePercent - morningInterval.x) / range);
+            }
+
+            if (timePercent > morningInterval.y && timePercent < afterNoonInterval.x)
+                return 0f;
+
+            if (timePercent >= afterNoonInterval.x && timePercent <= afterNoonInterval.y)
+            {
+                float range = afterNoonInterval.y - afterNoonInterval.x;
+                if (Mathf.Approximately(range, 0f))
+                    return 1f;
+
+                return (timePercent - afterNoonInterval.x) / range;
+            }
+
+            return 0f;
+        }
+
+        private void ApplySkyboxValue(float targetNightBlend)
+        {
+            if (!IsSkyBoxOn)
+                return;
+
+            if (UseDayNightSkyboxBlend)
+            {
+                EnsureRuntimeSkyboxBlendMaterial();
+                if (runtimeDayNightSkyboxMaterial != null)
+                {
+                    float targetBlend = Mathf.Clamp01(targetNightBlend);
+                    if (Application.isPlaying)
+                    {
+                        currentSkyboxBlend = Mathf.MoveTowards(currentSkyboxBlend, targetBlend, skyboxBlendSmoothness * Time.deltaTime);
+                    }
+                    else
+                    {
+                        currentSkyboxBlend = targetBlend;
+                    }
+
+                    runtimeDayNightSkyboxMaterial.SetFloat(SkyboxBlendProperty, currentSkyboxBlend);
+                    runtimeDayNightSkyboxMaterial.SetFloat(SkyboxFaceBlendProperty, skyboxFaceSeamSoftness);
+
+                    if (RenderSettings.skybox != runtimeDayNightSkyboxMaterial)
+                    {
+                        RenderSettings.skybox = runtimeDayNightSkyboxMaterial;
+                    }
+
+                    if (Mathf.Abs(previousSkyboxBlend - currentSkyboxBlend) > 0.001f)
+                    {
+                        previousSkyboxBlend = currentSkyboxBlend;
+                        DynamicGI.UpdateEnvironment();
+                    }
+
+                    return;
+                }
+            }
+
+            if (skyboxMat != null && !string.IsNullOrWhiteSpace(customPropertyName) && skyboxMat.HasProperty(customPropertyName))
+            {
+                skyboxMat.SetFloat(customPropertyName, targetNightBlend);
+            }
+        }
+
+        private void EnsureRuntimeSkyboxBlendMaterial()
+        {
+            if (DaySkyboxMaterial == null || NightSkyboxMaterial == null)
+                return;
+
+            if (DayNightSkyboxBlendShader == null)
+            {
+                DayNightSkyboxBlendShader = Shader.Find("Skybox/6 Sided Blend");
+            }
+
+            if (DayNightSkyboxBlendShader == null)
+            {
+                Debug.LogWarning("Skybox blend shader not found. Assign 'Skybox/6 Sided Blend' to DayNightSkyboxBlendShader.");
+                return;
+            }
+
+            if (runtimeDayNightSkyboxMaterial == null || runtimeDayNightSkyboxMaterial.shader != DayNightSkyboxBlendShader)
+            {
+                runtimeDayNightSkyboxMaterial = new Material(DayNightSkyboxBlendShader)
+                {
+                    name = "Runtime_DayNightSkyboxBlend",
+                    hideFlags = HideFlags.DontSave
+                };
+                lastDaySkyboxRef = null;
+                lastNightSkyboxRef = null;
+            }
+
+            if (lastDaySkyboxRef != DaySkyboxMaterial || lastNightSkyboxRef != NightSkyboxMaterial)
+            {
+                CopySkyboxTexturesForBlend(DaySkyboxMaterial, NightSkyboxMaterial, runtimeDayNightSkyboxMaterial);
+                lastDaySkyboxRef = DaySkyboxMaterial;
+                lastNightSkyboxRef = NightSkyboxMaterial;
+            }
+        }
+
+        private static void CopySkyboxTexturesForBlend(Material daySkybox, Material nightSkybox, Material targetBlendMaterial)
+        {
+            if (daySkybox == null || nightSkybox == null || targetBlendMaterial == null)
+                return;
+
+            foreach (string prop in SkyboxTextureProps)
+            {
+                Texture dayTexture = daySkybox.HasProperty(prop) ? daySkybox.GetTexture(prop) : null;
+                Texture nightTexture = nightSkybox.HasProperty(prop) ? nightSkybox.GetTexture(prop) : null;
+
+                targetBlendMaterial.SetTexture(prop + "Day", dayTexture);
+                targetBlendMaterial.SetTexture(prop + "Night", nightTexture);
+            }
+
+            Color dayTint = daySkybox.HasProperty("_Tint") ? daySkybox.GetColor("_Tint") : Color.white;
+            Color nightTint = nightSkybox.HasProperty("_Tint") ? nightSkybox.GetColor("_Tint") : Color.white;
+            float dayExposure = daySkybox.HasProperty("_Exposure") ? daySkybox.GetFloat("_Exposure") : 1f;
+            float nightExposure = nightSkybox.HasProperty("_Exposure") ? nightSkybox.GetFloat("_Exposure") : 1f;
+
+            targetBlendMaterial.SetColor("_TintDay", dayTint);
+            targetBlendMaterial.SetColor("_TintNight", nightTint);
+            targetBlendMaterial.SetFloat("_ExposureDay", dayExposure);
+            targetBlendMaterial.SetFloat("_ExposureNight", nightExposure);
+        }
+
+        private void CleanupRuntimeSkyboxMaterial()
+        {
+            if (runtimeDayNightSkyboxMaterial == null)
+                return;
+
+            if (RenderSettings.skybox == runtimeDayNightSkyboxMaterial)
+            {
+                if (skyboxMat != null)
+                    RenderSettings.skybox = skyboxMat;
+                else if (DaySkyboxMaterial != null)
+                    RenderSettings.skybox = DaySkyboxMaterial;
+            }
+
+            if (Application.isPlaying)
+                Destroy(runtimeDayNightSkyboxMaterial);
+            else
+                DestroyImmediate(runtimeDayNightSkyboxMaterial);
+
+            runtimeDayNightSkyboxMaterial = null;
+            lastDaySkyboxRef = null;
+            lastNightSkyboxRef = null;
+            previousSkyboxBlend = -1f;
         }
 
         private void UpdateMoonLighting(float timePercent)
@@ -286,40 +469,50 @@ public class LightingManager : MonoBehaviour
             }
         }
 
+        private void OnDisable()
+        {
+            CleanupRuntimeSkyboxMaterial();
+        }
+
         //Try to find a directional light and skybox material to use if we haven't set one
         private void OnValidate()
         {
             //---------------------------Directional Light ----------------------------
-            if (SunDirectionalLight != null)
-                return;
-
-            //Search for lighting tab sun
-            if (RenderSettings.sun == null)
+            if (SunDirectionalLight == null)
             {
-                SunDirectionalLight = RenderSettings.sun;
-            }
-            //Search scene for light that fits criteria (directional)
-            else
-            {
-                Light[] lights = GameObject.FindObjectsOfType<Light>();
-                foreach (Light light in lights)
+                //Search for lighting tab sun
+                if (RenderSettings.sun != null)
                 {
-                    if (light.type == LightType.Directional)
+                    SunDirectionalLight = RenderSettings.sun;
+                }
+                //Search scene for light that fits criteria (directional)
+                else
+                {
+                    Light[] lights = GameObject.FindObjectsOfType<Light>();
+                    foreach (Light light in lights)
                     {
-                        SunDirectionalLight = light;
-                        return;
+                        if (light.type == LightType.Directional)
+                        {
+                            SunDirectionalLight = light;
+                            break;
+                        }
                     }
                 }
             }
 
             //--------------------------Skybox-------------------------------
-
-            if(skyboxMat != null)
-                return;
-
-            if(RenderSettings.skybox != null)
+            if (skyboxMat == null && RenderSettings.skybox != null)
             {
                 skyboxMat = RenderSettings.skybox;
+            }
+
+            if (UseDayNightSkyboxBlend)
+            {
+                EnsureRuntimeSkyboxBlendMaterial();
+            }
+            else if (runtimeDayNightSkyboxMaterial != null)
+            {
+                CleanupRuntimeSkyboxMaterial();
             }
 
             //------Moon

@@ -4,6 +4,9 @@ using UnityEngine;
 
 public class CutTree : MonoBehaviour
 {
+    private static InfoHandler cachedInfoHandler;
+    private static SlotManager cachedSlotManager;
+
     public string texttoshow;
     public Sprite sprite;
     public InfoHandler infoHandler;
@@ -32,20 +35,79 @@ public class CutTree : MonoBehaviour
 
     private void Awake()
     {
+        ResolveReferences();
         CacheInitialState();
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    private void OnValidate()
     {
-
+        if (!Application.isPlaying)
+        {
+            ResolveReferences();
+        }
     }
 
-    // Update is called once per frame
-    void Update()
+    private void ResolveReferences()
     {
+        if (inventoryItem == null)
+        {
+            inventoryItem = GetComponent<InventoryItem>();
+        }
 
+        if (infoHandler == null)
+        {
+            if (cachedInfoHandler == null)
+            {
+                cachedInfoHandler = FindInfoHandlerInScene();
+            }
+
+            infoHandler = cachedInfoHandler;
+        }
+        else
+        {
+            cachedInfoHandler = infoHandler;
+        }
+
+        if (inventoryItem == null)
+        {
+            return;
+        }
+
+        inventoryItem.ResolveReferences();
+
+        if (inventoryItem.slotManager == null)
+        {
+            if (cachedSlotManager == null)
+            {
+                cachedSlotManager = FindSlotManagerInScene();
+            }
+
+            inventoryItem.slotManager = cachedSlotManager;
+        }
+        else
+        {
+            cachedSlotManager = inventoryItem.slotManager;
+        }
     }
+
+    private static InfoHandler FindInfoHandlerInScene()
+    {
+#if UNITY_2023_1_OR_NEWER
+        return FindFirstObjectByType<InfoHandler>(FindObjectsInactive.Include);
+#else
+        return FindObjectOfType<InfoHandler>(true);
+#endif
+    }
+
+    private static SlotManager FindSlotManagerInScene()
+    {
+#if UNITY_2023_1_OR_NEWER
+        return FindFirstObjectByType<SlotManager>(FindObjectsInactive.Include);
+#else
+        return FindObjectOfType<SlotManager>(true);
+#endif
+    }
+
     private void CacheInitialState()
     {
         initialTreeParts.Clear();
@@ -179,6 +241,8 @@ public class CutTree : MonoBehaviour
 
     public void CutPart()
     {
+        ResolveReferences();
+
         if (broken || isRebuilding)
         {
             return;
