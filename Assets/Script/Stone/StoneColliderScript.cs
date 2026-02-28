@@ -3,15 +3,38 @@ using UnityEngine;
 public class StoneColliderScript : MonoBehaviour
 {
     public MineStone mineStone;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+
+    private void Awake()
     {
-        
+        ResolveReference();
     }
 
-    // Update is called once per frame
-    void Update()
+    private void OnValidate()
     {
-        
+        if (!Application.isPlaying)
+        {
+            ResolveReference();
+        }
+    }
+
+    private void ResolveReference()
+    {
+        if (mineStone == null)
+        {
+            mineStone = GetComponentInParent<MineStone>();
+        }
+    }
+
+    public void Trigger()
+    {
+        ResolveReference();
+        if (mineStone != null)
+        {
+            mineStone.Mine();
+        }
+        else
+        {
+            Debug.LogWarning($"{name}: Missing MineStone reference.", this);
+        }
     }
 }

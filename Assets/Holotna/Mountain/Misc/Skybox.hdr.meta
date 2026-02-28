@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 80f885eafd2dcff42b27cc409b56171a
+guid: cc820d9cdb40aeb4cb93a4feac0b23fc
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -125,10 +125,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 307488
-  packageName: Mountain - Stylized Fantasy Environment
-  packageVersion: 1.1
-  assetPath: Assets/Holotna/Mountain/Misc/Skybox.hdr
-  uploadId: 738207

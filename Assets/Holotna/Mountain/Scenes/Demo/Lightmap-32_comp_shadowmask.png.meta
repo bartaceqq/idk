@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: a1b0f71f7dc971d4cabdea7ae5a5697c
+guid: b27a6b77abe5c8444b821d307b13e8b4
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -125,10 +125,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 307488
-  packageName: Mountain - Stylized Fantasy Environment
-  packageVersion: 1.1
-  assetPath: Assets/Holotna/Mountain/Scenes/Demo/Lightmap-32_comp_shadowmask.png
-  uploadId: 738207

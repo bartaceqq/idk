@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: e8adef10571407340846147ce1f4eb50
+guid: 720370ec74097394fb0fd95147f541a3
 ScriptedImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -8,10 +8,3 @@ ScriptedImporter:
   assetBundleName: 
   assetBundleVariant: 
   script: {fileID: 11500000, guid: 625f186215c104763be7675aa2d941aa, type: 3}
-AssetOrigin:
-  serializedVersion: 1
-  productId: 307488
-  packageName: Mountain - Stylized Fantasy Environment
-  packageVersion: 1.1
-  assetPath: Assets/Holotna/Mountain/Shaders/PropMultiColor.shadergraph
-  uploadId: 738207

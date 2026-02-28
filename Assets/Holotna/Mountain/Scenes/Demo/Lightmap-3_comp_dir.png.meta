@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: b5d8564e8c2d7e14fa0e69fed59b33c0
+guid: 7db592692e3a4694f8807775f102165c
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -125,10 +125,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 307488
-  packageName: Mountain - Stylized Fantasy Environment
-  packageVersion: 1.1
-  assetPath: Assets/Holotna/Mountain/Scenes/Demo/Lightmap-3_comp_dir.png
-  uploadId: 738207

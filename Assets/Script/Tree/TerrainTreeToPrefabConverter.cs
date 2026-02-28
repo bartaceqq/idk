@@ -5,7 +5,9 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
 {
     [SerializeField] private Terrain targetTerrain;
     [SerializeField] private Transform parentForSpawnedTrees;
+    [Tooltip("If enabled, converter will only convert resource prefabs (CutTree/MineStone).")]
     [SerializeField] private bool convertOnlyCuttableTrees = true;
+    [SerializeField] private bool includeMineableStones = true;
     [SerializeField] private bool clearConvertedTerrainTrees = true;
 
     [ContextMenu("Convert Painted Trees To Prefabs")]
@@ -59,10 +61,16 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
                 continue;
             }
 
-            if (convertOnlyCuttableTrees && prototypePrefab.GetComponentInChildren<CutTree>(true) == null)
+            if (convertOnlyCuttableTrees)
             {
-                remainingInstances.Add(instance);
-                continue;
+                bool hasCutTree = prototypePrefab.GetComponentInChildren<CutTree>(true) != null;
+                bool hasMineStone = includeMineableStones && prototypePrefab.GetComponentInChildren<MineStone>(true) != null;
+
+                if (!hasCutTree && !hasMineStone)
+                {
+                    remainingInstances.Add(instance);
+                    continue;
+                }
             }
 
             Vector3 worldPosition = targetTerrain.transform.position + Vector3.Scale(instance.position, terrainData.size);

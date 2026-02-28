@@ -4,6 +4,9 @@ using System.Collections.Generic;
 
 public class MineStone : MonoBehaviour
 {
+    private static InfoHandler cachedInfoHandler;
+    private static GetRandomOreType cachedRandomOreType;
+
     public string type;
     public Material greymat;
     public string texttoshow;
@@ -27,13 +30,84 @@ public class MineStone : MonoBehaviour
     private readonly List<MeshCollider> cachedMainStoneColliders = new List<MeshCollider>();
     private readonly List<bool> cachedMainStoneColliderConvex = new List<bool>();
 
+    private void Awake()
+    {
+        ResolveReferences();
+    }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    private void OnValidate()
+    {
+        if (!Application.isPlaying)
+        {
+            ResolveReferences();
+        }
+    }
+
     void Start()
     {
+        ResolveReferences();
         initialCounter = counter;
         CacheMainStoneColliderDefaults();
         InitializeStoneState();
+    }
+
+    private void ResolveReferences()
+    {
+        if (infoHandler == null)
+        {
+            if (cachedInfoHandler == null)
+            {
+                cachedInfoHandler = FindInfoHandlerInScene();
+            }
+
+            infoHandler = cachedInfoHandler;
+        }
+        else
+        {
+            cachedInfoHandler = infoHandler;
+        }
+
+        if (getRandomOreType == null)
+        {
+            if (cachedRandomOreType == null)
+            {
+                cachedRandomOreType = FindOreTypeProviderInScene();
+            }
+
+            getRandomOreType = cachedRandomOreType;
+        }
+        else
+        {
+            cachedRandomOreType = getRandomOreType;
+        }
+
+        if (inventoryItem == null)
+        {
+            inventoryItem = GetComponent<InventoryItem>();
+        }
+
+        if (inventoryItem != null)
+        {
+            inventoryItem.ResolveReferences();
+        }
+    }
+
+    private static InfoHandler FindInfoHandlerInScene()
+    {
+#if UNITY_2023_1_OR_NEWER
+        return FindFirstObjectByType<InfoHandler>(FindObjectsInactive.Include);
+#else
+        return FindObjectOfType<InfoHandler>(true);
+#endif
+    }
+
+    private static GetRandomOreType FindOreTypeProviderInScene()
+    {
+#if UNITY_2023_1_OR_NEWER
+        return FindFirstObjectByType<GetRandomOreType>(FindObjectsInactive.Include);
+#else
+        return FindObjectOfType<GetRandomOreType>(true);
+#endif
     }
 
     private void InitializeStoneState()
@@ -52,9 +126,19 @@ public class MineStone : MonoBehaviour
 
     private void ApplyOreSelectionAndVisuals()
     {
+        ResolveReferences();
+
         if (getRandomOreType == null)
         {
-            Debug.LogError($"{name}: Missing GetRandomOreType reference.", this);
+            Debug.LogWarning($"{name}: Missing GetRandomOreType reference.", this);
+            selectedOre = null;
+            currentore = "noore";
+
+            if (inventoryItem != null)
+            {
+                inventoryItem.name = "stone";
+                inventoryItem.inventorysprite = sprite;
+            }
             return;
         }
 
@@ -96,6 +180,7 @@ public class MineStone : MonoBehaviour
     }
     public void Mine()
     {
+        ResolveReferences();
         Debug.Log("mine");
         if (isRebuilding)
         {
