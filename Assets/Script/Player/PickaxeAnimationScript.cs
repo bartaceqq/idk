@@ -1,22 +1,14 @@
-using UnityEngine;
+﻿using UnityEngine;
 
+// Controls Pickaxe Animation Script behavior.
 public class PickaxeAnimationScript : MonoBehaviour
 {
      public Animator animator;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    // Handle Mine.
     public void Mine()
     {
         
         animator.SetTrigger("Mine");
     }
 }
+

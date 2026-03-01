@@ -2,6 +2,7 @@
 using UnityEngine.InputSystem; // nový Input System
 
 [RequireComponent(typeof(CharacterController))]
+// Controls FPSController Test behavior.
 public class FPSControllerTest : MonoBehaviour
 {
    
@@ -145,6 +146,7 @@ public class FPSControllerTest : MonoBehaviour
         _cc.Move(finalVelocity * Time.deltaTime);
     }
 
+    // Handle Update Movement Flags.
     private void UpdateMovementFlags(Vector2 moveInput, bool isRunning)
     {
         const float deadzone = 0.1f;
@@ -167,6 +169,7 @@ public class FPSControllerTest : MonoBehaviour
         _isRightRun = right && isRunning;
     }
 
+    // Handle Run Callbacks.
     private void RunCallbacks()
     {
         OnJump(_isJumping);
@@ -181,6 +184,7 @@ public class FPSControllerTest : MonoBehaviour
         OnRightRun(_isRightRun);
     }
 
+    // Handle On Jump.
     public void OnJump(bool active)
     {
         if (active)
@@ -191,19 +195,23 @@ public class FPSControllerTest : MonoBehaviour
         }
     }
 
+    // Handle On Idle.
     public void OnIdle(bool active)
     {
         
     }
 
+    // Handle On Forward Walk.
     public void OnForwardWalk(bool active)
     {
       
     }
+    // Handle On Forward Run.
     public void OnForwardRun(bool active)
     {
     
     }
+    // Handle On Backward Walk.
     public void OnBackwardWalk(bool active)
     {
         if (active)
@@ -213,6 +221,7 @@ public class FPSControllerTest : MonoBehaviour
         {
         }
     }
+    // Handle On Backward Run.
     public void OnBackwardRun(bool active)
     {
         if (active)
@@ -222,6 +231,7 @@ public class FPSControllerTest : MonoBehaviour
         {
         }
     }
+    // Handle On Left Walk.
     public void OnLeftWalk(bool active)
     {
         if (active)
@@ -231,6 +241,7 @@ public class FPSControllerTest : MonoBehaviour
         {
         }
     }
+    // Handle On Left Run.
     public void OnLeftRun(bool active)
     {
         if (active)
@@ -240,6 +251,7 @@ public class FPSControllerTest : MonoBehaviour
         {
         }
     }
+    // Handle On Right Walk.
     public void OnRightWalk(bool active)
     {
         if (active)
@@ -249,6 +261,7 @@ public class FPSControllerTest : MonoBehaviour
         {
         }
     }
+    // Handle On Right Run.
     public void OnRightRun(bool active)
     {
         if (active)

@@ -1,8 +1,9 @@
-using System.Collections;
+﻿using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+// Controls Info Handler behavior.
 public class InfoHandler : MonoBehaviour
 {
     public TMP_Text text;
@@ -14,6 +15,7 @@ public class InfoHandler : MonoBehaviour
     public float showDuration = 2f;
     private Coroutine showInfoCoroutine;
 
+    // Handle Show Info Now.
     public void ShowInfoNow(string message, Sprite icon)
     {
         texttoshow = message;
@@ -28,6 +30,7 @@ public class InfoHandler : MonoBehaviour
         showInfoCoroutine = StartCoroutine(ShowInfoRoutine());
     }
 
+    // Handle Show Info Routine.
     private IEnumerator ShowInfoRoutine()
     {
         if (text != null) text.text = texttoshow;
@@ -63,6 +66,7 @@ public class InfoHandler : MonoBehaviour
         showInfoCoroutine = null;
     }
 
+    // Handle Set Alpha.
     private void SetAlpha(float a)
     {
         if (text != null)
@@ -85,6 +89,7 @@ public class InfoHandler : MonoBehaviour
         }
     }
 
+    // Handle Set Enabled.
     private void SetEnabled(bool enabled)
     {
         if (text != null) text.enabled = enabled;

@@ -1,6 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
+// Controls Ray Cast Script Test behavior.
 public class RayCastScriptTest : MonoBehaviour
 {
     private enum BuildType { Wall, Floor, Stair }
@@ -108,6 +109,7 @@ public class RayCastScriptTest : MonoBehaviour
         public float distance;
     }
 
+    // Run setup once before the first frame.
     private void Start()
     {
         EnsureCamera();
@@ -115,6 +117,7 @@ public class RayCastScriptTest : MonoBehaviour
         CreatePreviewObject();
     }
 
+    // Run this logic every frame.
     private void Update()
     {
         // 1) Handle global mode input, 2) update preview, 3) place/extrude.
@@ -155,6 +158,7 @@ public class RayCastScriptTest : MonoBehaviour
         TryPlaceSingleObject(activePrefab);
     }
 
+    // Handle Ensure Camera.
     private bool EnsureCamera()
     {
         if (camera == null)
@@ -165,6 +169,7 @@ public class RayCastScriptTest : MonoBehaviour
         return camera != null;
     }
 
+    // Handle Handle Destroy Mode Input.
     private void HandleDestroyModeInput()
     {
         if (Input.GetKeyDown(destroyModeKey))
@@ -173,6 +178,7 @@ public class RayCastScriptTest : MonoBehaviour
         }
     }
 
+    // Handle Try Prepare Build Preview.
     private bool TryPrepareBuildPreview(out GameObject activePrefab)
     {
         // We always need both: selected prefab + preview instance in scene.
@@ -191,6 +197,7 @@ public class RayCastScriptTest : MonoBehaviour
         return _previewObject != null;
     }
 
+    // Handle Handle Build Type Cycle Input.
     private void HandleBuildTypeCycleInput(ref GameObject activePrefab)
     {
         if (!Input.GetMouseButtonDown(1))
@@ -207,6 +214,7 @@ public class RayCastScriptTest : MonoBehaviour
         activePrefab = GetActivePrefab();
     }
 
+    // Handle Handle Extrude And Rotation Input.
     private void HandleExtrudeAndRotationInput()
     {
         if (Input.GetKeyDown(extrudeKey))
@@ -220,6 +228,7 @@ public class RayCastScriptTest : MonoBehaviour
         }
     }
 
+    // Handle Try Place Single Object.
     private void TryPlaceSingleObject(GameObject activePrefab)
     {
         if (!Input.GetMouseButtonDown(0))
@@ -231,12 +240,14 @@ public class RayCastScriptTest : MonoBehaviour
         ApplyMaterialToMeshRenderers(created, doneBuildMaterial);
     }
 
+    // Handle Initialize Build Type.
     private void InitializeBuildType()
     {
         RefreshAvailableBuildTypes();
         if (_availableBuildTypes.Count > 0) _buildType = _availableBuildTypes[0];
     }
 
+    // Handle Get Active Prefab.
     private GameObject GetActivePrefab()
     {
         return _buildType switch
@@ -248,6 +259,7 @@ public class RayCastScriptTest : MonoBehaviour
         };
     }
 
+    // Handle Toggle Build Type.
     private void ToggleBuildType()
     {
         RefreshAvailableBuildTypes();
@@ -265,6 +277,7 @@ public class RayCastScriptTest : MonoBehaviour
         LogDetectionState("Build mode: " + _buildType);
     }
 
+    // Handle Refresh Available Build Types.
     private void RefreshAvailableBuildTypes()
     {
         _availableBuildTypes.Clear();
@@ -273,6 +286,7 @@ public class RayCastScriptTest : MonoBehaviour
         if (stair != null) _availableBuildTypes.Add(BuildType.Stair);
     }
 
+    // Handle Create Preview Object.
     private void CreatePreviewObject()
     {
         GameObject activePrefab = GetActivePrefab();
@@ -289,6 +303,7 @@ public class RayCastScriptTest : MonoBehaviour
         CancelExtrudeState();
     }
 
+    // Handle Move Preview Object.
     private void MovePreviewObject()
     {
         Ray ray = GetCenterRay();
@@ -307,6 +322,7 @@ public class RayCastScriptTest : MonoBehaviour
         HandleStickyTwoPointSnap(rawPosition, rawRotation);
     }
 
+    // Handle Get Raw Placement Position.
     private Vector3 GetRawPlacementPosition(RaycastHit hit)
     {
         Vector3 rawPosition = hit.point;
@@ -320,11 +336,13 @@ public class RayCastScriptTest : MonoBehaviour
         return rawPosition;
     }
 
+    // Handle Get Center Ray.
     private Ray GetCenterRay()
     {
         return camera.ViewportPointToRay(CenterViewportPoint);
     }
 
+    // Handle Get Floor Placement Y.
     private float GetFloorPlacementY(RaycastHit hit)
     {
         float targetY = hit.point.y;
@@ -348,6 +366,7 @@ public class RayCastScriptTest : MonoBehaviour
         return targetY;
     }
 
+    // Handle Toggle Destroy Mode.
     private void ToggleDestroyMode()
     {
         _isDestroyMode = !_isDestroyMode;
@@ -375,6 +394,7 @@ public class RayCastScriptTest : MonoBehaviour
         LogDetectionState("Destroy mode: OFF");
     }
 
+    // Handle Handle Destroy Mode.
     private void HandleDestroyMode()
     {
         Ray ray = GetCenterRay();
@@ -397,6 +417,7 @@ public class RayCastScriptTest : MonoBehaviour
         Destroy(destroyNow);
     }
 
+    // Handle Try Get Looked At Build Target.
     private bool TryGetLookedAtBuildTarget(Ray ray, out GameObject target)
     {
         target = null;
@@ -437,6 +458,7 @@ public class RayCastScriptTest : MonoBehaviour
         return target != null;
     }
 
+    // Handle Set Destroy Target Highlight.
     private void SetDestroyTargetHighlight(GameObject target)
     {
         if (_destroyTarget == target)
@@ -481,6 +503,7 @@ public class RayCastScriptTest : MonoBehaviour
         }
     }
 
+    // Handle Clear Destroy Target Highlight.
     private void ClearDestroyTargetHighlight()
     {
         for (int i = 0; i < _destroyHighlightedRenderers.Count; i++)
@@ -505,6 +528,7 @@ public class RayCastScriptTest : MonoBehaviour
         _destroyTarget = null;
     }
 
+    // Handle Toggle Extrude Mode.
     private void ToggleExtrudeMode()
     {
         if (GetActivePrefab() == null)
@@ -519,6 +543,7 @@ public class RayCastScriptTest : MonoBehaviour
         LogDetectionState(_buildType + " extrude: " + (_isExtrudeMode ? "ON" : "OFF"));
     }
 
+    // Handle Handle Extrude Idle Input.
     private void HandleExtrudeIdleInput()
     {
         if (Input.GetKeyDown(KeyCode.Escape))
@@ -531,6 +556,7 @@ public class RayCastScriptTest : MonoBehaviour
         if (Input.GetMouseButtonDown(0)) BeginExtrude();
     }
 
+    // Handle Handle Extrude Drag.
     private void HandleExtrudeDrag()
     {
         if (Input.GetKeyDown(KeyCode.Escape))
@@ -549,6 +575,7 @@ public class RayCastScriptTest : MonoBehaviour
         }
     }
 
+    // Handle Begin Extrude.
     private void BeginExtrude()
     {
         _extrudePrefab = GetActivePrefab();
@@ -573,6 +600,7 @@ public class RayCastScriptTest : MonoBehaviour
         ClearExtrudeGhosts();
     }
 
+    // Handle Update Extrude Preview.
     private void UpdateExtrudePreview()
     {
         if (!TryGetCursorPointForExtrude(out Vector3 cursorPoint)) return;
@@ -591,6 +619,7 @@ public class RayCastScriptTest : MonoBehaviour
         UpdateExtrudeGhosts();
     }
 
+    // Handle Try Get Cursor Point For Extrude.
     private bool TryGetCursorPointForExtrude(out Vector3 point)
     {
         point = Vector3.zero;
@@ -612,6 +641,7 @@ public class RayCastScriptTest : MonoBehaviour
         return true;
     }
 
+    // Handle Commit Extrude.
     private void CommitExtrude()
     {
         if (_extrudePrefab == null) return;
@@ -660,6 +690,7 @@ public class RayCastScriptTest : MonoBehaviour
         UpdateExtrudePreview();
     }
 
+    // Handle Cancel Extrude State.
     private void CancelExtrudeState()
     {
         _isExtruding = false;
@@ -668,6 +699,7 @@ public class RayCastScriptTest : MonoBehaviour
         ClearExtrudeGhosts();
     }
 
+    // Handle Update Extrude Ghosts.
     private void UpdateExtrudeGhosts()
     {
         if (!_isExtruding || _extrudePrefab == null)
@@ -733,6 +765,7 @@ public class RayCastScriptTest : MonoBehaviour
         }
     }
 
+    // Handle Create Extrude Ghost.
     private GameObject CreateExtrudeGhost(Vector3 position)
     {
         GameObject ghost = Instantiate(_extrudePrefab, position, _extrudeStartRotation);
@@ -741,6 +774,7 @@ public class RayCastScriptTest : MonoBehaviour
         return ghost;
     }
 
+    // Handle Get Extrude Cell World Position.
     private Vector3 GetExtrudeCellWorldPosition(int xCell, int zCell)
     {
         return _extrudeStartPosition
@@ -748,6 +782,7 @@ public class RayCastScriptTest : MonoBehaviour
             + (_extrudeForward * (zCell * _extrudeCellSize.y));
     }
 
+    // Handle Clear Extrude Ghosts.
     private void ClearExtrudeGhosts()
     {
         if (_extrudeGhostByCell.Count == 0)
@@ -769,6 +804,7 @@ public class RayCastScriptTest : MonoBehaviour
         _extrudeGhostByCell.Clear();
     }
 
+    // Handle Get Existing Transforms For Build Type.
     private List<Transform> GetExistingTransformsForBuildType(BuildType type)
     {
         List<Transform> transforms = new List<Transform>(128);
@@ -829,6 +865,7 @@ public class RayCastScriptTest : MonoBehaviour
         return false;
     }
 
+    // Handle Try Get Cursor Point On Horizontal Plane.
     private bool TryGetCursorPointOnHorizontalPlane(float planeY, out Vector3 point)
     {
         point = Vector3.zero;
@@ -842,6 +879,7 @@ public class RayCastScriptTest : MonoBehaviour
         return true;
     }
 
+    // Handle Get Preview Cell Size.
     private Vector2 GetPreviewCellSize(GameObject target, Vector3 axisRight, Vector3 axisForward)
     {
         if (TryGetSnapPoints(target, out SnapPoint[] snapPoints) &&
@@ -858,6 +896,7 @@ public class RayCastScriptTest : MonoBehaviour
         return Vector2.one;
     }
 
+    // Handle Get Extrude Cell Size.
     private Vector2 GetExtrudeCellSize(GameObject target, Vector3 axisRight, Vector3 axisForward)
     {
         Vector2 cellSize = GetPreviewCellSize(target, axisRight, axisForward);
@@ -881,6 +920,7 @@ public class RayCastScriptTest : MonoBehaviour
         return cellSize;
     }
 
+    // Handle Try Get Wall Extrude Reference Floor.
     private bool TryGetWallExtrudeReferenceFloor(out GameObject floorReference)
     {
         floorReference = null;
@@ -924,6 +964,7 @@ public class RayCastScriptTest : MonoBehaviour
         return floorReference != null;
     }
 
+    // Handle Get Extrude Occupy Tolerance XZ.
     private float GetExtrudeOccupyToleranceXZ(BuildType type)
     {
         switch (type)
@@ -1033,6 +1074,7 @@ public class RayCastScriptTest : MonoBehaviour
         return true;
     }
 
+    // Handle Handle Sticky Two Point Snap.
     private void HandleStickyTwoPointSnap(Vector3 rawPosition, Quaternion rawRotation)
     {
         if (_isSnapLocked)
@@ -1333,6 +1375,7 @@ public class RayCastScriptTest : MonoBehaviour
         return true;
     }
 
+    // Handle Try Get Snap Points.
     private bool TryGetSnapPoints(GameObject target, out SnapPoint[] snapPoints)
     {
         snapPoints = null;
@@ -1362,12 +1405,14 @@ public class RayCastScriptTest : MonoBehaviour
         return false;
     }
 
+    // Handle Get Scaled Local Point.
     private Vector3 GetScaledLocalPoint(SnapPoint point)
     {
         Vector3 localPoint = _previewObject.transform.InverseTransformPoint(point.transform.position);
         return Vector3.Scale(localPoint, _previewObject.transform.lossyScale);
     }
 
+    // Handle Apply Material To Mesh Renderers.
     private static void ApplyMaterialToMeshRenderers(GameObject target, Material material)
     {
         if (target == null || material == null)
@@ -1436,6 +1481,7 @@ public class RayCastScriptTest : MonoBehaviour
         _lastLogTime = Time.time;
     }
 
+    // Handle Log Detection State.
     private void LogDetectionState(string message)
     {
         if (!logDetectionState)
@@ -1452,6 +1498,7 @@ public class RayCastScriptTest : MonoBehaviour
         _lastLogTime = Time.time;
     }
 
+    // Handle Try Get Snap Owner From Collider.
     private static bool TryGetSnapOwnerFromCollider(Collider hitCollider, out GameObject owner)
     {
         owner = null;
@@ -1484,16 +1531,19 @@ public class RayCastScriptTest : MonoBehaviour
         return false;
     }
 
+    // Handle Get Top Y.
     private static float GetTopY(GameObject target)
     {
         return TryGetExtremeY(target, searchTop: true, out float y) ? y : target.transform.position.y;
     }
 
+    // Handle Get Bottom Y.
     private static float GetBottomY(GameObject target)
     {
         return TryGetExtremeY(target, searchTop: false, out float y) ? y : target.transform.position.y;
     }
 
+    // Handle Try Get Extreme Y.
     private static bool TryGetExtremeY(GameObject target, bool searchTop, out float y)
     {
         // Prefer collider bounds, then renderer bounds if colliders are missing.
@@ -1511,6 +1561,7 @@ public class RayCastScriptTest : MonoBehaviour
         return TryGetExtremeYFromRenderers(target.GetComponentsInChildren<Renderer>(true), searchTop, out y);
     }
 
+    // Handle Try Get Extreme YFrom Colliders.
     private static bool TryGetExtremeYFromColliders(Collider[] colliders, bool searchTop, out float y)
     {
         y = searchTop ? float.MinValue : float.MaxValue;
@@ -1537,6 +1588,7 @@ public class RayCastScriptTest : MonoBehaviour
         return found;
     }
 
+    // Handle Try Get Extreme YFrom Renderers.
     private static bool TryGetExtremeYFromRenderers(Renderer[] renderers, bool searchTop, out float y)
     {
         y = searchTop ? float.MinValue : float.MaxValue;
@@ -1563,6 +1615,7 @@ public class RayCastScriptTest : MonoBehaviour
         return found;
     }
 
+    // Handle Clear Snap Lock.
     private void ClearSnapLock()
     {
         _isSnapLocked = false;
@@ -1574,6 +1627,7 @@ public class RayCastScriptTest : MonoBehaviour
         _lockedPreviewOffsetB = Vector3.zero;
     }
 
+    // Handle Set Preview Mode.
     private static void SetPreviewMode(GameObject target, bool isPreview)
     {
         Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
@@ -1583,6 +1637,7 @@ public class RayCastScriptTest : MonoBehaviour
         }
     }
 
+    // Handle Get Bottom Offset.
     private static float GetBottomOffset(GameObject target)
     {
         if (!TryGetRenderableBoundsWithoutSnapMarkers(target, out Bounds bounds))
@@ -1593,6 +1648,7 @@ public class RayCastScriptTest : MonoBehaviour
         return target.transform.position.y - bounds.min.y;
     }
 
+    // Handle Try Get Renderable Bounds Without Snap Markers.
     private static bool TryGetRenderableBoundsWithoutSnapMarkers(GameObject target, out Bounds bounds)
     {
         bounds = default;
@@ -1625,11 +1681,13 @@ public class RayCastScriptTest : MonoBehaviour
         return hasBounds;
     }
 
+    // Handle Is Snap Marker Transform.
     private static bool IsSnapMarkerTransform(Transform transformToCheck)
     {
         return transformToCheck != null && transformToCheck.GetComponentInParent<SnapPoint>() != null;
     }
 
+    // Handle Try Get Nearest Snap Point YNear Reference.
     private bool TryGetNearestSnapPointYNearReference(out float nearestY)
     {
         nearestY = 0f;

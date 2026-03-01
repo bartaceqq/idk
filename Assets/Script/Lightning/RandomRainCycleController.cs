@@ -1,8 +1,9 @@
-using System.Collections;
+﻿using System.Collections;
 using DigitalRuby.RainMaker;
 using UnityEngine;
 
 [DisallowMultipleComponent]
+// Controls Random Rain Cycle Controller behavior.
 public class RandomRainCycleController : MonoBehaviour
 {
     [Header("Rain Reference")]
@@ -36,11 +37,13 @@ public class RandomRainCycleController : MonoBehaviour
 
     private Coroutine weatherRoutine;
 
+    // Set default references and values in the editor.
     private void Reset()
     {
         rainScript = GetComponent<BaseRainScript>();
     }
 
+    // Run when this component becomes enabled.
     private void OnEnable()
     {
         if (rainScript == null)
@@ -58,6 +61,7 @@ public class RandomRainCycleController : MonoBehaviour
         weatherRoutine = StartCoroutine(WeatherLoop());
     }
 
+    // Run when this component becomes disabled.
     private void OnDisable()
     {
         if (weatherRoutine != null)
@@ -67,6 +71,7 @@ public class RandomRainCycleController : MonoBehaviour
         }
     }
 
+    // Run in the editor when values change in Inspector.
     private void OnValidate()
     {
         dryDurationRange = SanitizeRange(dryDurationRange, 60f);
@@ -84,6 +89,7 @@ public class RandomRainCycleController : MonoBehaviour
         }
     }
 
+    // Handle Weather Loop.
     private IEnumerator WeatherLoop()
     {
         bool currentlyRaining = startRaining;
@@ -109,6 +115,7 @@ public class RandomRainCycleController : MonoBehaviour
         }
     }
 
+    // Handle Dry Phase.
     private IEnumerator DryPhase()
     {
         ApplyWind(false);
@@ -116,6 +123,7 @@ public class RandomRainCycleController : MonoBehaviour
         yield return new WaitForSeconds(RandomInRange(dryDurationRange));
     }
 
+    // Handle Rain Phase.
     private IEnumerator RainPhase()
     {
         ApplyWind(true);
@@ -141,6 +149,7 @@ public class RandomRainCycleController : MonoBehaviour
         }
     }
 
+    // Handle Transition To Intensity.
     private IEnumerator TransitionToIntensity(float target, float duration)
     {
         if (duration <= 0f)
@@ -159,6 +168,7 @@ public class RandomRainCycleController : MonoBehaviour
         rainScript.RainIntensity = target;
     }
 
+    // Handle Apply Wind.
     private void ApplyWind(bool raining)
     {
         if (!controlWind || rainScript == null)
@@ -169,22 +179,26 @@ public class RandomRainCycleController : MonoBehaviour
         rainScript.EnableWind = raining ? windWhenRaining : windWhenDry;
     }
 
+    // Handle Random Rain Target.
     private float RandomRainTarget()
     {
         return Random.Range(minRainIntensity, maxRainIntensity);
     }
 
+    // Handle Speed To Target.
     private float SpeedToTarget(float target, float duration)
     {
         duration = Mathf.Max(duration, 0.01f);
         return Mathf.Abs(target - rainScript.RainIntensity) / duration;
     }
 
+    // Handle Random In Range.
     private static float RandomInRange(Vector2 range)
     {
         return Random.Range(range.x, range.y);
     }
 
+    // Handle Sanitize Range.
     private static Vector2 SanitizeRange(Vector2 value, float minimum)
     {
         float min = Mathf.Max(minimum, value.x);

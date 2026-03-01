@@ -1,26 +1,18 @@
-using UnityEngine;
+﻿using UnityEngine;
 
+// Controls Zombie Animation Script behavior.
 public class ZombieAnimationScript : MonoBehaviour
 {
     public Animator animator;
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    // Handle Throw Anim.
     public void ThrowAnim()
     {
         animator.SetTrigger("Throw");
     }
+    // Handle Move Anim.
     public void MoveAnim(bool status)
     {
         animator.SetBool("Walking", status);
     }
 }
+

@@ -1,6 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
+// Controls Stamina Script behavior.
 public class StaminaScript : MonoBehaviour
 {
     public bool enoughstamina;
@@ -8,7 +9,6 @@ public class StaminaScript : MonoBehaviour
     public float valuereduce = 0.6f;
     public float valueadd = -1f;
     public float swordSwingCost = 0.5f;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         if (valueadd < 0f)
@@ -21,12 +21,7 @@ public class StaminaScript : MonoBehaviour
             enoughstamina = image.fillAmount > 0f;
         }
     }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+// Handle Add Stamina.
     public void AddStamina()
     {
         if (image == null)
@@ -40,6 +35,7 @@ public class StaminaScript : MonoBehaviour
         enoughstamina = image.fillAmount > 0f;
         
     }
+    // Handle Reduce Stamina.
     public void ReduceStamina()
     {
         if (image == null)
@@ -53,6 +49,7 @@ public class StaminaScript : MonoBehaviour
         enoughstamina = image.fillAmount > 0f;
 
     }
+    // Handle Sword Swing.
     public bool SwordSwing()
     {
         if (image == null)
@@ -76,3 +73,4 @@ public class StaminaScript : MonoBehaviour
         return false;
     }
 }
+

@@ -1,6 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
+// Controls Item Switch Script behavior.
 public class ItemSwitchScript : MonoBehaviour
 {
     public List<Item> items = new List<Item>();
@@ -8,14 +9,7 @@ public class ItemSwitchScript : MonoBehaviour
     public string currentitemname;
 
     public Item item;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
+void Update()
     {
         foreach(Item item in items)
         {
@@ -47,3 +41,4 @@ public class ItemSwitchScript : MonoBehaviour
         }
     }
 }
+

@@ -1,22 +1,13 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
+// Controls A behavior.
 public class A : MonoBehaviour
 {
-    public
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    // Handle Chop Animation.
     public void ChopAnimation()
     {
         
     }
 }
+

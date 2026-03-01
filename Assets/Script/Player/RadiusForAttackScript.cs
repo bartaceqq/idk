@@ -1,5 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
+// Controls Radius For Attack Script behavior.
 public class RadiusForAttackScript : MonoBehaviour
 {
     public GameObject player;
@@ -12,6 +13,7 @@ public class RadiusForAttackScript : MonoBehaviour
         ResolveReferences();
     }
 
+    // Handle Resolve References.
     private void ResolveReferences()
     {
         if (player == null)
@@ -24,6 +26,7 @@ public class RadiusForAttackScript : MonoBehaviour
         }
     }
 
+    // Handle Attack.
     public void Attack()
     {
         ResolveReferences();
@@ -55,6 +58,7 @@ public class RadiusForAttackScript : MonoBehaviour
         }
     }
 
+    // Handle Try Apply Damage.
     private void TryApplyDamage(Vector3 enemyPosition, GameObject enemyObject, float radiusSqr)
     {
         Vector3 delta = enemyPosition - player.transform.position;

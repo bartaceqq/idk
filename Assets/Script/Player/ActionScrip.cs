@@ -1,5 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
+// Controls Action Script behavior.
 public class ActionScript : MonoBehaviour
 {
     public bool enoughstamina;
@@ -9,23 +10,14 @@ public class ActionScript : MonoBehaviour
     public AxeAnimationScript axeAnimationScript;
     public PickaxeAnimationScript pickaxeAnimationScript;
     public SwordAnimationScript swordAnimationScript;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-       
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
    
     
+    // Handle Chop.
     public void Chop()
     {
         axeAnimationScript.ChopAnimation();
     }
+    // Handle Walk.
     public void Walk(bool status)
     {
         
@@ -33,6 +25,7 @@ public class ActionScript : MonoBehaviour
          movementAnimationScript.WalkAnimation_Foreward(status);
         
     }
+    // Handle Sprint.
     public void Sprint(bool status)
     {
         
@@ -49,14 +42,17 @@ public class ActionScript : MonoBehaviour
         }
         
     }
+    // Handle Idle.
     public void Idle(bool status)
     {
         movementAnimationScript.IdleAnimation(status);
     }
+    // Handle Mine.
     public void Mine()
     {
         pickaxeAnimationScript.Mine();
     }
+    // Handle Attack.
     public void Attack()
     {
         swordAnimationScript.Attack();
@@ -64,3 +60,4 @@ public class ActionScript : MonoBehaviour
     
 
 }
+

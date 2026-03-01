@@ -1,7 +1,8 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+// Controls Inventory Controller behavior.
 public class InventoryController : MonoBehaviour
 {
     public bool UIshown = false;
@@ -24,6 +25,7 @@ public class InventoryController : MonoBehaviour
         }
     }
 
+    // Handle Apply UIState.
     private void ApplyUIState()
     {
         if (inventoryobject == null)

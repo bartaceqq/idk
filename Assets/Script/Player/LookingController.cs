@@ -1,6 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
+// Controls Looking Controller behavior.
 public class LookingController : MonoBehaviour
 {
     public KeyCode keycode = KeyCode.B;
@@ -12,11 +13,13 @@ public class LookingController : MonoBehaviour
     public Transform normalLookTransform;
     public Transform buildingLookTransform;
 
+    // Run setup once before the first frame.
     private void Start()
     {
         SyncSwitchStateFromActiveCapsule();
     }
 
+    // Run this logic every frame.
     private void Update()
     {
         if (Input.GetKeyDown(keycode))
@@ -25,6 +28,7 @@ public class LookingController : MonoBehaviour
         }
     }
 
+    // Handle Switch.
     public void Switch()
     {
         if (normalcapsule == null || buildingcapsule == null)
@@ -78,6 +82,7 @@ public class LookingController : MonoBehaviour
         Cursor.visible = false;
     }
 
+    // Handle Resolve Look Transform.
     private static Transform ResolveLookTransform(GameObject capsule, Transform explicitLookTransform)
     {
         if (explicitLookTransform != null)
@@ -99,6 +104,7 @@ public class LookingController : MonoBehaviour
         return capsule.transform;
     }
 
+    // Handle Sync Switch State From Active Capsule.
     private void SyncSwitchStateFromActiveCapsule()
     {
         bool normalActive = normalcapsule != null && normalcapsule.activeInHierarchy;
@@ -116,6 +122,7 @@ public class LookingController : MonoBehaviour
         }
     }
 
+    // Handle Activate Primary Player Input.
     private static void ActivatePrimaryPlayerInput(GameObject capsule)
     {
         if (capsule == null)

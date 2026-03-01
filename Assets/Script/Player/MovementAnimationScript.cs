@@ -1,19 +1,10 @@
-using UnityEngine;
+﻿using UnityEngine;
 
+// Controls Movement Animation Script behavior.
 public class MovementAnimationScript : MonoBehaviour
 {
     public Animator animator;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    // Handle Walk Animation Foreward.
     public void WalkAnimation_Foreward(bool status)
 
     {
@@ -25,6 +16,7 @@ public class MovementAnimationScript : MonoBehaviour
             animator.SetBool("Foreward", false);   
         }
     }
+    // Handle Run Animation Foreward.
     public void RunAnimation_Foreward(bool status)
 
     {
@@ -36,6 +28,7 @@ public class MovementAnimationScript : MonoBehaviour
             animator.SetBool("Sprinting", false);   
         }
     }
+    // Handle Idle Animation.
     public void IdleAnimation(bool status)
     {
         if (status)
@@ -48,3 +41,4 @@ public class MovementAnimationScript : MonoBehaviour
     }
   
 }
+

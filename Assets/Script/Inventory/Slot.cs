@@ -1,7 +1,8 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+// Controls Slot behavior.
 public class Slot : MonoBehaviour
 {
     public Sprite sprite;
@@ -13,12 +14,13 @@ public class Slot : MonoBehaviour
 
     void Start()
     {
-        if (slotManager != null && !slotManager.slots.Contains(this))
+        if (slotManager != null)
         {
-            slotManager.slots.Add(this);
+            slotManager.RegisterSlot(this);
         }
     }
 
+    // Handle Add Item.
     public void AddItem(InventoryItem inventoryItem)
     {
         if (sprite == null)
@@ -31,6 +33,7 @@ public class Slot : MonoBehaviour
         UpdateUI();
     }
 
+    // Handle Get Count.
     public int GetCount(InventoryItem inventoryItem)
     {
         if (inventoryItem.mingain == inventoryItem.maxgain)
@@ -43,6 +46,7 @@ public class Slot : MonoBehaviour
         return Random.Range(min, max + 1);
     }
 
+    // Handle Matches Item.
     public bool MatchesItem(InventoryItem inventoryItem)
     {
         if (inventoryItem == null)
@@ -55,6 +59,7 @@ public class Slot : MonoBehaviour
                itemName == inventoryItem.name;
     }
 
+    // Handle Update UI.
     public void UpdateUI()
     {
         if (image != null)

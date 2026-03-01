@@ -1,6 +1,7 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 
+// Controls Ray Script behavior.
 public class RayScript : MonoBehaviour
 {
     public ParticleSystem stoneparticle;
@@ -15,16 +16,21 @@ public class RayScript : MonoBehaviour
     public float swordAttackCooldownSeconds = 2.5f;
     public float swordHitDelaySeconds = 1.10f;
     private float _nextSwingTime;
+    private float _nextAxeSwingTime;
+    private float _nextPickaxeSwingTime;
+    private bool _axeSoundPlayedThisSwing;
     public RadiusForAttackScript radiusForAttackScript;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
+    [Header("Weapon Sounds")]
+    public AudioSource axeaudiosource;
+    public AudioSource pickaxeAudioSource;
+    public AudioSource swordAudioSource;
 
-    }
+    [Header("Sound Delays")]
+    public float pickaxeSoundDelaySeconds = 0.1f;
+    public float swordSoundDelaySeconds = 0.1f;
 
-    // Update is called once per frame
-    void Update()
+    private void Update()
     {
         if (Input.GetMouseButtonDown(0) && Time.time >= _nextSwingTime)
         {
@@ -35,6 +41,7 @@ public class RayScript : MonoBehaviour
             }
         }
     }
+    // Handle Ray Check.
     public float RayCheck()
     {
         int currentItemId = itemSwitchScript != null ? itemSwitchScript.currentitemid : 0;
@@ -48,6 +55,7 @@ public class RayScript : MonoBehaviour
                 {
                     actionScript.Attack();
                     StartCoroutine(TriggerSwordAttackAfterDelay(swordHitDelaySeconds));
+                    PlaySoundAtSwingStart(swordAudioSource, swordSoundDelaySeconds);
                 }
             }
 
@@ -69,9 +77,19 @@ public class RayScript : MonoBehaviour
             switch (currentItemId)
             {
                 case 1:
+                    if (Time.time < _nextAxeSwingTime)
+                    {
+                        return _nextAxeSwingTime - Time.time;
+                    }
+
+                    // A new axe animation cycle starts here.
+                    _nextAxeSwingTime = Time.time + swingCooldownSeconds;
+                    _axeSoundPlayedThisSwing = false;
+
                     if (actionScript != null)
                     {
                         actionScript.Chop();
+                        PlayAxeSoundOncePerSwing();
                     }
 
                     if (hit.collider.CompareTag("Tree") || hit.collider.transform.root.CompareTag("Tree"))
@@ -94,9 +112,17 @@ public class RayScript : MonoBehaviour
 
                     return swingCooldownSeconds;
                 case 2:
+                    if (Time.time < _nextPickaxeSwingTime)
+                    {
+                        return _nextPickaxeSwingTime - Time.time;
+                    }
+
+                    _nextPickaxeSwingTime = Time.time + swingCooldownSeconds;
+
                     if (actionScript != null)
                     {
                         actionScript.Mine();
+                        PlaySoundAtSwingStart(pickaxeAudioSource, pickaxeSoundDelaySeconds);
                     }
                     if (hit.collider.CompareTag("Stone") || hit.collider.transform.root.CompareTag("Stone"))
                     {
@@ -131,6 +157,7 @@ public class RayScript : MonoBehaviour
     }
 
 
+    // Handle Trigger After Delay Axe.
     private IEnumerator TriggerAfterDelayAxe(ColliderScript colliderScript, float delaySeconds)
     {
         yield return new WaitForSeconds(delaySeconds);
@@ -140,6 +167,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Trigger After Delay Pixkaxe.
     private IEnumerator TriggerAfterDelayPixkaxe(MineStone mineStone, float delaySeconds)
     {
         yield return new WaitForSeconds(delaySeconds);
@@ -149,6 +177,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Trigger Sword Attack After Delay.
     private IEnumerator TriggerSwordAttackAfterDelay(float delaySeconds)
     {
         yield return new WaitForSeconds(delaySeconds);
@@ -157,4 +186,39 @@ public class RayScript : MonoBehaviour
             radiusForAttackScript.Attack();
         }
     }
+
+    // Handle Play Sound At Swing Start.
+    private void PlaySoundAtSwingStart(AudioSource source, float delaySeconds)
+    {
+        if (source == null)
+        {
+            return;
+        }
+
+        // New swing should be heard from the beginning, so override previous playback.
+        source.Stop();
+
+        if (delaySeconds > 0f)
+        {
+            source.PlayDelayed(delaySeconds);
+        }
+        else
+        {
+            source.Play();
+        }
+    }
+
+    // Play axe sound only once for the current axe animation cycle.
+    // It resets when a new axe swing starts.
+    private void PlayAxeSoundOncePerSwing()
+    {
+        if (_axeSoundPlayedThisSwing || axeaudiosource == null)
+        {
+            return;
+        }
+
+        _axeSoundPlayedThisSwing = true;
+        PlaySoundAtSwingStart(axeaudiosource, 0f);
+    }
 }
+

@@ -1,6 +1,7 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 
+// Controls NPCDemage Script behavior.
 public class NPCDemageScript : MonoBehaviour
 {
     public Animator animator;
@@ -36,11 +37,13 @@ public class NPCDemageScript : MonoBehaviour
         }
     }
 
+    // Handle Take Demage.
     public void TakeDemage()
     {
         TakeDemage(defaultDamage);
     }
 
+    // Handle Take Demage.
     public void TakeDemage(float damage)
     {
         if (npcHealthScript != null && npcHealthScript.IsDead)
@@ -68,6 +71,7 @@ public class NPCDemageScript : MonoBehaviour
         _flashRoutine = StartCoroutine(FlashDamageMaterial());
     }
 
+    // Handle Play Damage Reaction.
     private void PlayDamageReaction()
     {
         if (animator == null) return;
@@ -92,6 +96,7 @@ public class NPCDemageScript : MonoBehaviour
         }
     }
 
+    // Handle Lock Enemy Actions.
     private void LockEnemyActions()
     {
         float lockSeconds = Mathf.Max(0f, reactionLockSeconds);
@@ -118,6 +123,7 @@ public class NPCDemageScript : MonoBehaviour
         }
     }
 
+    // Handle Set Bool If Exists.
     private void SetBoolIfExists(string parameterName, bool value)
     {
         if (HasParameter(parameterName, AnimatorControllerParameterType.Bool))
@@ -126,6 +132,7 @@ public class NPCDemageScript : MonoBehaviour
         }
     }
 
+    // Handle Reset Trigger If Exists.
     private void ResetTriggerIfExists(string parameterName)
     {
         if (HasParameter(parameterName, AnimatorControllerParameterType.Trigger))
@@ -134,6 +141,7 @@ public class NPCDemageScript : MonoBehaviour
         }
     }
 
+    // Handle Has Parameter.
     private bool HasParameter(string parameterName, AnimatorControllerParameterType type)
     {
         if (animator == null || string.IsNullOrEmpty(parameterName))
@@ -152,6 +160,7 @@ public class NPCDemageScript : MonoBehaviour
         return false;
     }
 
+    // Handle Flash Damage Material.
     private IEnumerator FlashDamageMaterial()
     {
         if (_targetRenderer == null)

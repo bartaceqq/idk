@@ -1,8 +1,9 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.VFX;
 
+// Controls Random Zombie Script behavior.
 public class RandomZombieScript : MonoBehaviour
 {
     [Header("References")]
@@ -109,6 +110,7 @@ public class RandomZombieScript : MonoBehaviour
         SetWalkAnimation(true);
     }
 
+    // Handle Resolve Player Transform.
     private void ResolvePlayerTransform()
     {
         Transform resolved = null;
@@ -164,6 +166,7 @@ public class RandomZombieScript : MonoBehaviour
         playertransform = resolved;
     }
 
+    // Handle Chase Player.
     private void ChasePlayer()
     {
         if (!CanUseNavMeshAgent() || playertransform == null)
@@ -175,6 +178,7 @@ public class RandomZombieScript : MonoBehaviour
         navMeshAgent.SetDestination(playertransform.position);
     }
 
+    // Handle Stop Moving.
     private void StopMoving()
     {
         if (!CanUseNavMeshAgent())
@@ -189,6 +193,7 @@ public class RandomZombieScript : MonoBehaviour
         }
     }
 
+    // Handle Face Player.
     private void FacePlayer()
     {
         Vector3 toPlayer = playertransform.position - transform.position;
@@ -203,6 +208,7 @@ public class RandomZombieScript : MonoBehaviour
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 10f);
     }
 
+    // Handle Try Attack.
     private void TryAttack()
     {
         if (Time.time < _nextAttackTime)
@@ -215,6 +221,7 @@ public class RandomZombieScript : MonoBehaviour
         Attack();
     }
 
+    // Handle Attack.
     public void Attack()
     {
         if (zombieAnimationScript != null)
@@ -228,6 +235,7 @@ public class RandomZombieScript : MonoBehaviour
         }
     }
 
+    // Handle Set Walk Animation.
     private void SetWalkAnimation(bool status)
     {
         if (zombieAnimationScript != null)
@@ -236,6 +244,7 @@ public class RandomZombieScript : MonoBehaviour
         }
     }
 
+    // Handle Lock Actions.
     public void LockActions(float seconds)
     {
         float lockUntil = Time.time + Mathf.Max(0f, seconds);
@@ -251,6 +260,7 @@ public class RandomZombieScript : MonoBehaviour
         SetWalkAnimation(false);
     }
 
+    // Handle Throw Item Routine.
     private IEnumerator ThrowItemRoutine()
     {
         if (throwSpawnDelay > 0f)
@@ -296,6 +306,7 @@ public class RandomZombieScript : MonoBehaviour
         }
     }
 
+    // Handle Move Projectile Arc.
     private IEnumerator MoveProjectileArc(Transform projectile, Vector3 startPos, Vector3 endPos, float travelTime, float arcHeight)
     {
         if (projectile == null)
@@ -333,6 +344,7 @@ public class RandomZombieScript : MonoBehaviour
         }
     }
 
+    // Handle Ensure Projectile Vfx Is Playing.
     private static void EnsureProjectileVfxIsPlaying(GameObject projectileRoot)
     {
         if (projectileRoot == null)
@@ -354,6 +366,7 @@ public class RandomZombieScript : MonoBehaviour
         }
     }
 
+    // Handle Can Use Nav Mesh Agent.
     private bool CanUseNavMeshAgent()
     {
         return navMeshAgent != null

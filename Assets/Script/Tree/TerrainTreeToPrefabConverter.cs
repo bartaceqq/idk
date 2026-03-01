@@ -1,6 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
+// Controls Terrain Tree To Prefab Converter behavior.
 public class TerrainTreeToPrefabConverter : MonoBehaviour
 {
     [SerializeField] private Terrain targetTerrain;
@@ -11,6 +12,7 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
     [SerializeField] private bool clearConvertedTerrainTrees = true;
 
     [ContextMenu("Convert Painted Trees To Prefabs")]
+    // Handle Convert Painted Trees To Prefabs.
     public void ConvertPaintedTreesToPrefabs()
     {
         if (targetTerrain == null)

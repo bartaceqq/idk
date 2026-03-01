@@ -1,7 +1,8 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// Controls Cut Tree behavior.
 public class CutTree : MonoBehaviour
 {
     private static InfoHandler cachedInfoHandler;
@@ -33,12 +34,14 @@ public class CutTree : MonoBehaviour
         public Vector3 localScale;
     }
 
+    // Initialize references before gameplay starts.
     private void Awake()
     {
         ResolveReferences();
         CacheInitialState();
     }
 
+    // Run in the editor when values change in Inspector.
     private void OnValidate()
     {
         if (!Application.isPlaying)
@@ -47,6 +50,7 @@ public class CutTree : MonoBehaviour
         }
     }
 
+    // Handle Resolve References.
     private void ResolveReferences()
     {
         if (inventoryItem == null)
@@ -90,6 +94,7 @@ public class CutTree : MonoBehaviour
         }
     }
 
+    // Handle Find Info Handler In Scene.
     private static InfoHandler FindInfoHandlerInScene()
     {
 #if UNITY_2023_1_OR_NEWER
@@ -99,6 +104,7 @@ public class CutTree : MonoBehaviour
 #endif
     }
 
+    // Handle Find Slot Manager In Scene.
     private static SlotManager FindSlotManagerInScene()
     {
 #if UNITY_2023_1_OR_NEWER
@@ -108,6 +114,7 @@ public class CutTree : MonoBehaviour
 #endif
     }
 
+    // Handle Cache Initial State.
     private void CacheInitialState()
     {
         initialTreeParts.Clear();
@@ -147,6 +154,7 @@ public class CutTree : MonoBehaviour
         treeparts.AddRange(initialTreeParts);
     }
 
+    // Handle Cache Transform.
     private void CacheTransform(Transform targetTransform)
     {
         if (targetTransform == null || initialTransforms.ContainsKey(targetTransform))
@@ -162,6 +170,7 @@ public class CutTree : MonoBehaviour
         };
     }
 
+    // Handle Restore Transform.
     private void RestoreTransform(Transform targetTransform)
     {
         if (targetTransform == null || !initialTransforms.TryGetValue(targetTransform, out TransformSnapshot snapshot))
@@ -174,6 +183,7 @@ public class CutTree : MonoBehaviour
         targetTransform.localScale = snapshot.localScale;
     }
 
+    // Handle Set Active After Seconds.
     private IEnumerator SetActiveAfterSeconds(GameObject target, float delaySeconds, bool active)
     {
         yield return new WaitForSeconds(delaySeconds);
@@ -183,12 +193,14 @@ public class CutTree : MonoBehaviour
         }
     }
 
+    // Handle Rebuild Tree After Seconds.
     private IEnumerator RebuildTreeAfterSeconds(float delaySeconds)
     {
         yield return new WaitForSeconds(delaySeconds);
         RebuildTree();
     }
 
+    // Handle Rebuild Tree.
     private void RebuildTree()
     {
         broken = false;
@@ -239,6 +251,7 @@ public class CutTree : MonoBehaviour
         }
     }
 
+    // Handle Cut Part.
     public void CutPart()
     {
         ResolveReferences();

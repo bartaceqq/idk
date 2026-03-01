@@ -1,157 +1,69 @@
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections;
 using UnityEngine;
-using UnityEngine.InputSystem;
+using UnityEngine.Events;
 using UnityEngine.Playables;
 
+// Controls Start Cut Scene Script behavior.
 public class StartCutSceneScript : MonoBehaviour
 {
-    [Header("Timelines")]
+    [Header("Cutscenes")]
     public PlayableDirector playableDirectorcrashing;
     public PlayableDirector lookingoutaftercrash;
+    public bool skipAllCutscenes;
+    public bool skipFirstCutscene;
+    public bool skipSecondCutscene;
 
-    [Header("Objects")]
-    public GameObject canvas;
-    public GameObject Player;
-    public GameObject AirPlaneToDisable;
-
-    [Header("Camera Fix For Timeline 2")]
+    [Header("Camera Setup")]
     public Transform cameraToUnparentBeforeSecondTimeline;
+    public GameObject cutsceneCameraObject;
     public GameObject normalPlayerCameraObject;
-    public LookingController playerLookingController;
 
-    private readonly List<Behaviour> disabledScripts = new List<Behaviour>();
-    private bool canvasWasActiveBeforeCutscene;
-    private bool isCutsceneRunning;
-    private float oldTimeScale = 1f;
-    private float oldFixedDeltaTime = 0.02f;
+    [Header("After Cutscene")]
+    public GameObject AirPlaneToDisable;
+    public UnityEvent onCutscenesFinished;
+    public LookingController lookingController;
+    public GameObject capsnorm;
+    public GameObject capsbuild;
+    public GameObject canvas;
+    public AudioSource backgroundMusic;
 
+    // Run setup once before the first frame.
     private void Start()
     {
-        StartCoroutine(PlayStartCutscene());
+        if (skipAllCutscenes)
+        {
+            OnCutscenesFinished();
+            return;
+        }
+
+        SetCutsceneMode();
+        StartCoroutine(PlayCutscenesInOrder());
     }
 
-    private void OnDisable()
+    // Handle Play Cutscenes In Order.
+    private IEnumerator PlayCutscenesInOrder()
     {
-        if (isCutsceneRunning)
+        if (!skipFirstCutscene)
         {
-            // If this object is disabled in the middle of cutscene, we still restore game state.
-            RestoreGameAfterCutscene();
-            isCutsceneRunning = false;
+            yield return PlayCutscene(playableDirectorcrashing);
         }
+
+        if (!skipSecondCutscene)
+        {
+            UnparentCameraForSecondCutscene();
+            yield return PlayCutscene(lookingoutaftercrash);
+        }
+
+        OnCutscenesFinished();
     }
 
-    private IEnumerator PlayStartCutscene()
-    {
-        if (isCutsceneRunning)
-        {
-            yield break;
-        }
-
-        isCutsceneRunning = true;
-        PrepareGameForCutscene();
-
-        // 1) Play the crash timeline and wait until it ends.
-        yield return PlayTimelineAndWait(playableDirectorcrashing);
-
-        // 2) Camera fix: remove camera parent before second timeline so parent transform does not affect it.
-        UnparentCameraForSecondTimeline();
-
-        // 3) Play second timeline and wait until it ends.
-        yield return PlayTimelineAndWait(lookingoutaftercrash);
-
-        // 4) After both timelines are done, hide/disable the airplane object.
-        if (AirPlaneToDisable != null)
-        {
-            AirPlaneToDisable.SetActive(false);
-        }
-
-        // 5) Force camera/player back to normal gameplay view.
-        SwitchToNormalGameplayView();
-
-        RestoreGameAfterCutscene();
-        isCutsceneRunning = false;
-    }
-
-    private void PrepareGameForCutscene()
-    {
-        disabledScripts.Clear();
-
-        // Pause normal gameplay time so physics/update based gameplay cannot interrupt the cutscene.
-        oldTimeScale = Time.timeScale;
-        oldFixedDeltaTime = Time.fixedDeltaTime;
-        Time.timeScale = 0f;
-        Time.fixedDeltaTime = 0f;
-
-        // Hide gameplay canvas during cutscene.
-        canvasWasActiveBeforeCutscene = canvas != null && canvas.activeSelf;
-        if (canvasWasActiveBeforeCutscene)
-        {
-            canvas.SetActive(false);
-        }
-
-        // Disable player control scripts so player cannot move, attack, switch items, etc.
-        if (Player != null)
-        {
-            DisableScripts(Player.GetComponentsInChildren<PlayerInput>(true));
-            DisableScripts(Player.GetComponentsInChildren<FPSController>(true));
-            DisableScripts(Player.GetComponentsInChildren<LookingController>(true));
-            DisableScripts(Player.GetComponentsInChildren<RayScript>(true));
-            DisableScripts(Player.GetComponentsInChildren<ItemSwitchScript>(true));
-            DisableScripts(Player.GetComponentsInChildren<ActionScript>(true));
-        }
-
-        // Disable enemy AI scripts so enemies cannot run during cutscene.
-        DisableScripts(FindObjectsByType<RandomZombieScript>(FindObjectsInactive.Exclude, FindObjectsSortMode.None));
-        DisableScripts(FindObjectsByType<RandomSkeletonScript>(FindObjectsInactive.Exclude, FindObjectsSortMode.None));
-    }
-
-    private void RestoreGameAfterCutscene()
-    {
-        // Re-enable only scripts that this script disabled.
-        for (int i = 0; i < disabledScripts.Count; i++)
-        {
-            if (disabledScripts[i] != null)
-            {
-                disabledScripts[i].enabled = true;
-            }
-        }
-        disabledScripts.Clear();
-
-        // Show gameplay canvas again if it was active before cutscene.
-        if (canvas != null && canvasWasActiveBeforeCutscene)
-        {
-            canvas.SetActive(true);
-        }
-
-        // Restore normal gameplay time.
-        Time.timeScale = oldTimeScale;
-        Time.fixedDeltaTime = oldFixedDeltaTime;
-
-        // Safety: if cutscene is interrupted, stop timelines and restore normal update mode.
-        if (playableDirectorcrashing != null)
-        {
-            playableDirectorcrashing.Stop();
-            playableDirectorcrashing.timeUpdateMode = DirectorUpdateMode.GameTime;
-        }
-
-        if (lookingoutaftercrash != null)
-        {
-            lookingoutaftercrash.Stop();
-            lookingoutaftercrash.timeUpdateMode = DirectorUpdateMode.GameTime;
-        }
-    }
-
-    private IEnumerator PlayTimelineAndWait(PlayableDirector director)
+    // Handle Play Cutscene.
+    private IEnumerator PlayCutscene(PlayableDirector director)
     {
         if (director == null || director.playableAsset == null)
         {
             yield break;
         }
-
-        // Use unscaled time so timeline still plays when Time.timeScale is 0.
-        DirectorUpdateMode oldMode = director.timeUpdateMode;
-        director.timeUpdateMode = DirectorUpdateMode.UnscaledGameTime;
 
         director.Play();
 
@@ -159,142 +71,83 @@ public class StartCutSceneScript : MonoBehaviour
         {
             yield return null;
         }
-
-        director.timeUpdateMode = oldMode;
     }
 
-    private void SwitchToNormalGameplayView()
+    // Handle Unparent Camera For Second Cutscene.
+    private void UnparentCameraForSecondCutscene()
     {
-        // Disable the cutscene camera if it exists.
-        if (cameraToUnparentBeforeSecondTimeline != null)
-        {
-            Camera cutsceneCam = cameraToUnparentBeforeSecondTimeline.GetComponent<Camera>();
-            if (cutsceneCam != null)
-            {
-                cutsceneCam.enabled = false;
-            }
-
-            cameraToUnparentBeforeSecondTimeline.gameObject.SetActive(false);
-        }
-
-        // Make sure normal player mode is active (normal capsule on, building capsule off).
-        ForceNormalPlayerMode();
-
-        // Turn on the normal gameplay camera.
-        if (normalPlayerCameraObject != null)
-        {
-            normalPlayerCameraObject.SetActive(true);
-            Camera normalCam = normalPlayerCameraObject.GetComponent<Camera>();
-            if (normalCam != null)
-            {
-                normalCam.enabled = true;
-            }
-        }
-        else
-        {
-            Camera fallbackCam = FindNormalPlayerCamera();
-            if (fallbackCam != null)
-            {
-                fallbackCam.gameObject.SetActive(true);
-                fallbackCam.enabled = true;
-            }
-        }
-    }
-
-    private void UnparentCameraForSecondTimeline()
-    {
-        if (cameraToUnparentBeforeSecondTimeline == null)
+        if (cameraToUnparentBeforeSecondTimeline == null || cameraToUnparentBeforeSecondTimeline.parent == null)
         {
             return;
         }
 
-        if (cameraToUnparentBeforeSecondTimeline.parent == null)
-        {
-            return;
-        }
-
-        // true = keep same world position/rotation when removing parent.
         cameraToUnparentBeforeSecondTimeline.SetParent(null, true);
     }
 
-    private void ForceNormalPlayerMode()
+    // Handle On Cutscenes Finished.
+    public void OnCutscenesFinished()
     {
-        if (playerLookingController == null && Player != null)
+        if (AirPlaneToDisable != null)
         {
-            playerLookingController = Player.GetComponentInChildren<LookingController>(true);
+            AirPlaneToDisable.SetActive(false);
         }
 
-        if (playerLookingController == null)
+        if (cutsceneCameraObject != null)
         {
-            return;
+            cutsceneCameraObject.SetActive(false);
         }
 
-        GameObject normalCapsule = playerLookingController.normalcapsule;
-        GameObject buildingCapsule = playerLookingController.buildingcapsule;
-
-        if (normalCapsule == null || buildingCapsule == null)
+        if (normalPlayerCameraObject != null)
         {
-            return;
+            normalPlayerCameraObject.SetActive(true);
         }
 
-        // Keep player position/rotation from whichever capsule is currently active.
-        GameObject sourceCapsule = normalCapsule.activeInHierarchy ? normalCapsule : buildingCapsule;
-        Vector3 sharedPosition = sourceCapsule.transform.position;
-        Quaternion sharedRotation = sourceCapsule.transform.rotation;
+        onCutscenesFinished?.Invoke();
+        SetGameplayMode();
 
-        normalCapsule.transform.position = sharedPosition;
-        normalCapsule.transform.rotation = sharedRotation;
-        normalCapsule.SetActive(true);
-        buildingCapsule.SetActive(false);
-
-        playerLookingController.switched = false;
-        if (playerLookingController.animator != null)
+        if (backgroundMusic != null && !backgroundMusic.isPlaying)
         {
-            playerLookingController.animator.enabled = true;
+            backgroundMusic.Play();
         }
     }
 
-    private Camera FindNormalPlayerCamera()
+    // Handle Set Cutscene Mode.
+    private void SetCutsceneMode()
     {
-        if (playerLookingController == null && Player != null)
+        if (capsnorm != null)
         {
-            playerLookingController = Player.GetComponentInChildren<LookingController>(true);
+            capsnorm.SetActive(false);
         }
 
-        if (playerLookingController != null && playerLookingController.normalcapsule != null)
+        if (capsbuild != null)
         {
-            Camera cam = playerLookingController.normalcapsule.GetComponentInChildren<Camera>(true);
-            if (cam != null)
-            {
-                return cam;
-            }
+            capsbuild.SetActive(false);
         }
 
-        if (Player != null)
+        if (lookingController != null)
         {
-            return Player.GetComponentInChildren<Camera>(true);
+            lookingController.enabled = false;
         }
-
-        return null;
     }
 
-    private void DisableScripts(Behaviour[] scripts)
+    // Handle Set Gameplay Mode.
+    private void SetGameplayMode()
     {
-        if (scripts == null)
+        // Back to normal gameplay: normal capsule on, build capsule off.
+        if (capsnorm != null)
         {
-            return;
+            capsnorm.SetActive(true);
         }
 
-        for (int i = 0; i < scripts.Length; i++)
+        if (capsbuild != null)
         {
-            Behaviour script = scripts[i];
-            if (script == null || !script.enabled)
-            {
-                continue;
-            }
+            capsbuild.SetActive(false);
+        }
 
-            script.enabled = false;
-            disabledScripts.Add(script);
+        if (lookingController != null)
+        {
+            lookingController.enabled = true;
+            lookingController.switched = false;
         }
     }
 }

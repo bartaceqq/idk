@@ -1,24 +1,16 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
+// Controls Axe Animation Script behavior.
 public class AxeAnimationScript : MonoBehaviour
 {
    
     public Animator axeanimator;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    // Handle Chop Animation.
     public void ChopAnimation()
     {
         
         axeanimator.SetTrigger("Swing");
     }
 }
+

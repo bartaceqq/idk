@@ -1,5 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
+// Controls Inventory Item behavior.
 public class InventoryItem : MonoBehaviour
 {
     private static SlotManager cachedSlotManager;
@@ -10,11 +11,13 @@ public class InventoryItem : MonoBehaviour
     public int maxgain;
     public SlotManager slotManager;
 
+    // Initialize references before gameplay starts.
     private void Awake()
     {
         ResolveReferences();
     }
 
+    // Run in the editor when values change in Inspector.
     private void OnValidate()
     {
         if (!Application.isPlaying)
@@ -23,6 +26,7 @@ public class InventoryItem : MonoBehaviour
         }
     }
 
+    // Handle Resolve References.
     public void ResolveReferences()
     {
         if (slotManager != null)
@@ -39,6 +43,7 @@ public class InventoryItem : MonoBehaviour
         slotManager = cachedSlotManager;
     }
 
+    // Handle Find Slot Manager In Scene.
     private static SlotManager FindSlotManagerInScene()
     {
 #if UNITY_2023_1_OR_NEWER

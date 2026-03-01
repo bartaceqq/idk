@@ -1,9 +1,11 @@
-using UnityEngine;
+﻿using UnityEngine;
 
+// Controls Collider Script behavior.
 public class ColliderScript : MonoBehaviour
 {
     public CutTree cutTree;
 
+    // Initialize references before gameplay starts.
     private void Awake()
     {
         if (cutTree == null)
@@ -12,6 +14,7 @@ public class ColliderScript : MonoBehaviour
         }
     }
 
+    // Handle Trigger.
     public void Trigger()
     {
         if (cutTree != null)

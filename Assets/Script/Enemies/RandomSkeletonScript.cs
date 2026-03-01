@@ -1,7 +1,8 @@
-using Unity.VisualScripting;
+﻿using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
 
+// Controls Random Skeleton Script behavior.
 public class RandomSkeletonScript : MonoBehaviour
 {
     [Header("References")]
@@ -98,6 +99,7 @@ public class RandomSkeletonScript : MonoBehaviour
         SetWalkAnimation(true);
     }
 
+    // Handle Resolve Player Transform.
     private void ResolvePlayerTransform()
     {
         Transform resolved = null;
@@ -153,6 +155,7 @@ public class RandomSkeletonScript : MonoBehaviour
         playertransform = resolved;
     }
 
+    // Handle Chase Player.
     private void ChasePlayer()
     {
         if (!CanUseNavMeshAgent() || playertransform == null)
@@ -164,6 +167,7 @@ public class RandomSkeletonScript : MonoBehaviour
         navMeshAgent.SetDestination(playertransform.position);
     }
 
+    // Handle Stop Moving.
     private void StopMoving()
     {
         if (!CanUseNavMeshAgent())
@@ -178,6 +182,7 @@ public class RandomSkeletonScript : MonoBehaviour
         }
     }
 
+    // Handle Face Player.
     private void FacePlayer()
     {
         Vector3 toPlayer = playertransform.position - transform.position;
@@ -192,6 +197,7 @@ public class RandomSkeletonScript : MonoBehaviour
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 10f);
     }
 
+    // Handle Try Attack.
     private void TryAttack()
     {
         if (Time.time < _nextAttackTime)
@@ -204,6 +210,7 @@ public class RandomSkeletonScript : MonoBehaviour
         Attack();
     }
 
+    // Handle Attack.
     public void Attack()
     {
         if (skeletonAnimationScript != null)
@@ -212,6 +219,7 @@ public class RandomSkeletonScript : MonoBehaviour
         }
     }
 
+    // Handle Set Walk Animation.
     private void SetWalkAnimation(bool status)
     {
         if (skeletonAnimationScript != null)
@@ -220,6 +228,7 @@ public class RandomSkeletonScript : MonoBehaviour
         }
     }
 
+    // Handle Lock Actions.
     public void LockActions(float seconds)
     {
         float lockUntil = Time.time + Mathf.Max(0f, seconds);
@@ -235,6 +244,7 @@ public class RandomSkeletonScript : MonoBehaviour
         SetWalkAnimation(false);
     }
 
+    // Handle Can Use Nav Mesh Agent.
     private bool CanUseNavMeshAgent()
     {
         return navMeshAgent != null

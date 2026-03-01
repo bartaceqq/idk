@@ -1,10 +1,12 @@
-using System;
+﻿using System;
 using UnityEngine;
 
+// Controls Stair Script behavior.
 public class StairScript : MonoBehaviour
 {
     public SnapPoint[] snapPoints = new SnapPoint[4];
 
+    // Run in the editor when values change in Inspector.
     private void OnValidate()
     {
         if (snapPoints == null || snapPoints.Length != 4)

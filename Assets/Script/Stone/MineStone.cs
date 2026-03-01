@@ -1,7 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
+// Controls Mine Stone behavior.
 public class MineStone : MonoBehaviour
 {
     private static InfoHandler cachedInfoHandler;
@@ -30,11 +31,13 @@ public class MineStone : MonoBehaviour
     private readonly List<MeshCollider> cachedMainStoneColliders = new List<MeshCollider>();
     private readonly List<bool> cachedMainStoneColliderConvex = new List<bool>();
 
+    // Initialize references before gameplay starts.
     private void Awake()
     {
         ResolveReferences();
     }
 
+    // Run in the editor when values change in Inspector.
     private void OnValidate()
     {
         if (!Application.isPlaying)
@@ -51,6 +54,7 @@ public class MineStone : MonoBehaviour
         InitializeStoneState();
     }
 
+    // Handle Resolve References.
     private void ResolveReferences()
     {
         if (infoHandler == null)
@@ -92,6 +96,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Find Info Handler In Scene.
     private static InfoHandler FindInfoHandlerInScene()
     {
 #if UNITY_2023_1_OR_NEWER
@@ -101,6 +106,7 @@ public class MineStone : MonoBehaviour
 #endif
     }
 
+    // Handle Find Ore Type Provider In Scene.
     private static GetRandomOreType FindOreTypeProviderInScene()
     {
 #if UNITY_2023_1_OR_NEWER
@@ -110,6 +116,7 @@ public class MineStone : MonoBehaviour
 #endif
     }
 
+    // Handle Initialize Stone State.
     private void InitializeStoneState()
     {
         foreach (GameObject part in parts)
@@ -124,6 +131,7 @@ public class MineStone : MonoBehaviour
         ApplyOreSelectionAndVisuals();
     }
 
+    // Handle Apply Ore Selection And Visuals.
     private void ApplyOreSelectionAndVisuals()
     {
         ResolveReferences();
@@ -172,12 +180,7 @@ public class MineStone : MonoBehaviour
             }
         }
     }
-
-    // Update is called once per frame
-    void Update()
-    {
-
-    }
+// Handle Mine.
     public void Mine()
     {
         ResolveReferences();
@@ -244,6 +247,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Handle Stone Break And Rebuild.
     private IEnumerator HandleStoneBreakAndRebuild()
     {
         isRebuilding = true;
@@ -254,6 +258,7 @@ public class MineStone : MonoBehaviour
         isRebuilding = false;
     }
 
+    // Handle Rebuild Stone.
     private void RebuildStone()
     {
         counter = initialCounter;
@@ -263,6 +268,7 @@ public class MineStone : MonoBehaviour
         InitializeStoneState();
     }
 
+    // Handle Set Stone Visible.
     private void SetStoneVisible(bool visible)
     {
         if (fullstone == null)
@@ -295,6 +301,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Cache Main Stone Collider Defaults.
     private void CacheMainStoneColliderDefaults()
     {
         cachedMainStoneColliders.Clear();
@@ -324,6 +331,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Restore Main Stone Collider Defaults.
     private void RestoreMainStoneColliderDefaults()
     {
         for (int i = 0; i < cachedMainStoneColliders.Count; i++)
@@ -335,6 +343,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Set Main Stone Colliders Convex.
     private void SetMainStoneCollidersConvex(bool convex)
     {
         for (int i = 0; i < cachedMainStoneColliders.Count; i++)
@@ -346,6 +355,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Get Inventory Item Name.
     private string GetInventoryItemName(Ore ore)
     {
         if (ore == null || ore.oreName == "noore")
@@ -356,6 +366,7 @@ public class MineStone : MonoBehaviour
         return ore.oreName;
     }
 
+    // Handle To Display Name.
     private string ToDisplayName(string itemName)
     {
         if (string.IsNullOrWhiteSpace(itemName))
@@ -379,3 +390,4 @@ public class MineStone : MonoBehaviour
         return string.Join(" ", parts);
     }
 }
+
