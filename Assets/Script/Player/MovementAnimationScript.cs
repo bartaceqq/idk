@@ -39,6 +39,10 @@ public class MovementAnimationScript : MonoBehaviour
            animator.SetBool("Idle", false);    
         }
     }
+    public void JumpAnimation()
+    {
+        animator.SetTrigger("Jump");
+    }
   
 }
 

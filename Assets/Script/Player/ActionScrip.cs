@@ -57,6 +57,10 @@ public class ActionScript : MonoBehaviour
     {
         swordAnimationScript.Attack();
     }
+    public void Jump()
+    {
+        movementAnimationScript.JumpAnimation();
+    }
     
 
 }

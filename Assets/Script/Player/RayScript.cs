@@ -1,25 +1,31 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 
-// Controls Ray Script behavior.
+// Controls attack, chop, and mine interactions.
 public class RayScript : MonoBehaviour
 {
     public ParticleSystem stoneparticle;
     public ItemSwitchScript itemSwitchScript;
     public ActionScript actionScript;
+
+    [Header("Legacy Raycast (unused by proximity mode)")]
     public Camera camera;
     public float range = 100f;
     public float sphereRadius = 0.25f;
     public LayerMask hitMask = ~0;
+
+    [Header("Timing")]
     public float cutDelaySeconds = 0.13f;
     public float swingCooldownSeconds = 1f;
     public float swordAttackCooldownSeconds = 2.5f;
     public float swordHitDelaySeconds = 1.10f;
-    private float _nextSwingTime;
-    private float _nextAxeSwingTime;
-    private float _nextPickaxeSwingTime;
-    private bool _axeSoundPlayedThisSwing;
-    public RadiusForAttackScript radiusForAttackScript;
+
+    [Header("Proximity Interaction")]
+    public Transform interactionOrigin;
+    public float axeInteractionRadius = 3f;
+    public float pickaxeInteractionRadius = 3f;
+    public LayerMask proximityMask = ~0;
+    public QueryTriggerInteraction triggerInteraction = QueryTriggerInteraction.Ignore;
 
     [Header("Weapon Sounds")]
     public AudioSource axeaudiosource;
@@ -30,132 +36,252 @@ public class RayScript : MonoBehaviour
     public float pickaxeSoundDelaySeconds = 0.1f;
     public float swordSoundDelaySeconds = 0.1f;
 
+    public RadiusForAttackScript radiusForAttackScript;
+
+    private float _nextSwingTime;
+    private float _nextAxeSwingTime;
+    private float _nextPickaxeSwingTime;
+    private bool _axeSoundPlayedThisSwing;
+    private readonly Collider[] _proximityHits = new Collider[128];
+
+    private void Awake()
+    {
+        ResolveInteractionOrigin();
+    }
+
     private void Update()
     {
-        if (Input.GetMouseButtonDown(0) && Time.time >= _nextSwingTime)
+        if (!Input.GetMouseButtonDown(0) || Time.time < _nextSwingTime)
         {
-            float cooldown = RayCheck();
-            if (cooldown > 0f)
-            {
-                _nextSwingTime = Time.time + cooldown;
-            }
+            return;
+        }
+
+        float cooldown = HandleCurrentItemAction();
+        if (cooldown > 0f)
+        {
+            _nextSwingTime = Time.time + cooldown;
         }
     }
-    // Handle Ray Check.
-    public float RayCheck()
+
+    // Handle Current Item Action.
+    private float HandleCurrentItemAction()
     {
         int currentItemId = itemSwitchScript != null ? itemSwitchScript.currentitemid : 0;
-
-        // Sword attack should be responsive even without a raycast hit.
-        if (currentItemId == 3)
+        switch (currentItemId)
         {
-            if (actionScript != null)
-            {
-                if (actionScript.staminaScript.SwordSwing())
-                {
-                    actionScript.Attack();
-                    StartCoroutine(TriggerSwordAttackAfterDelay(swordHitDelaySeconds));
-                    PlaySoundAtSwingStart(swordAudioSource, swordSoundDelaySeconds);
-                }
-            }
-
-            return swordAttackCooldownSeconds;
+            case 1:
+                return HandleAxeAction();
+            case 2:
+                return HandlePickaxeAction();
+            case 3:
+                return HandleSwordAction();
+            default:
+                return 0f;
         }
-
-        if (camera == null)
-        {
-            camera = Camera.main;
-            if (camera == null) return 0f;
-        }
-
-        Ray ray = camera.ScreenPointToRay(Input.mousePosition);
-        RaycastHit hit;
-        bool hitSomething = Physics.SphereCast(ray, sphereRadius, out hit, range, hitMask, QueryTriggerInteraction.Ignore);
-        if (hitSomething)
-        {
-            Debug.Log(hit.collider.gameObject.name);
-            switch (currentItemId)
-            {
-                case 1:
-                    if (Time.time < _nextAxeSwingTime)
-                    {
-                        return _nextAxeSwingTime - Time.time;
-                    }
-
-                    // A new axe animation cycle starts here.
-                    _nextAxeSwingTime = Time.time + swingCooldownSeconds;
-                    _axeSoundPlayedThisSwing = false;
-
-                    if (actionScript != null)
-                    {
-                        actionScript.Chop();
-                        PlayAxeSoundOncePerSwing();
-                    }
-
-                    if (hit.collider.CompareTag("Tree") || hit.collider.transform.root.CompareTag("Tree"))
-                    {
-
-                        ColliderScript colliderScript = hit.collider.gameObject.GetComponent<ColliderScript>();
-                        if (colliderScript == null)
-                        {
-                            colliderScript = hit.collider.gameObject.GetComponentInParent<ColliderScript>();
-                        }
-                        if (colliderScript != null)
-                        {
-                            Debug.Log("proslo");
-
-                        }
-                        StartCoroutine(TriggerAfterDelayAxe(colliderScript, cutDelaySeconds));
-
-
-                    }
-
-                    return swingCooldownSeconds;
-                case 2:
-                    if (Time.time < _nextPickaxeSwingTime)
-                    {
-                        return _nextPickaxeSwingTime - Time.time;
-                    }
-
-                    _nextPickaxeSwingTime = Time.time + swingCooldownSeconds;
-
-                    if (actionScript != null)
-                    {
-                        actionScript.Mine();
-                        PlaySoundAtSwingStart(pickaxeAudioSource, pickaxeSoundDelaySeconds);
-                    }
-                    if (hit.collider.CompareTag("Stone") || hit.collider.transform.root.CompareTag("Stone"))
-                    {
-                        StoneColliderScript stoneColliderScript = hit.collider.GetComponent<StoneColliderScript>();
-                        if (stoneColliderScript == null)
-                        {
-                            stoneColliderScript = hit.collider.GetComponentInParent<StoneColliderScript>();
-                        }
-
-                        if (stoneColliderScript != null && stoneColliderScript.mineStone != null)
-                        {
-                            Debug.Log("proslooooooo volle");
-                            StartCoroutine(TriggerAfterDelayPixkaxe(stoneColliderScript.mineStone, cutDelaySeconds));
-                        }
-                        else
-                        {
-                            Debug.LogWarning("Stone hit but MineStone reference is missing on hit object/parent.");
-                        }
-
-
-
-                    }
-
-                    return swingCooldownSeconds;
-
-            }
-
-
-        }
-
-        return 0f;
     }
 
+    // Handle Axe Action.
+    private float HandleAxeAction()
+    {
+        if (Time.time < _nextAxeSwingTime)
+        {
+            return _nextAxeSwingTime - Time.time;
+        }
+
+        _nextAxeSwingTime = Time.time + swingCooldownSeconds;
+        _axeSoundPlayedThisSwing = false;
+
+        if (actionScript != null)
+        {
+            actionScript.Chop();
+            PlayAxeSoundOncePerSwing();
+        }
+
+        if (TryGetClosestTreeTarget(out ColliderScript treeTarget))
+        {
+            StartCoroutine(TriggerAfterDelayAxe(treeTarget, cutDelaySeconds));
+        }
+
+        return swingCooldownSeconds;
+    }
+
+    // Handle Pickaxe Action.
+    private float HandlePickaxeAction()
+    {
+        if (Time.time < _nextPickaxeSwingTime)
+        {
+            return _nextPickaxeSwingTime - Time.time;
+        }
+
+        _nextPickaxeSwingTime = Time.time + swingCooldownSeconds;
+
+        if (actionScript != null)
+        {
+            actionScript.Mine();
+            PlaySoundAtSwingStart(pickaxeAudioSource, pickaxeSoundDelaySeconds);
+        }
+
+        if (TryGetClosestStoneTarget(out MineStone stoneTarget))
+        {
+            StartCoroutine(TriggerAfterDelayPickaxe(stoneTarget, cutDelaySeconds));
+        }
+
+        return swingCooldownSeconds;
+    }
+
+    // Handle Sword Action.
+    private float HandleSwordAction()
+    {
+        bool canSwing = true;
+        if (actionScript != null && actionScript.staminaScript != null)
+        {
+            canSwing = actionScript.staminaScript.SwordSwing();
+        }
+
+        if (!canSwing)
+        {
+            return 0f;
+        }
+
+        if (actionScript != null)
+        {
+            actionScript.Attack();
+        }
+
+        StartCoroutine(TriggerSwordAttackAfterDelay(swordHitDelaySeconds));
+        PlaySoundAtSwingStart(swordAudioSource, swordSoundDelaySeconds);
+        return swordAttackCooldownSeconds;
+    }
+
+    // Handle Resolve Interaction Origin.
+    private void ResolveInteractionOrigin()
+    {
+        if (interactionOrigin == null)
+        {
+            Transform root = transform.root;
+            interactionOrigin = root != null ? root : transform;
+        }
+    }
+
+    // Handle Try Get Closest Tree Target.
+    private bool TryGetClosestTreeTarget(out ColliderScript closestTree)
+    {
+        closestTree = null;
+        ResolveInteractionOrigin();
+        if (interactionOrigin == null)
+        {
+            return false;
+        }
+
+        float radius = Mathf.Max(0.01f, axeInteractionRadius);
+        Vector3 origin = interactionOrigin.position;
+        Transform playerRoot = interactionOrigin.root;
+        float bestDistanceSqr = float.MaxValue;
+
+        int hitCount = Physics.OverlapSphereNonAlloc(
+            origin,
+            radius,
+            _proximityHits,
+            proximityMask,
+            triggerInteraction);
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = _proximityHits[i];
+            if (hit == null)
+            {
+                continue;
+            }
+
+            if (playerRoot != null && hit.transform.IsChildOf(playerRoot))
+            {
+                continue;
+            }
+
+            ColliderScript treeTarget = hit.GetComponent<ColliderScript>();
+            if (treeTarget == null)
+            {
+                treeTarget = hit.GetComponentInParent<ColliderScript>();
+            }
+
+            if (treeTarget == null)
+            {
+                continue;
+            }
+
+            Vector3 closestPoint = hit.ClosestPoint(origin);
+            float distanceSqr = (closestPoint - origin).sqrMagnitude;
+            if (distanceSqr >= bestDistanceSqr)
+            {
+                continue;
+            }
+
+            bestDistanceSqr = distanceSqr;
+            closestTree = treeTarget;
+        }
+
+        return closestTree != null;
+    }
+
+    // Handle Try Get Closest Stone Target.
+    private bool TryGetClosestStoneTarget(out MineStone closestStone)
+    {
+        closestStone = null;
+        ResolveInteractionOrigin();
+        if (interactionOrigin == null)
+        {
+            return false;
+        }
+
+        float radius = Mathf.Max(0.01f, pickaxeInteractionRadius);
+        Vector3 origin = interactionOrigin.position;
+        Transform playerRoot = interactionOrigin.root;
+        float bestDistanceSqr = float.MaxValue;
+
+        int hitCount = Physics.OverlapSphereNonAlloc(
+            origin,
+            radius,
+            _proximityHits,
+            proximityMask,
+            triggerInteraction);
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = _proximityHits[i];
+            if (hit == null)
+            {
+                continue;
+            }
+
+            if (playerRoot != null && hit.transform.IsChildOf(playerRoot))
+            {
+                continue;
+            }
+
+            StoneColliderScript stoneCollider = hit.GetComponent<StoneColliderScript>();
+            if (stoneCollider == null)
+            {
+                stoneCollider = hit.GetComponentInParent<StoneColliderScript>();
+            }
+
+            if (stoneCollider == null || stoneCollider.mineStone == null)
+            {
+                continue;
+            }
+
+            Vector3 closestPoint = hit.ClosestPoint(origin);
+            float distanceSqr = (closestPoint - origin).sqrMagnitude;
+            if (distanceSqr >= bestDistanceSqr)
+            {
+                continue;
+            }
+
+            bestDistanceSqr = distanceSqr;
+            closestStone = stoneCollider.mineStone;
+        }
+
+        return closestStone != null;
+    }
 
     // Handle Trigger After Delay Axe.
     private IEnumerator TriggerAfterDelayAxe(ColliderScript colliderScript, float delaySeconds)
@@ -167,8 +293,8 @@ public class RayScript : MonoBehaviour
         }
     }
 
-    // Handle Trigger After Delay Pixkaxe.
-    private IEnumerator TriggerAfterDelayPixkaxe(MineStone mineStone, float delaySeconds)
+    // Handle Trigger After Delay Pickaxe.
+    private IEnumerator TriggerAfterDelayPickaxe(MineStone mineStone, float delaySeconds)
     {
         yield return new WaitForSeconds(delaySeconds);
         if (mineStone != null)
@@ -195,7 +321,6 @@ public class RayScript : MonoBehaviour
             return;
         }
 
-        // New swing should be heard from the beginning, so override previous playback.
         source.Stop();
 
         if (delaySeconds > 0f)
@@ -208,8 +333,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
-    // Play axe sound only once for the current axe animation cycle.
-    // It resets when a new axe swing starts.
+    // Play axe sound only once per axe animation cycle.
     private void PlayAxeSoundOncePerSwing()
     {
         if (_axeSoundPlayedThisSwing || axeaudiosource == null)
@@ -221,4 +345,3 @@ public class RayScript : MonoBehaviour
         PlaySoundAtSwingStart(axeaudiosource, 0f);
     }
 }
-

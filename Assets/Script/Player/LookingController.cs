@@ -57,6 +57,10 @@ public class LookingController : MonoBehaviour
 
         targetCapsule.transform.position = sharedPosition;
         targetCapsule.transform.rotation = sharedRotation;
+        if (targetLook != null)
+        {
+            targetLook.rotation = sharedLookRotation;
+        }
 
         // Disable source first so its OnDisable runs before target OnEnable.
         sourceCapsule.SetActive(false);
@@ -70,11 +74,6 @@ public class LookingController : MonoBehaviour
         else
         {
             if (animator != null) animator.enabled = true;
-        }
-
-        if (targetLook != null)
-        {
-            targetLook.rotation = sharedLookRotation;
         }
 
         ActivatePrimaryPlayerInput(targetCapsule);

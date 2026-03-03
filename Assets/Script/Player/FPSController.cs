@@ -1,28 +1,41 @@
-﻿using UnityEngine;
-using UnityEngine.InputSystem; // nový Input System
+using UnityEngine;
+using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(CharacterController))]
-// Controls FPSController behavior.
+// Controls player movement and third-person camera behavior.
 public class FPSController : MonoBehaviour
 {
     public ActionScript actionScript;
+
     [Header("Movement")]
     public float moveSpeed = 6f;
     public float runSpeed = 10f;
     public float jumpSpeed = 8f;
+    public float jumpInputCooldownSeconds = 0.2f;
+    public float jumpAnimationLockSeconds = 0.18f;
+    public float groundedAnimationGraceSeconds = 0.1f;
     public float gravity = 20f;
-    public float groundedStickForce = 2f; // malé pøitlaèení k zemi
+    public float groundedStickForce = 2f;
+    public float coyoteTimeSeconds = 0.12f;
+    public float jumpBufferSeconds = 0.12f;
     public bool disableExtraCapsuleCollider = true;
 
-    
-
     [Header("Look")]
-    public float mouseSensitivity = 0.1f; // násobí delta myši
-    public float minPitch = -90f;
-    public float maxPitch = 90f;
-    public Transform playerCamera; // odkaz na kameru (child) – nastav v Inspectoru
+    public float mouseSensitivity = 0.1f;
+    public float minPitch = -60f;
+    public float maxPitch = 75f;
+    public Transform playerCamera;
 
-    // Input System (pøes PlayerInput)
+    [Header("Third Person Camera")]
+    public Vector3 cameraPivotOffset = new Vector3(0f, 1.6f, 0f);
+    public float cameraDistance = 4.5f;
+    public float minCameraDistance = 1.2f;
+    public float cameraCollisionRadius = 0.2f;
+    public float cameraSmoothSpeed = 20f;
+    public float cameraReturnSpeed = 6f;
+    public float cameraSnapInSpeed = 25f;
+    public LayerMask cameraCollisionMask = ~0;
+
     private PlayerInput _playerInput;
     private InputAction _moveAction;
     private InputAction _lookAction;
@@ -31,8 +44,15 @@ public class FPSController : MonoBehaviour
 
     private CharacterController _cc;
     private CapsuleCollider _extraCapsuleCollider;
-    private float _pitch;         // akumulovaná vertikální rotace (X)
-    private Vector3 _velocity;    // vnitøní rychlost (vè. Y)
+    private readonly RaycastHit[] _cameraHits = new RaycastHit[8];
+
+    private float _pitch;
+    private float _yaw;
+    private Vector3 _velocity;
+    private Vector3 _cameraVelocity;
+    private float _currentCameraDistance;
+    private bool _cameraDistanceInitialized;
+
     private bool _isJumping;
     private bool _isIdle;
     private bool _isForwardWalk;
@@ -44,6 +64,11 @@ public class FPSController : MonoBehaviour
     private bool _isRightWalk;
     private bool _isRightRun;
     private bool _sprintLocked;
+    private bool _jumpTriggeredThisFrame;
+    private float _nextJumpAllowedTime;
+    private float _lastGroundedTime = -100f;
+    private float _lastJumpPressedTime = -100f;
+    private float _jumpAnimationLockUntil;
 
     void Awake()
     {
@@ -53,17 +78,18 @@ public class FPSController : MonoBehaviour
 
         if (disableExtraCapsuleCollider && _extraCapsuleCollider != null)
         {
-            // CharacterController already provides collision. Extra collider can cause jitter.
+            // CharacterController already handles collisions for this player.
             _extraCapsuleCollider.enabled = false;
         }
 
         if (_playerInput == null)
         {
-            Debug.LogError("Pøidej na Player komponentu PlayerInput a pøiøaï akce (Action Map: Player).");
+            Debug.LogError("Missing PlayerInput component.");
         }
+
         if (playerCamera == null)
         {
-            Debug.LogWarning("Chybí reference na kameru");
+            Debug.LogWarning("Missing player camera reference.");
         }
     }
 
@@ -79,7 +105,13 @@ public class FPSController : MonoBehaviour
             if (_runAction == null)
             {
                 _runAction = _playerInput.actions.FindAction("Run");
-            }        }
+            }
+        }
+
+        SyncLookAnglesFromTransforms();
+        UpdateThirdPersonCamera(0f);
+        _nextJumpAllowedTime = 0f;
+        _jumpAnimationLockUntil = 0f;
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -92,41 +124,41 @@ public class FPSController : MonoBehaviour
         _lookAction = null;
         _jumpAction = null;
         _runAction = null;
+
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
 
     void Update()
     {
-        if (_playerInput == null || _moveAction == null || _lookAction == null) return;
-
-        // --- LOOK (myš/gamepad) ---
-        Vector2 look = _lookAction.ReadValue<Vector2>();
-
-
-        // U myši je look v pixelech per-frame; škáluj citlivostí a neVIS Time.deltaTime
-        float yaw = look.x * mouseSensitivity;
-        float pitchDelta = -look.y * mouseSensitivity;
-
-        _pitch = Mathf.Clamp(_pitch + pitchDelta, minPitch, maxPitch);
-        // otoèení tìla (yaw)
-        transform.Rotate(0f, yaw, 0f);
-        // otoèení kamery (pitch)
-        if (playerCamera != null)
-            playerCamera.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
-
-        // --- MOVE (WASD) ---
-        Vector2 moveInput = _moveAction.ReadValue<Vector2>(); // x=strafe, y=forward
-        bool runPressed = _runAction != null ? _runAction.IsPressed() : (Keyboard.current?.leftShiftKey?.isPressed ?? false);
-        bool canSprint = actionScript != null && actionScript.staminaScript != null ? actionScript.staminaScript.enoughstamina : true;
-
-        if (_sprintLocked)
+        if (_playerInput == null || _moveAction == null || _lookAction == null)
         {
-            if (!runPressed)
-            {
-                _sprintLocked = false; // must release shift before sprinting again
-            }
+            return;
         }
+
+        if (!InventoryController.IsInventoryOpen)
+        {
+            Vector2 look = _lookAction.ReadValue<Vector2>();
+            _yaw += look.x * mouseSensitivity;
+            _pitch = Mathf.Clamp(_pitch - (look.y * mouseSensitivity), minPitch, maxPitch);
+        }
+
+        Quaternion yawRotation = Quaternion.Euler(0f, _yaw, 0f);
+        transform.rotation = yawRotation;
+
+        Vector2 moveInput = _moveAction.ReadValue<Vector2>();
+        bool runPressed = _runAction != null
+            ? _runAction.IsPressed()
+            : (Keyboard.current?.leftShiftKey?.isPressed ?? false);
+        bool canSprint = actionScript != null && actionScript.staminaScript != null
+            ? actionScript.staminaScript.enoughstamina
+            : true;
+
+        if (_sprintLocked && !runPressed)
+        {
+            _sprintLocked = false;
+        }
+
         if (!canSprint && runPressed)
         {
             _sprintLocked = true;
@@ -134,32 +166,162 @@ public class FPSController : MonoBehaviour
 
         bool isRunning = runPressed && canSprint && !_sprintLocked;
         float currentSpeed = isRunning ? runSpeed : moveSpeed;
-        Vector3 move = (transform.right * moveInput.x + transform.forward * moveInput.y) * currentSpeed;
+        Vector3 moveDirection = yawRotation * new Vector3(moveInput.x, 0f, moveInput.y);
+        Vector3 move = moveDirection * currentSpeed;
 
         UpdateMovementFlags(moveInput, isRunning);
 
-        // --- GRAVITY + JUMP ---
-        if (_cc.isGrounded)
+        _jumpTriggeredThisFrame = false;
+        bool jumpPressedThisFrame = _jumpAction != null && _jumpAction.triggered;
+        if (jumpPressedThisFrame)
         {
-            // drž lehce zápornou Y, aby „neplaval“ na hranách
-            _velocity.y = -groundedStickForce;
+            _lastJumpPressedTime = Time.time;
+        }
 
-            if (_jumpAction != null && _jumpAction.triggered)
-            {
-                _velocity.y = jumpSpeed;
-            }
+        bool isGroundedBeforeMove = _cc.isGrounded;
+        if (isGroundedBeforeMove)
+        {
+            _lastGroundedTime = Time.time;
+        }
+
+        bool jumpBuffered = (Time.time - _lastJumpPressedTime) <= Mathf.Max(0f, jumpBufferSeconds);
+        bool jumpWithGroundGrace = isGroundedBeforeMove || (Time.time - _lastGroundedTime) <= Mathf.Max(0f, coyoteTimeSeconds);
+        bool canStartJump = jumpBuffered && jumpWithGroundGrace && Time.time >= _nextJumpAllowedTime;
+
+        if (canStartJump)
+        {
+            _velocity.y = jumpSpeed;
+            _jumpTriggeredThisFrame = true;
+            _nextJumpAllowedTime = Time.time + Mathf.Max(0f, jumpInputCooldownSeconds);
+            _lastJumpPressedTime = -100f;
+            _lastGroundedTime = -100f;
+            _jumpAnimationLockUntil = Time.time + Mathf.Max(0f, jumpAnimationLockSeconds);
+        }
+        else if (isGroundedBeforeMove)
+        {
+            _velocity.y = -groundedStickForce;
         }
         else
         {
             _velocity.y -= gravity * Time.deltaTime;
         }
 
-        _isJumping = _jumpAction != null && _jumpAction.triggered;
-        RunCallbacks();
-
-        // kombinace horizontálního pohybu + vertikální rychlosti
         Vector3 finalVelocity = new Vector3(move.x, _velocity.y, move.z);
         _cc.Move(finalVelocity * Time.deltaTime);
+
+        if (_cc.isGrounded)
+        {
+            _lastGroundedTime = Time.time;
+        }
+
+        bool animationGrounded = _cc.isGrounded ||
+            (Time.time - _lastGroundedTime) <= Mathf.Max(0f, groundedAnimationGraceSeconds);
+        _isJumping = !animationGrounded;
+        RunCallbacks();
+    }
+
+    void LateUpdate()
+    {
+        UpdateThirdPersonCamera(Time.deltaTime);
+    }
+
+    // Handle Update Third Person Camera.
+    private void UpdateThirdPersonCamera(float deltaTime)
+    {
+        if (playerCamera == null)
+        {
+            return;
+        }
+
+        Quaternion lookRotation = Quaternion.Euler(_pitch, _yaw, 0f);
+        Vector3 pivot = transform.position + cameraPivotOffset;
+        float requestedDistance = Mathf.Max(minCameraDistance, cameraDistance);
+        float resolvedDistance = requestedDistance;
+        Vector3 backward = -(lookRotation * Vector3.forward);
+
+        int hitCount = Physics.SphereCastNonAlloc(
+            pivot,
+            cameraCollisionRadius,
+            backward,
+            _cameraHits,
+            requestedDistance,
+            cameraCollisionMask,
+            QueryTriggerInteraction.Ignore);
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hitCollider = _cameraHits[i].collider;
+            if (hitCollider == null || hitCollider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            if (_cameraHits[i].distance > 0.001f && _cameraHits[i].distance < resolvedDistance)
+            {
+                resolvedDistance = _cameraHits[i].distance;
+            }
+        }
+
+        float targetDistance = Mathf.Max(minCameraDistance, resolvedDistance - 0.05f);
+        if (!_cameraDistanceInitialized || deltaTime <= 0f)
+        {
+            _currentCameraDistance = targetDistance;
+            _cameraDistanceInitialized = true;
+        }
+        else
+        {
+            float distanceSpeed = targetDistance < _currentCameraDistance ? cameraSnapInSpeed : cameraReturnSpeed;
+            _currentCameraDistance = Mathf.MoveTowards(_currentCameraDistance, targetDistance, distanceSpeed * deltaTime);
+        }
+
+        Vector3 desiredPosition = pivot + (backward * _currentCameraDistance);
+
+        if (deltaTime > 0f && cameraSmoothSpeed > 0f)
+        {
+            float smoothTime = 1f / cameraSmoothSpeed;
+            playerCamera.position = Vector3.SmoothDamp(
+                playerCamera.position,
+                desiredPosition,
+                ref _cameraVelocity,
+                smoothTime,
+                Mathf.Infinity,
+                deltaTime);
+        }
+        else
+        {
+            _cameraVelocity = Vector3.zero;
+            playerCamera.position = desiredPosition;
+        }
+
+        playerCamera.rotation = lookRotation;
+    }
+
+    // Handle Sync Look Angles From Transforms.
+    private void SyncLookAnglesFromTransforms()
+    {
+        if (playerCamera != null)
+        {
+            _yaw = playerCamera.eulerAngles.y;
+            _pitch = Mathf.Clamp(NormalizeAngle(playerCamera.eulerAngles.x), minPitch, maxPitch);
+        }
+        else
+        {
+            _yaw = transform.eulerAngles.y;
+            _pitch = 0f;
+        }
+
+        transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
+        _cameraDistanceInitialized = false;
+        _currentCameraDistance = Mathf.Max(minCameraDistance, cameraDistance);
+        _cameraVelocity = Vector3.zero;
+    }
+
+    // Handle Normalize Angle.
+    private static float NormalizeAngle(float angle)
+    {
+        while (angle > 180f) angle -= 360f;
+        while (angle < -180f) angle += 360f;
+        return angle;
     }
 
     // Handle Update Movement Flags.
@@ -193,8 +355,30 @@ public class FPSController : MonoBehaviour
             return;
         }
 
+        if (_jumpTriggeredThisFrame)
+        {
+            actionScript.Jump();
+        }
+
+        bool jumpLocked = Time.time < _jumpAnimationLockUntil;
+        if (jumpLocked)
+        {
+            actionScript.Idle(false);
+            actionScript.Walk(false);
+            actionScript.Sprint(false);
+            return;
+        }
+
         bool anyWalk = _isForwardWalk || _isBackwardWalk || _isLeftWalk || _isRightWalk;
         bool anyRun = _isForwardRun || _isBackwardRun || _isLeftRun || _isRightRun;
+
+        if (_isJumping)
+        {
+            actionScript.Idle(false);
+            actionScript.Walk(anyWalk || anyRun);
+            actionScript.Sprint(false);
+            return;
+        }
 
         OnJump(_isJumping);
         actionScript.Idle(_isIdle);
@@ -205,16 +389,9 @@ public class FPSController : MonoBehaviour
     // Handle On Jump.
     public void OnJump(bool active)
     {
-        if (active)
-        {
-        }
-        else
-        {
-        }
     }
 
-    // Keep these Input System message handlers so PlayerInput Send Messages mode
-    // does not throw MissingMethodException for mapped actions.
+    // Keep these handlers so PlayerInput Send Messages mode does not throw.
     public void OnJump(InputValue value)
     {
     }
@@ -233,103 +410,67 @@ public class FPSController : MonoBehaviour
     public void OnSprint(InputValue value)
     {
     }
+
     // Handle On Idle.
     public void OnIdle(bool active)
     {
-        if (active)
+        if (actionScript == null)
         {
-            
-            actionScript.Idle(true);
+            return;
         }
-        else
-        {
-            actionScript.Idle(false);
-        }
+
+        actionScript.Idle(active);
     }
 
     // Handle On Forward Walk.
     public void OnForwardWalk(bool active)
     {
-        if (active)
+        if (actionScript == null)
         {
-            actionScript.Walk(true);
+            return;
         }
-        else
-        {
-            actionScript.Walk(false);
-        }
+
+        actionScript.Walk(active);
     }
+
     // Handle On Forward Run.
     public void OnForwardRun(bool active)
     {
-        if (active)
+        if (actionScript == null)
         {
-            actionScript.Sprint(true);
+            return;
         }
-        else
-        {
-            actionScript.Sprint(false);
-        }
+
+        actionScript.Sprint(active);
     }
+
     // Handle On Backward Walk.
     public void OnBackwardWalk(bool active)
     {
-        if (active)
-        {
-        }
-        else
-        {
-        }
     }
+
     // Handle On Backward Run.
     public void OnBackwardRun(bool active)
     {
-        if (active)
-        {
-        }
-        else
-        {
-        }
     }
+
     // Handle On Left Walk.
     public void OnLeftWalk(bool active)
     {
-        if (active)
-        {
-        }
-        else
-        {
-        }
     }
+
     // Handle On Left Run.
     public void OnLeftRun(bool active)
     {
-        if (active)
-        {
-        }
-        else
-        {
-        }
     }
+
     // Handle On Right Walk.
     public void OnRightWalk(bool active)
     {
-        if (active)
-        {
-        }
-        else
-        {
-        }
     }
+
     // Handle On Right Run.
     public void OnRightRun(bool active)
     {
-        if (active)
-        {
-        }
-        else
-        {
-        }
     }
 }
-
