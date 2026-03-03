@@ -43,6 +43,10 @@ public class MovementAnimationScript : MonoBehaviour
     {
         animator.SetTrigger("Jump");
     }
+    public void WalkBackWards(bool status)
+    {
+        animator.SetBool("WalkingBackWards", status);
+    }
   
 }
 

@@ -4,9 +4,9 @@
 public class ProjectileScript : MonoBehaviour
 {
     // Handle On Collision Enter.
-    public void OnCollisionEnter(Collider other)
+    public void OnCollisionEnter(Collision other)
     {
-        Debug.Log(other.tag);
+        Debug.Log(other.gameObject.tag);
     }
 }
 

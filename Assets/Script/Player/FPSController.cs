@@ -36,6 +36,11 @@ public class FPSController : MonoBehaviour
     public float cameraSnapInSpeed = 25f;
     public LayerMask cameraCollisionMask = ~0;
 
+    [Header("Camera Shake")]
+    public bool enableCameraShake = false;
+    public float cameraShakeAmplitude = 0.04f;
+    public float cameraShakeFrequency = 20f;
+
     private PlayerInput _playerInput;
     private InputAction _moveAction;
     private InputAction _lookAction;
@@ -52,6 +57,7 @@ public class FPSController : MonoBehaviour
     private Vector3 _cameraVelocity;
     private float _currentCameraDistance;
     private bool _cameraDistanceInitialized;
+    private float _cameraShakeSeed;
 
     private bool _isJumping;
     private bool _isIdle;
@@ -91,6 +97,8 @@ public class FPSController : MonoBehaviour
         {
             Debug.LogWarning("Missing player camera reference.");
         }
+
+        _cameraShakeSeed = Random.Range(0f, 1000f);
     }
 
     void OnEnable()
@@ -275,6 +283,7 @@ public class FPSController : MonoBehaviour
         }
 
         Vector3 desiredPosition = pivot + (backward * _currentCameraDistance);
+        desiredPosition += GetCameraShakeOffset();
 
         if (deltaTime > 0f && cameraSmoothSpeed > 0f)
         {
@@ -324,6 +333,21 @@ public class FPSController : MonoBehaviour
         return angle;
     }
 
+    // Handle Get Camera Shake Offset.
+    private Vector3 GetCameraShakeOffset()
+    {
+        if (!enableCameraShake || cameraShakeAmplitude <= 0f || cameraShakeFrequency <= 0f)
+        {
+            return Vector3.zero;
+        }
+
+        float time = Time.time * cameraShakeFrequency;
+        float x = (Mathf.PerlinNoise(_cameraShakeSeed, time) * 2f) - 1f;
+        float y = (Mathf.PerlinNoise(_cameraShakeSeed + 1f, time) * 2f) - 1f;
+        float z = (Mathf.PerlinNoise(_cameraShakeSeed + 2f, time) * 2f) - 1f;
+        return new Vector3(x, y, z) * cameraShakeAmplitude;
+    }
+
     // Handle Update Movement Flags.
     private void UpdateMovementFlags(Vector2 moveInput, bool isRunning)
     {
@@ -365,25 +389,30 @@ public class FPSController : MonoBehaviour
         {
             actionScript.Idle(false);
             actionScript.Walk(false);
-            actionScript.Sprint(false);
+            actionScript.WalkBackwards(false);
+            actionScript.Sprint(false, false);
             return;
         }
 
-        bool anyWalk = _isForwardWalk || _isBackwardWalk || _isLeftWalk || _isRightWalk;
+        bool forwardWalk = _isForwardWalk || _isLeftWalk || _isRightWalk;
+        bool forwardRun = _isForwardRun || _isLeftRun || _isRightRun;
+        bool backward = _isBackwardWalk || _isBackwardRun;
         bool anyRun = _isForwardRun || _isBackwardRun || _isLeftRun || _isRightRun;
 
         if (_isJumping)
         {
             actionScript.Idle(false);
-            actionScript.Walk(anyWalk || anyRun);
-            actionScript.Sprint(false);
+            actionScript.Walk(false);
+            actionScript.WalkBackwards(false);
+            actionScript.Sprint(false, false);
             return;
         }
 
         OnJump(_isJumping);
         actionScript.Idle(_isIdle);
-        actionScript.Walk(anyWalk);
-        actionScript.Sprint(anyRun);
+        actionScript.Walk(forwardWalk);
+        actionScript.WalkBackwards(backward);
+        actionScript.Sprint(anyRun, forwardRun);
     }
 
     // Handle On Jump.
@@ -441,17 +470,30 @@ public class FPSController : MonoBehaviour
             return;
         }
 
-        actionScript.Sprint(active);
+        actionScript.Sprint(active, active);
     }
 
     // Handle On Backward Walk.
     public void OnBackwardWalk(bool active)
     {
+        if (actionScript == null)
+        {
+            return;
+        }
+
+        actionScript.WalkBackwards(active);
     }
 
     // Handle On Backward Run.
     public void OnBackwardRun(bool active)
     {
+        if (actionScript == null)
+        {
+            return;
+        }
+
+        actionScript.WalkBackwards(active);
+        actionScript.Sprint(active, false);
     }
 
     // Handle On Left Walk.

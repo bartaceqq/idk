@@ -41,7 +41,9 @@ public class RayScript : MonoBehaviour
     private float _nextSwingTime;
     private float _nextAxeSwingTime;
     private float _nextPickaxeSwingTime;
-    private bool _axeSoundPlayedThisSwing;
+    private float _nextAxeSoundAllowedTime;
+    private float _nextPickaxeSoundAllowedTime;
+    private float _nextSwordSoundAllowedTime;
     private readonly Collider[] _proximityHits = new Collider[128];
 
     private void Awake()
@@ -89,12 +91,11 @@ public class RayScript : MonoBehaviour
         }
 
         _nextAxeSwingTime = Time.time + swingCooldownSeconds;
-        _axeSoundPlayedThisSwing = false;
 
         if (actionScript != null)
         {
             actionScript.Chop();
-            PlayAxeSoundOncePerSwing();
+            TryPlayWeaponSound(axeaudiosource, 0f, ref _nextAxeSoundAllowedTime, swingCooldownSeconds);
         }
 
         if (TryGetClosestTreeTarget(out ColliderScript treeTarget))
@@ -118,7 +119,7 @@ public class RayScript : MonoBehaviour
         if (actionScript != null)
         {
             actionScript.Mine();
-            PlaySoundAtSwingStart(pickaxeAudioSource, pickaxeSoundDelaySeconds);
+            TryPlayWeaponSound(pickaxeAudioSource, pickaxeSoundDelaySeconds, ref _nextPickaxeSoundAllowedTime, swingCooldownSeconds);
         }
 
         if (TryGetClosestStoneTarget(out MineStone stoneTarget))
@@ -149,7 +150,7 @@ public class RayScript : MonoBehaviour
         }
 
         StartCoroutine(TriggerSwordAttackAfterDelay(swordHitDelaySeconds));
-        PlaySoundAtSwingStart(swordAudioSource, swordSoundDelaySeconds);
+        TryPlayWeaponSound(swordAudioSource, swordSoundDelaySeconds, ref _nextSwordSoundAllowedTime, swordAttackCooldownSeconds);
         return swordAttackCooldownSeconds;
     }
 
@@ -314,34 +315,47 @@ public class RayScript : MonoBehaviour
     }
 
     // Handle Play Sound At Swing Start.
-    private void PlaySoundAtSwingStart(AudioSource source, float delaySeconds)
+    private void TryPlayWeaponSound(AudioSource source, float delaySeconds, ref float nextAllowedTime, float minBlockSeconds)
     {
         if (source == null)
         {
             return;
         }
 
-        source.Stop();
-
-        if (delaySeconds > 0f)
+        float now = Time.time;
+        if (now < nextAllowedTime)
         {
-            source.PlayDelayed(delaySeconds);
+            return;
+        }
+
+        float delay = Mathf.Max(0f, delaySeconds);
+        float clipDuration = 0f;
+        if (source.clip != null)
+        {
+            float pitch = Mathf.Abs(source.pitch);
+            if (pitch < 0.01f)
+            {
+                pitch = 0.01f;
+            }
+
+            clipDuration = source.clip.length / pitch;
+        }
+
+        float blockDuration = Mathf.Max(minBlockSeconds, delay + clipDuration);
+        if (blockDuration <= 0f)
+        {
+            blockDuration = 0.01f;
+        }
+
+        nextAllowedTime = now + blockDuration;
+
+        if (delay > 0f)
+        {
+            source.PlayDelayed(delay);
         }
         else
         {
             source.Play();
         }
-    }
-
-    // Play axe sound only once per axe animation cycle.
-    private void PlayAxeSoundOncePerSwing()
-    {
-        if (_axeSoundPlayedThisSwing || axeaudiosource == null)
-        {
-            return;
-        }
-
-        _axeSoundPlayedThisSwing = true;
-        PlaySoundAtSwingStart(axeaudiosource, 0f);
     }
 }

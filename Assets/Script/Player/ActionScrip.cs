@@ -26,11 +26,17 @@ public class ActionScript : MonoBehaviour
         
     }
     // Handle Sprint.
-    public void Sprint(bool status)
+    public void Sprint(bool status, bool playAnimation)
     {
-        
-        
-         movementAnimationScript.RunAnimation_Foreward(status);
+        if (movementAnimationScript != null)
+        {
+            movementAnimationScript.RunAnimation_Foreward(status && playAnimation);
+        }
+
+        if (staminaScript == null)
+        {
+            return;
+        }
 
         if (status)
         {
@@ -40,7 +46,6 @@ public class ActionScript : MonoBehaviour
         {
             staminaScript.AddStamina();
         }
-        
     }
     // Handle Idle.
     public void Idle(bool status)
@@ -61,7 +66,10 @@ public class ActionScript : MonoBehaviour
     {
         movementAnimationScript.JumpAnimation();
     }
-    
+    public void WalkBackwards(bool status)
+    {
+        movementAnimationScript.WalkBackWards(status);
+    }
 
 }
 
