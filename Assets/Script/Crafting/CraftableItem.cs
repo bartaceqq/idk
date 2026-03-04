@@ -28,8 +28,8 @@ public class CraftableItem : MonoBehaviour
     {
         craftAmount = Mathf.Max(1, craftAmount);
 
-        if (craftedInventoryItem != null)
         {
+        if (craftedInventoryItem != null)
             SyncCraftResultToInventoryItem(craftedInventoryItem, null);
         }
 

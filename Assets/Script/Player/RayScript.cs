@@ -248,6 +248,10 @@ public class RayScript : MonoBehaviour
 
                     TryPickupInventoryItem(objectik, 1);
                     break;
+                case "LittleStone":
+
+                    TryPickupInventoryItem(objectik, 1);
+                    break;
 
             }
         }
@@ -288,6 +292,17 @@ public class RayScript : MonoBehaviour
         {
             // Inventory full or add failed.
             return;
+        }
+
+        DetailPickupMarker marker = pickableObject.GetComponent<DetailPickupMarker>();
+        if (marker == null && inventoryItem != null)
+        {
+            marker = inventoryItem.GetComponent<DetailPickupMarker>();
+        }
+
+        if (marker != null)
+        {
+            marker.MarkCollected();
         }
 
         if (nearestPickableObject == pickableObject || nearestPickableObject == inventoryItem.gameObject)
