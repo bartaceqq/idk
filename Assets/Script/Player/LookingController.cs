@@ -22,6 +22,11 @@ public class LookingController : MonoBehaviour
     // Run this logic every frame.
     private void Update()
     {
+        if (IsUiBlockingGameplay())
+        {
+            return;
+        }
+
         if (Input.GetKeyDown(keycode))
         {
             Switch();
@@ -77,8 +82,9 @@ public class LookingController : MonoBehaviour
         }
 
         ActivatePrimaryPlayerInput(targetCapsule);
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        bool uiOpen = IsUiBlockingGameplay();
+        Cursor.lockState = uiOpen ? CursorLockMode.None : CursorLockMode.Locked;
+        Cursor.visible = uiOpen;
     }
 
     // Handle Resolve Look Transform.
@@ -134,5 +140,11 @@ public class LookingController : MonoBehaviour
         {
             playerInput.ActivateInput();
         }
+    }
+
+    // Handle Is UIBlocking Gameplay.
+    private static bool IsUiBlockingGameplay()
+    {
+        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen;
     }
 }

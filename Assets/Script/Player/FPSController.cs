@@ -144,6 +144,35 @@ public class FPSController : MonoBehaviour
             return;
         }
 
+        if (IsUiBlockingGameplay())
+        {
+            if (_cc.isGrounded)
+            {
+                _velocity.y = -groundedStickForce;
+                _lastGroundedTime = Time.time;
+            }
+            else
+            {
+                _velocity.y -= gravity * Time.deltaTime;
+            }
+
+            _jumpTriggeredThisFrame = false;
+            _isJumping = !_cc.isGrounded;
+            _isIdle = true;
+            _isForwardWalk = false;
+            _isForwardRun = false;
+            _isBackwardWalk = false;
+            _isBackwardRun = false;
+            _isLeftWalk = false;
+            _isLeftRun = false;
+            _isRightWalk = false;
+            _isRightRun = false;
+
+            RunCallbacks();
+            _cc.Move(new Vector3(0f, _velocity.y, 0f) * Time.deltaTime);
+            return;
+        }
+
         if (!InventoryController.IsInventoryOpen)
         {
             Vector2 look = _lookAction.ReadValue<Vector2>();
@@ -394,6 +423,15 @@ public class FPSController : MonoBehaviour
             return;
         }
 
+        if (actionScript.IsMovementAnimationLocked())
+        {
+            actionScript.Idle(false);
+            actionScript.Walk(false);
+            actionScript.WalkBackwards(false);
+            actionScript.Sprint(false, false);
+            return;
+        }
+
         bool forwardWalk = _isForwardWalk || _isLeftWalk || _isRightWalk;
         bool forwardRun = _isForwardRun || _isLeftRun || _isRightRun;
         bool backward = _isBackwardWalk || _isBackwardRun;
@@ -514,5 +552,11 @@ public class FPSController : MonoBehaviour
     // Handle On Right Run.
     public void OnRightRun(bool active)
     {
+    }
+
+    // Handle Is UIBlocking Gameplay.
+    private static bool IsUiBlockingGameplay()
+    {
+        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen;
     }
 }

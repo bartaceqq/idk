@@ -121,6 +121,33 @@ public class FPSControllerTest : MonoBehaviour
             return;
         }
 
+        if (IsUiBlockingGameplay())
+        {
+            if (_cc.isGrounded)
+            {
+                _velocity.y = -groundedStickForce;
+            }
+            else
+            {
+                _velocity.y -= gravity * Time.deltaTime;
+            }
+
+            _isJumping = false;
+            _isIdle = true;
+            _isForwardWalk = false;
+            _isForwardRun = false;
+            _isBackwardWalk = false;
+            _isBackwardRun = false;
+            _isLeftWalk = false;
+            _isLeftRun = false;
+            _isRightWalk = false;
+            _isRightRun = false;
+
+            RunCallbacks();
+            _cc.Move(new Vector3(0f, _velocity.y, 0f) * Time.deltaTime);
+            return;
+        }
+
         Vector2 look = _lookAction.ReadValue<Vector2>();
         _yaw += look.x * mouseSensitivity;
         _pitch = Mathf.Clamp(_pitch - (look.y * mouseSensitivity), minPitch, maxPitch);
@@ -382,5 +409,11 @@ public class FPSControllerTest : MonoBehaviour
     // Handle On Right Run.
     public void OnRightRun(bool active)
     {
+    }
+
+    // Handle Is UIBlocking Gameplay.
+    private static bool IsUiBlockingGameplay()
+    {
+        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen;
     }
 }

@@ -7,6 +7,7 @@ TagManager:
   - Tree
   - Stone
   - Building
+  - Stick
   layers:
   - Default
   - TransparentFX
@@ -15,7 +16,7 @@ TagManager:
   - Water
   - UI
   - Building
-  - 
+  - Pickable
   - 
   - 
   - 

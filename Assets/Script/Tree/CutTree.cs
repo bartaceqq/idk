@@ -27,6 +27,7 @@ public class CutTree : MonoBehaviour
     private bool topInitialProvidesContacts;
     private bool isRebuilding;
 
+    
     private struct TransformSnapshot
     {
         public Vector3 localPosition;
@@ -183,6 +184,24 @@ public class CutTree : MonoBehaviour
         targetTransform.localScale = snapshot.localScale;
     }
 
+    // Handle Set Tree Part Visible.
+    private static void SetTreePartVisible(GameObject treePart, bool visible)
+    {
+        if (treePart == null)
+        {
+            return;
+        }
+
+        Renderer[] renderers = treePart.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null)
+            {
+                renderers[i].enabled = visible;
+            }
+        }
+    }
+
     // Handle Set Active After Seconds.
     private IEnumerator SetActiveAfterSeconds(GameObject target, float delaySeconds, bool active)
     {
@@ -218,16 +237,7 @@ public class CutTree : MonoBehaviour
 
             RestoreTransform(treePart.transform);
             treePart.SetActive(true);
-
-            Renderer renderer = treePart.GetComponent<MeshRenderer>();
-            if (renderer == null)
-            {
-                renderer = treePart.GetComponentInChildren<MeshRenderer>(true);
-            }
-            if (renderer != null)
-            {
-                renderer.enabled = true;
-            }
+            SetTreePartVisible(treePart, true);
         }
 
         if (topofthetree != null)
@@ -279,6 +289,7 @@ public class CutTree : MonoBehaviour
             if (inventoryItem != null && inventoryItem.slotManager != null)
             {
                 inventoryItem.slotManager.AddItem(inventoryItem);
+                
             }
             else
             {
@@ -307,19 +318,7 @@ public class CutTree : MonoBehaviour
                 return;
             }
 
-            Renderer renderer = treepart.GetComponent<MeshRenderer>();
-            if (renderer == null)
-            {
-                renderer = treepart.GetComponentInChildren<MeshRenderer>();
-            }
-            if (renderer == null)
-            {
-                Debug.LogWarning($"CutTree: No Renderer found on {treepart.name}");
-            }
-            else
-            {
-                renderer.enabled = false;
-            }
+            SetTreePartVisible(treepart, false);
             StartCoroutine(SetActiveAfterSeconds(treepart, destroyDelaySeconds, false));
             treeparts.RemoveAt(treeparts.Count - 1);
         }

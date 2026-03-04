@@ -6,10 +6,14 @@ public class ActionScript : MonoBehaviour
     public bool enoughstamina;
     public StaminaScript staminaScript; 
     public string currentutil;
+    [Header("Animation Locks")]
+    public float swordMovementAnimationLockSeconds = 0.35f;
     public MovementAnimationScript movementAnimationScript;
     public AxeAnimationScript axeAnimationScript;
     public PickaxeAnimationScript pickaxeAnimationScript;
     public SwordAnimationScript swordAnimationScript;
+
+    private float movementAnimationLockUntil;
    
     
     // Handle Chop.
@@ -60,6 +64,7 @@ public class ActionScript : MonoBehaviour
     // Handle Attack.
     public void Attack()
     {
+        LockMovementAnimations(swordMovementAnimationLockSeconds);
         swordAnimationScript.Attack();
     }
     public void Jump()
@@ -69,6 +74,28 @@ public class ActionScript : MonoBehaviour
     public void WalkBackwards(bool status)
     {
         movementAnimationScript.WalkBackWards(status);
+    }
+
+    // Handle Is Movement Animation Locked.
+    public bool IsMovementAnimationLocked()
+    {
+        return Time.time < movementAnimationLockUntil;
+    }
+
+    // Handle Lock Movement Animations.
+    public void LockMovementAnimations(float seconds)
+    {
+        float lockDuration = Mathf.Max(0f, seconds);
+        if (lockDuration <= 0f)
+        {
+            return;
+        }
+
+        float lockUntil = Time.time + lockDuration;
+        if (lockUntil > movementAnimationLockUntil)
+        {
+            movementAnimationLockUntil = lockUntil;
+        }
     }
 
 }

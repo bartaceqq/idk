@@ -1,0 +1,64 @@
+# Details
+
+Date : 2026-03-04 09:48:58
+
+Directory c:\\Users\\adamb\\Documents\\GitHub\\idk\\Assets\\Script
+
+Total : 49 files,  5833 codes, 355 comments, 1108 blanks, all 7296 lines
+
+[Summary](results.md) / Details / [Diff Summary](diff.md) / [Diff Details](diff-details.md)
+
+## Files
+| filename | language | code | comment | blank | total |
+| :--- | :--- | ---: | ---: | ---: | ---: |
+| [Assets/Script/Crafting/CraftableItem.cs](/Assets/Script/Crafting/CraftableItem.cs) | C# | 19 | 2 | 6 | 27 |
+| [Assets/Script/Crafting/CraftableSlot.cs](/Assets/Script/Crafting/CraftableSlot.cs) | C# | 75 | 3 | 17 | 95 |
+| [Assets/Script/Crafting/CraftingManager.cs](/Assets/Script/Crafting/CraftingManager.cs) | C# | 103 | 2 | 20 | 125 |
+| [Assets/Script/Crafting/CraftingProcessHandler.cs](/Assets/Script/Crafting/CraftingProcessHandler.cs) | C# | 10 | 2 | 5 | 17 |
+| [Assets/Script/CutScenes/StartCutSceneScript.cs](/Assets/Script/CutScenes/StartCutSceneScript.cs) | C# | 120 | 9 | 25 | 154 |
+| [Assets/Script/Enemies/EnemiesHandler.cs](/Assets/Script/Enemies/EnemiesHandler.cs) | C# | 6 | 1 | 3 | 10 |
+| [Assets/Script/Enemies/NPCDemageScript.cs](/Assets/Script/Enemies/NPCDemageScript.cs) | C# | 148 | 10 | 29 | 187 |
+| [Assets/Script/Enemies/NPCHealthScript.cs](/Assets/Script/Enemies/NPCHealthScript.cs) | C# | 141 | 9 | 22 | 172 |
+| [Assets/Script/Enemies/RandomSkeletonScript.cs](/Assets/Script/Enemies/RandomSkeletonScript.cs) | C# | 211 | 12 | 33 | 256 |
+| [Assets/Script/Enemies/RandomZombieScript.cs](/Assets/Script/Enemies/RandomZombieScript.cs) | C# | 309 | 15 | 54 | 378 |
+| [Assets/Script/Enemies/SkeletonAnimatopmScript.cs](/Assets/Script/Enemies/SkeletonAnimatopmScript.cs) | C# | 13 | 3 | 3 | 19 |
+| [Assets/Script/Enemies/ZombieAnimationScript.cs](/Assets/Script/Enemies/ZombieAnimationScript.cs) | C# | 13 | 3 | 3 | 19 |
+| [Assets/Script/Inventory/InventoryController.cs](/Assets/Script/Inventory/InventoryController.cs) | C# | 62 | 2 | 14 | 78 |
+| [Assets/Script/Inventory/InventoryItem.cs](/Assets/Script/Inventory/InventoryItem.cs) | C# | 42 | 5 | 9 | 56 |
+| [Assets/Script/Inventory/InventoryListHandler.cs](/Assets/Script/Inventory/InventoryListHandler.cs) | C# | 58 | 3 | 12 | 73 |
+| [Assets/Script/Inventory/Slot.cs](/Assets/Script/Inventory/Slot.cs) | C# | 232 | 16 | 46 | 294 |
+| [Assets/Script/Inventory/SlotManager.cs](/Assets/Script/Inventory/SlotManager.cs) | C# | 143 | 15 | 27 | 185 |
+| [Assets/Script/Lightning/RandomRainCycleController.cs](/Assets/Script/Lightning/RandomRainCycleController.cs) | C# | 160 | 14 | 35 | 209 |
+| [Assets/Script/Optimalization/Optimalization.cs](/Assets/Script/Optimalization/Optimalization.cs) | C# | 31 | 9 | 9 | 49 |
+| [Assets/Script/Player/ActionScrip.cs](/Assets/Script/Player/ActionScrip.cs) | C# | 58 | 7 | 11 | 76 |
+| [Assets/Script/Player/AnimationScript.cs](/Assets/Script/Player/AnimationScript.cs) | C# | 8 | 2 | 4 | 14 |
+| [Assets/Script/Player/AxeAnimationScript.cs](/Assets/Script/Player/AxeAnimationScript.cs) | C# | 10 | 2 | 5 | 17 |
+| [Assets/Script/Player/FPSController.cs](/Assets/Script/Player/FPSController.cs) | C# | 419 | 22 | 78 | 519 |
+| [Assets/Script/Player/Item.cs](/Assets/Script/Player/Item.cs) | C# | 8 | 1 | 3 | 12 |
+| [Assets/Script/Player/ItemSwitchScript.cs](/Assets/Script/Player/ItemSwitchScript.cs) | C# | 37 | 1 | 7 | 45 |
+| [Assets/Script/Player/LevelingManager.cs](/Assets/Script/Player/LevelingManager.cs) | C# | 13 | 2 | 5 | 20 |
+| [Assets/Script/Player/LookingController.cs](/Assets/Script/Player/LookingController.cs) | C# | 109 | 8 | 22 | 139 |
+| [Assets/Script/Player/MovementAnimationScript.cs](/Assets/Script/Player/MovementAnimationScript.cs) | C# | 43 | 4 | 6 | 53 |
+| [Assets/Script/Player/PickaxeAnimationScript.cs](/Assets/Script/Player/PickaxeAnimationScript.cs) | C# | 9 | 2 | 4 | 15 |
+| [Assets/Script/Player/RadiusForAttackScript.cs](/Assets/Script/Player/RadiusForAttackScript.cs) | C# | 131 | 5 | 24 | 160 |
+| [Assets/Script/Player/RayScript.cs](/Assets/Script/Player/RayScript.cs) | C# | 292 | 12 | 58 | 362 |
+| [Assets/Script/Player/StaminaScript.cs](/Assets/Script/Player/StaminaScript.cs) | C# | 62 | 4 | 11 | 77 |
+| [Assets/Script/Player/SwordAnimationScript.cs](/Assets/Script/Player/SwordAnimationScript.cs) | C# | 9 | 2 | 3 | 14 |
+| [Assets/Script/Player/Test/FPSControllerTest.cs](/Assets/Script/Player/Test/FPSControllerTest.cs) | C# | 307 | 20 | 60 | 387 |
+| [Assets/Script/Player/Test/FloorScript.cs](/Assets/Script/Player/Test/FloorScript.cs) | C# | 13 | 2 | 3 | 18 |
+| [Assets/Script/Player/Test/RayCastScriptTest.cs](/Assets/Script/Player/Test/RayCastScriptTest.cs) | C# | 1,428 | 62 | 257 | 1,747 |
+| [Assets/Script/Player/Test/SnapPoint.cs](/Assets/Script/Player/Test/SnapPoint.cs) | C# | 4 | 1 | 3 | 8 |
+| [Assets/Script/Player/Test/StairScript.cs](/Assets/Script/Player/Test/StairScript.cs) | C# | 13 | 2 | 3 | 18 |
+| [Assets/Script/Player/Test/WallSnapPoints.cs](/Assets/Script/Player/Test/WallSnapPoints.cs) | C# | 5 | 1 | 2 | 8 |
+| [Assets/Script/Projectile/ProjectileScript.cs](/Assets/Script/Projectile/ProjectileScript.cs) | C# | 8 | 2 | 3 | 13 |
+| [Assets/Script/ResHandler.cs](/Assets/Script/ResHandler.cs) | C# | 8 | 1 | 2 | 11 |
+| [Assets/Script/Stone/GetRandomOreType.cs](/Assets/Script/Stone/GetRandomOreType.cs) | C# | 113 | 5 | 19 | 137 |
+| [Assets/Script/Stone/MineStone.cs](/Assets/Script/Stone/MineStone.cs) | C# | 326 | 18 | 50 | 394 |
+| [Assets/Script/Stone/Ore.cs](/Assets/Script/Stone/Ore.cs) | C# | 14 | 1 | 3 | 18 |
+| [Assets/Script/Stone/StoneColliderScript.cs](/Assets/Script/Stone/StoneColliderScript.cs) | C# | 35 | 5 | 6 | 46 |
+| [Assets/Script/Tree/ColliderScript.cs](/Assets/Script/Tree/ColliderScript.cs) | C# | 21 | 3 | 5 | 29 |
+| [Assets/Script/Tree/CutTree.cs](/Assets/Script/Tree/CutTree.cs) | C# | 271 | 13 | 46 | 330 |
+| [Assets/Script/Tree/TerrainTreeToPrefabConverter.cs](/Assets/Script/Tree/TerrainTreeToPrefabConverter.cs) | C# | 84 | 2 | 20 | 106 |
+| [Assets/Script/UI/InfoHandler.cs](/Assets/Script/UI/InfoHandler.cs) | C# | 79 | 8 | 13 | 100 |
+
+[Summary](results.md) / Details / [Diff Summary](diff.md) / [Diff Details](diff-details.md)

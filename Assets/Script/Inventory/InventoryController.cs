@@ -38,23 +38,14 @@ public class InventoryController : MonoBehaviour
     void OnDisable()
     {
         IsInventoryOpen = false;
+        ApplyCursorState();
     }
 
     // Handle Apply UIState.
     private void ApplyUIState()
     {
         IsInventoryOpen = UIshown;
-
-        if (UIshown)
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
-        else
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+        ApplyCursorState();
         if (inventoryobject == null)
         {
             Debug.LogWarning("InventoryController: inventoryobject is not assigned.", this);
@@ -73,5 +64,13 @@ public class InventoryController : MonoBehaviour
         {
             tmpTexts[i].enabled = UIshown;
         }
+    }
+
+    // Handle Apply Cursor State.
+    private static void ApplyCursorState()
+    {
+        bool uiOpen = IsInventoryOpen || CraftingManager.IsCraftingOpen;
+        Cursor.lockState = uiOpen ? CursorLockMode.None : CursorLockMode.Locked;
+        Cursor.visible = uiOpen;
     }
 }

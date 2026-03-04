@@ -120,6 +120,11 @@ public class RayCastScriptTest : MonoBehaviour
     // Run this logic every frame.
     private void Update()
     {
+        if (IsUiBlockingGameplay())
+        {
+            return;
+        }
+
         // 1) Handle global mode input, 2) update preview, 3) place/extrude.
         if (!EnsureCamera()) return;
 
@@ -1685,6 +1690,12 @@ public class RayCastScriptTest : MonoBehaviour
     private static bool IsSnapMarkerTransform(Transform transformToCheck)
     {
         return transformToCheck != null && transformToCheck.GetComponentInParent<SnapPoint>() != null;
+    }
+
+    // Handle Is UIBlocking Gameplay.
+    private static bool IsUiBlockingGameplay()
+    {
+        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen;
     }
 
     // Handle Try Get Nearest Snap Point YNear Reference.

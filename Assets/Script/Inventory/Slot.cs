@@ -9,6 +9,7 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
     public Sprite sprite;
     public int count;
     public SlotManager slotManager;
+    public InventoryItem inventoryItemReference;
     public string itemName;
     public Image image;
     public TMP_Text counttext;
@@ -16,6 +17,8 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
     private static Slot currentDragSource;
     private static GameObject dragIconObject;
     private static Canvas dragCanvas;
+
+    public static Slot CurrentDragSource => currentDragSource;
 
     void Start()
     {
@@ -28,7 +31,7 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
     }
 
     // Handle Add Item.
-    public void AddItem(InventoryItem inventoryItem)
+    public void AddItem(InventoryItem inventoryItem, InventoryListHandler inventoryListHandler, int explicitAmount = -1)
     {
         if (inventoryItem == null)
         {
@@ -37,11 +40,32 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
 
         if (sprite == null)
         {
+            inventoryItemReference = inventoryItem;
             sprite = inventoryItem.inventorysprite;
             itemName = inventoryItem.name;
         }
+        else if (inventoryItemReference == null)
+        {
+            inventoryItemReference = inventoryItem;
+        }
 
-        count += GetCount(inventoryItem);
+        int addedAmount = explicitAmount > 0 ? explicitAmount : GetCount(inventoryItem);
+        if (addedAmount <= 0)
+        {
+            return;
+        }
+
+        count += addedAmount;
+
+        if (inventoryListHandler != null)
+        {
+            inventoryListHandler.AddItem(inventoryItem, addedAmount);
+        }
+        else if (slotManager != null)
+        {
+            slotManager.RefreshInventoryList();
+        }
+
         UpdateUI();
     }
 
@@ -66,9 +90,17 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
             return false;
         }
 
-        return sprite != null &&
-               sprite == inventoryItem.inventorysprite &&
-               itemName == inventoryItem.name;
+        if (inventoryItemReference != null && inventoryItemReference == inventoryItem)
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(inventoryItem.name))
+        {
+            return false;
+        }
+
+        return string.Equals(itemName, inventoryItem.name, System.StringComparison.OrdinalIgnoreCase);
     }
 
     // Handle Update UI.
@@ -99,12 +131,25 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
             return false;
         }
 
-        return sprite == other.sprite && itemName == other.itemName;
+        if (inventoryItemReference != null &&
+            other.inventoryItemReference != null &&
+            inventoryItemReference == other.inventoryItemReference)
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(other.itemName))
+        {
+            return false;
+        }
+
+        return string.Equals(itemName, other.itemName, System.StringComparison.OrdinalIgnoreCase);
     }
 
     // Handle Clear Data.
     private void ClearData()
     {
+        inventoryItemReference = null;
         sprite = null;
         itemName = string.Empty;
         count = 0;
@@ -159,6 +204,7 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
 
         if (to.IsEmpty())
         {
+            to.inventoryItemReference = from.inventoryItemReference;
             to.sprite = from.sprite;
             to.itemName = from.itemName;
             to.count = from.count;
@@ -166,19 +212,27 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
         }
         else if (to.CanStackWith(from))
         {
+            if (to.inventoryItemReference == null)
+            {
+                to.inventoryItemReference = from.inventoryItemReference;
+            }
+
             to.count += from.count;
             from.ClearData();
         }
         else
         {
+            InventoryItem tempItemReference = to.inventoryItemReference;
             Sprite tempSprite = to.sprite;
             string tempName = to.itemName;
             int tempCount = to.count;
 
+            to.inventoryItemReference = from.inventoryItemReference;
             to.sprite = from.sprite;
             to.itemName = from.itemName;
             to.count = from.count;
 
+            from.inventoryItemReference = tempItemReference;
             from.sprite = tempSprite;
             from.itemName = tempName;
             from.count = tempCount;
@@ -186,6 +240,16 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
 
         from.UpdateUI();
         to.UpdateUI();
+
+        if (from.slotManager != null)
+        {
+            from.slotManager.RefreshInventoryList();
+        }
+
+        if (to.slotManager != null && to.slotManager != from.slotManager)
+        {
+            to.slotManager.RefreshInventoryList();
+        }
     }
 
     // Handle Create Drag Icon.
