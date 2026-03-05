@@ -1,0 +1,57 @@
+using TMPro;
+using UnityEngine;
+
+public class ChestChecker : MonoBehaviour
+{
+   
+    public GameObject player;
+    public TMP_Text text;
+    public Animator animator;
+    public float range = 10;
+    public KeyCode pressEkey;
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (Input.GetKeyDown(pressEkey))
+        {
+            if(CheckDistance() < range)
+            {
+                animator.SetTrigger("OpenChest");
+            }
+        }
+        HandleProcess();
+       
+    }
+    public void OpenChestAnimation()
+    {
+        
+    }
+    public float CheckDistance()
+    {
+        float d = Vector3.Distance(player.transform.position, this.gameObject.transform.position);
+        return d;
+        
+
+    }
+    public void HandleProcess()
+    {
+        if(CheckDistance() < range)
+        {
+            Debug.Log(true);
+            text.enabled = true;
+            
+        }
+        else
+        {
+              Debug.Log(false);
+            text.enabled = false;
+        }
+    }
+    
+}
