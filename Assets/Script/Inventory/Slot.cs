@@ -4,7 +4,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
 // Controls Slot behavior.
-public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
+public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler, IPointerClickHandler
 {
     public Sprite sprite;
     public int count;
@@ -252,6 +252,17 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
         }
     }
 
+    // Handle On Pointer Click.
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (eventData == null || eventData.button != PointerEventData.InputButton.Right)
+        {
+            return;
+        }
+
+        TryActivateInventoryBuilding();
+    }
+
     // Handle Create Drag Icon.
     private void CreateDragIcon()
     {
@@ -332,5 +343,121 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
             Destroy(dragIconObject);
             dragIconObject = null;
         }
+    }
+
+    // Handle Try Activate Inventory Building.
+    private void TryActivateInventoryBuilding()
+    {
+        if (IsEmpty())
+        {
+            return;
+        }
+
+        InventoryItem inventoryItem = ResolveInventoryItemReference();
+        if (inventoryItem == null || inventoryItem.itemType != InventoryItemType.Building)
+        {
+            return;
+        }
+
+        if (inventoryItem.itemPrefab == null)
+        {
+            Debug.LogWarning($"Slot: Building item '{inventoryItem.name}' is missing itemPrefab.", this);
+            return;
+        }
+
+        RayCastScriptTest buildController = FindBuildController();
+        if (buildController == null)
+        {
+            Debug.LogWarning("Slot: RayCastScriptTest was not found, cannot enter build mode from inventory.", this);
+            return;
+        }
+
+        if (!buildController.TrySelectInventoryBuildingItem(inventoryItem))
+        {
+            return;
+        }
+
+        InventoryController inventoryController = FindInventoryController();
+        if (inventoryController != null)
+        {
+            inventoryController.CloseInventory();
+        }
+    }
+
+    // Handle Resolve Inventory Item Reference.
+    private InventoryItem ResolveInventoryItemReference()
+    {
+        if (inventoryItemReference != null)
+        {
+            return inventoryItemReference;
+        }
+
+        string normalizedItemName = NormalizeItemName(itemName);
+        if (string.IsNullOrEmpty(normalizedItemName))
+        {
+            return null;
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        InventoryItem[] allItems = Object.FindObjectsByType<InventoryItem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        InventoryItem[] allItems = Object.FindObjectsOfType<InventoryItem>(true);
+#endif
+
+        for (int i = 0; i < allItems.Length; i++)
+        {
+            InventoryItem candidate = allItems[i];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (!string.Equals(NormalizeItemName(candidate.name), normalizedItemName, System.StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            inventoryItemReference = candidate;
+            return candidate;
+        }
+
+        return null;
+    }
+
+    // Handle Find Build Controller.
+    private static RayCastScriptTest FindBuildController()
+    {
+#if UNITY_2023_1_OR_NEWER
+        return Object.FindFirstObjectByType<RayCastScriptTest>(FindObjectsInactive.Include);
+#else
+        return Object.FindObjectOfType<RayCastScriptTest>(true);
+#endif
+    }
+
+    // Handle Find Inventory Controller.
+    private InventoryController FindInventoryController()
+    {
+        InventoryController controller = GetComponentInParent<InventoryController>();
+        if (controller != null)
+        {
+            return controller;
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        return Object.FindFirstObjectByType<InventoryController>(FindObjectsInactive.Include);
+#else
+        return Object.FindObjectOfType<InventoryController>(true);
+#endif
+    }
+
+    // Handle Normalize Item Name.
+    private static string NormalizeItemName(string rawName)
+    {
+        if (string.IsNullOrWhiteSpace(rawName))
+        {
+            return string.Empty;
+        }
+
+        return rawName.Trim();
     }
 }

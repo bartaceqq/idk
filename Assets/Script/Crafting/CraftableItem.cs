@@ -9,11 +9,15 @@ public class CraftableItem : MonoBehaviour
     public string name;
     public List<string> neededResources = new List<string>();
     public int slotnumber = -1;
+    [Header("Crafting Station")]
+    public string craftingStationId = "HandCrafting";
 
     [Header("Craft Result")]
     public InventoryItem craftedInventoryItem;
     public InventoryItemType itemType = InventoryItemType.Usable;
     public GameObject itemPrefab;
+    public Vector3 buildRotationEuler = Vector3.zero;
+    public Vector3 buildScale = Vector3.one;
     public int craftAmount = 1;
 
     [Header("Availability")]
@@ -27,9 +31,10 @@ public class CraftableItem : MonoBehaviour
     private void OnValidate()
     {
         craftAmount = Mathf.Max(1, craftAmount);
+        ValidateBuildScale();
 
-        {
         if (craftedInventoryItem != null)
+        {
             SyncCraftResultToInventoryItem(craftedInventoryItem, null);
         }
 
@@ -133,6 +138,9 @@ public class CraftableItem : MonoBehaviour
             target.itemPrefab = itemPrefab;
         }
 
+        target.buildRotationEuler = buildRotationEuler;
+        target.buildScale = buildScale;
+
         target.mingain = Mathf.Max(1, target.mingain);
         target.maxgain = Mathf.Max(target.mingain, target.maxgain);
 
@@ -140,5 +148,24 @@ public class CraftableItem : MonoBehaviour
         {
             target.slotManager = fallbackSlotManager;
         }
+    }
+
+    // Handle Validate Build Scale.
+    private void ValidateBuildScale()
+    {
+        buildScale.x = ValidateScaleAxis(buildScale.x);
+        buildScale.y = ValidateScaleAxis(buildScale.y);
+        buildScale.z = ValidateScaleAxis(buildScale.z);
+    }
+
+    // Handle Validate Scale Axis.
+    private static float ValidateScaleAxis(float axisValue)
+    {
+        if (Mathf.Abs(axisValue) < 0.0001f)
+        {
+            return 1f;
+        }
+
+        return axisValue;
     }
 }

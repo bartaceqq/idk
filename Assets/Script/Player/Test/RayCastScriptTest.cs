@@ -19,6 +19,11 @@ public class RayCastScriptTest : MonoBehaviour
     public GameObject floor;
     public GameObject stair;
 
+    [Header("Raycast Filtering")]
+    public bool ignorePlayerColliderInBuildRaycast = true;
+    public string playerTag = "Player";
+    public Transform playerRoot;
+
     [Header("Input")]
     public KeyCode rotateKey = KeyCode.R;
     public KeyCode destroyModeKey = KeyCode.X;
@@ -30,6 +35,23 @@ public class RayCastScriptTest : MonoBehaviour
     public Material buildingMaterial;
     public Material doneBuildMaterial;
     public Material destroyBuildMaterial;
+
+    [Header("Placed Build Visuals")]
+    public bool usePrefabMaterialsOnPlacedObjects = true;
+
+    [Header("Build Capsule")]
+    public bool autoSwitchToBuildingCapsule = true;
+    public LookingController lookingController;
+    public bool requireBuildingCapsuleForBuildControls = true;
+
+    [Header("Table Right Click")]
+    public bool enableTableRightClickShortcut = true;
+    public string tableTag = "Table";
+    public string tableNameContains = "table";
+    public GameObject tableRightClickBuildPrefab;
+    public string tableRightClickBuildName = "Capsule";
+    public Vector3 tableBuildRotationEuler = Vector3.zero;
+    public Vector3 tableBuildScale = Vector3.one;
 
     [Header("Snapping")]
     public bool enableTwoPointSnap = true;
@@ -71,6 +93,10 @@ public class RayCastScriptTest : MonoBehaviour
     private float _lastLoggedDistanceB = -1f;
     private float _lastLogTime = -10f;
     private BuildType _buildType = BuildType.Wall;
+    private GameObject _inventoryBuildPrefab;
+    private string _inventoryBuildItemName = string.Empty;
+    private Vector3 _inventoryBuildRotationEuler = Vector3.zero;
+    private Vector3 _inventoryBuildScale = Vector3.one;
     private readonly List<BuildType> _availableBuildTypes = new List<BuildType>(3);
 
     private bool _isSnapLocked;
@@ -122,6 +148,13 @@ public class RayCastScriptTest : MonoBehaviour
     {
         if (IsUiBlockingGameplay())
         {
+            HidePreviewAndCancelBuildInteraction();
+            return;
+        }
+
+        if (!CanUseBuildControls())
+        {
+            HidePreviewAndCancelBuildInteraction();
             return;
         }
 
@@ -174,6 +207,66 @@ public class RayCastScriptTest : MonoBehaviour
         return camera != null;
     }
 
+    // Handle Can Use Build Controls.
+    private bool CanUseBuildControls()
+    {
+        if (!requireBuildingCapsuleForBuildControls)
+        {
+            return true;
+        }
+
+        LookingController controller = ResolveLookingController();
+        if (controller == null)
+        {
+            return true;
+        }
+
+        return controller.switched;
+    }
+
+    // Handle Resolve Looking Controller.
+    private LookingController ResolveLookingController()
+    {
+        if (lookingController != null)
+        {
+            return lookingController;
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        lookingController = FindFirstObjectByType<LookingController>(FindObjectsInactive.Include);
+#else
+        lookingController = FindObjectOfType<LookingController>(true);
+#endif
+        return lookingController;
+    }
+
+    // Handle Hide Preview And Cancel Build Interaction.
+    private void HidePreviewAndCancelBuildInteraction()
+    {
+        if (_isDestroyMode)
+        {
+            _isDestroyMode = false;
+            ClearDestroyTargetHighlight();
+        }
+
+        _isExtrudeMode = false;
+        if (_isExtruding)
+        {
+            CancelExtrudeState();
+        }
+        else
+        {
+            ClearExtrudeGhosts();
+        }
+
+        if (_previewObject != null && _previewObject.activeSelf)
+        {
+            _previewObject.SetActive(false);
+        }
+
+        ClearSnapLock();
+    }
+
     // Handle Handle Destroy Mode Input.
     private void HandleDestroyModeInput()
     {
@@ -181,6 +274,76 @@ public class RayCastScriptTest : MonoBehaviour
         {
             ToggleDestroyMode();
         }
+    }
+
+    // Handle Try Select Inventory Building Prefab.
+    public bool TrySelectInventoryBuildingPrefab(GameObject prefab, string sourceItemName)
+    {
+        return TrySelectBuildPrefabDirect(
+            prefab,
+            sourceItemName,
+            Vector3.zero,
+            Vector3.one,
+            autoSwitchToBuildingCapsule);
+    }
+
+    // Handle Try Select Inventory Building Item.
+    public bool TrySelectInventoryBuildingItem(InventoryItem inventoryItem)
+    {
+        if (inventoryItem == null || inventoryItem.itemPrefab == null)
+        {
+            return false;
+        }
+
+        return TrySelectBuildPrefabDirect(
+            inventoryItem.itemPrefab,
+            inventoryItem.name,
+            inventoryItem.buildRotationEuler,
+            inventoryItem.buildScale,
+            autoSwitchToBuildingCapsule);
+    }
+
+    // Handle Try Select Build Prefab Direct.
+    private bool TrySelectBuildPrefabDirect(
+        GameObject prefab,
+        string sourceItemName,
+        Vector3 buildRotationEuler,
+        Vector3 buildScale,
+        bool switchToBuildingCapsule)
+    {
+        if (prefab == null)
+        {
+            return false;
+        }
+
+        _inventoryBuildPrefab = prefab;
+        _inventoryBuildItemName = string.IsNullOrWhiteSpace(sourceItemName) ? prefab.name : sourceItemName.Trim();
+        _inventoryBuildRotationEuler = buildRotationEuler;
+        _inventoryBuildScale = SanitizeScale(buildScale);
+        _buildType = ResolveBuildTypeForPrefab(prefab, _buildType);
+
+        if (switchToBuildingCapsule)
+        {
+            EnsureBuildingCapsuleActive();
+        }
+
+        if (_isDestroyMode)
+        {
+            ToggleDestroyMode();
+        }
+
+        _isExtrudeMode = false;
+        CancelExtrudeState();
+        CreatePreviewObject();
+
+        if (_previewObject == null)
+        {
+            return false;
+        }
+
+        _previewObject.SetActive(true);
+        LogDetectionState("Build mode: " + _inventoryBuildItemName);
+        return true;
     }
 
     // Handle Try Prepare Build Preview.
@@ -195,6 +358,11 @@ public class RayCastScriptTest : MonoBehaviour
 
         if (_previewObject != null)
         {
+            if (!_previewObject.activeSelf)
+            {
+                _previewObject.SetActive(true);
+            }
+
             return true;
         }
 
@@ -210,9 +378,19 @@ public class RayCastScriptTest : MonoBehaviour
             return;
         }
 
+        if (TryHandleTableRightClickShortcut(ref activePrefab))
+        {
+            return;
+        }
+
         if (_isExtruding)
         {
             CancelExtrudeState();
+        }
+
+        if (_inventoryBuildPrefab != null)
+        {
+            ClearInventoryBuildSelection();
         }
 
         ToggleBuildType();
@@ -242,7 +420,8 @@ public class RayCastScriptTest : MonoBehaviour
         }
 
         GameObject created = Instantiate(activePrefab, _previewObject.transform.position, _previewObject.transform.rotation);
-        ApplyMaterialToMeshRenderers(created, doneBuildMaterial);
+        ApplyScaleMultiplier(created, GetActiveBuildScale());
+        ApplyPlacedObjectVisuals(created);
     }
 
     // Handle Initialize Build Type.
@@ -255,6 +434,11 @@ public class RayCastScriptTest : MonoBehaviour
     // Handle Get Active Prefab.
     private GameObject GetActivePrefab()
     {
+        if (_inventoryBuildPrefab != null)
+        {
+            return _inventoryBuildPrefab;
+        }
+
         return _buildType switch
         {
             BuildType.Wall => wall,
@@ -282,6 +466,146 @@ public class RayCastScriptTest : MonoBehaviour
         LogDetectionState("Build mode: " + _buildType);
     }
 
+    // Handle Clear Inventory Build Selection.
+    private void ClearInventoryBuildSelection()
+    {
+        _inventoryBuildPrefab = null;
+        _inventoryBuildItemName = string.Empty;
+        _inventoryBuildRotationEuler = Vector3.zero;
+        _inventoryBuildScale = Vector3.one;
+    }
+
+    // Handle Resolve Build Type For Prefab.
+    private static BuildType ResolveBuildTypeForPrefab(GameObject prefab, BuildType fallback)
+    {
+        if (prefab == null)
+        {
+            return fallback;
+        }
+
+        if (prefab.GetComponentInChildren<FloorScript>(true) != null)
+        {
+            return BuildType.Floor;
+        }
+
+        if (prefab.GetComponentInChildren<StairScript>(true) != null)
+        {
+            return BuildType.Stair;
+        }
+
+        if (prefab.GetComponentInChildren<WallSnapPoints>(true) != null)
+        {
+            return BuildType.Wall;
+        }
+
+        return fallback;
+    }
+
+    // Handle Try Handle Table Right Click Shortcut.
+    private bool TryHandleTableRightClickShortcut(ref GameObject activePrefab)
+    {
+        if (!enableTableRightClickShortcut)
+        {
+            return false;
+        }
+
+        Ray ray = GetCenterRay();
+        if (!TryGetClosestTableHit(ray, out _))
+        {
+            return false;
+        }
+
+        bool changed = false;
+        if (autoSwitchToBuildingCapsule)
+        {
+            EnsureBuildingCapsuleActive();
+            changed = true;
+        }
+
+        if (tableRightClickBuildPrefab != null)
+        {
+            changed |= TrySelectBuildPrefabDirect(
+                tableRightClickBuildPrefab,
+                tableRightClickBuildName,
+                tableBuildRotationEuler,
+                tableBuildScale,
+                false);
+            activePrefab = GetActivePrefab();
+        }
+
+        return changed;
+    }
+
+    // Handle Try Get Closest Table Hit.
+    private bool TryGetClosestTableHit(Ray ray, out RaycastHit closestTableHit)
+    {
+        closestTableHit = default;
+        int hitCount = Physics.RaycastNonAlloc(ray, _placementHits, range, hitMask, QueryTriggerInteraction.Ignore);
+        if (hitCount <= 0)
+        {
+            return false;
+        }
+
+        float closestDistance = float.MaxValue;
+        bool found = false;
+        for (int i = 0; i < hitCount; i++)
+        {
+            RaycastHit hit = _placementHits[i];
+            Collider collider = hit.collider;
+            if (ShouldSkipPlacementCollider(collider))
+            {
+                continue;
+            }
+
+            if (!IsTableTransform(collider.transform))
+            {
+                continue;
+            }
+
+            if (hit.distance >= closestDistance)
+            {
+                continue;
+            }
+
+            closestDistance = hit.distance;
+            closestTableHit = hit;
+            found = true;
+        }
+
+        return found;
+    }
+
+    // Handle Is Table Transform.
+    private bool IsTableTransform(Transform startTransform)
+    {
+        if (startTransform == null)
+        {
+            return false;
+        }
+
+        string contains = string.IsNullOrWhiteSpace(tableNameContains) ? string.Empty : tableNameContains.Trim();
+        bool hasTagFilter = !string.IsNullOrWhiteSpace(tableTag);
+        bool hasNameFilter = !string.IsNullOrEmpty(contains);
+
+        Transform current = startTransform;
+        while (current != null)
+        {
+            if (hasTagFilter && current.CompareTag(tableTag))
+            {
+                return true;
+            }
+
+            if (hasNameFilter && current.name.IndexOf(contains, System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            current = current.parent;
+        }
+
+        return false;
+    }
+
     // Handle Refresh Available Build Types.
     private void RefreshAvailableBuildTypes()
     {
@@ -300,6 +624,7 @@ public class RayCastScriptTest : MonoBehaviour
         if (_previewObject != null) Destroy(_previewObject);
 
         _previewObject = Instantiate(activePrefab, Vector3.zero, Quaternion.identity);
+        ApplyScaleMultiplier(_previewObject, GetActiveBuildScale());
         ApplyMaterialToMeshRenderers(_previewObject, buildingMaterial);
         _previewYRotation = _previewObject.transform.eulerAngles.y;
         SetPreviewMode(_previewObject, true);
@@ -312,11 +637,12 @@ public class RayCastScriptTest : MonoBehaviour
     private void MovePreviewObject()
     {
         Ray ray = GetCenterRay();
-        if (!Physics.Raycast(ray, out RaycastHit hit, range, hitMask, QueryTriggerInteraction.Ignore)) return;
+        if (!TryGetPlacementHit(ray, out RaycastHit hit)) return;
 
         Vector3 rawPosition = GetRawPlacementPosition(hit);
-        Quaternion rawRotation = Quaternion.Euler(0f, _previewYRotation, 0f);
-        _previewObject.transform.SetPositionAndRotation(rawPosition, rawRotation);
+        Quaternion baseRotation = Quaternion.Euler(0f, _previewYRotation, 0f);
+        Quaternion placementRotation = ApplyBuildRotationOffset(baseRotation);
+        _previewObject.transform.SetPositionAndRotation(rawPosition, placementRotation);
 
         if (!enableTwoPointSnap)
         {
@@ -324,7 +650,7 @@ public class RayCastScriptTest : MonoBehaviour
             return;
         }
 
-        HandleStickyTwoPointSnap(rawPosition, rawRotation);
+        HandleStickyTwoPointSnap(rawPosition, placementRotation);
     }
 
     // Handle Get Raw Placement Position.
@@ -345,6 +671,200 @@ public class RayCastScriptTest : MonoBehaviour
     private Ray GetCenterRay()
     {
         return camera.ViewportPointToRay(CenterViewportPoint);
+    }
+
+    // Handle Try Get Placement Hit.
+    private bool TryGetPlacementHit(Ray ray, out RaycastHit closestHit)
+    {
+        closestHit = default;
+        int hitCount = Physics.RaycastNonAlloc(ray, _placementHits, range, hitMask, QueryTriggerInteraction.Ignore);
+        if (hitCount <= 0)
+        {
+            return false;
+        }
+
+        float closestDistance = float.MaxValue;
+        bool found = false;
+        for (int i = 0; i < hitCount; i++)
+        {
+            RaycastHit candidate = _placementHits[i];
+            Collider collider = candidate.collider;
+            if (ShouldSkipPlacementCollider(collider))
+            {
+                continue;
+            }
+
+            if (candidate.distance >= closestDistance)
+            {
+                continue;
+            }
+
+            closestDistance = candidate.distance;
+            closestHit = candidate;
+            found = true;
+        }
+
+        return found;
+    }
+
+    // Handle Should Skip Placement Collider.
+    private bool ShouldSkipPlacementCollider(Collider collider)
+    {
+        if (collider == null)
+        {
+            return true;
+        }
+
+        if (IsSnapMarkerTransform(collider.transform))
+        {
+            return true;
+        }
+
+        if (_previewObject != null && collider.transform.IsChildOf(_previewObject.transform))
+        {
+            return true;
+        }
+
+        return IsPlayerCollider(collider);
+    }
+
+    // Handle Is Player Collider.
+    private bool IsPlayerCollider(Collider collider)
+    {
+        if (!ignorePlayerColliderInBuildRaycast || collider == null)
+        {
+            return false;
+        }
+
+        Transform colliderTransform = collider.transform;
+        if (playerRoot != null && colliderTransform.IsChildOf(playerRoot))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(playerTag) &&
+            string.Equals(collider.tag, playerTag, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (camera != null && camera.transform != null)
+        {
+            Transform cameraRoot = camera.transform.root;
+            if (cameraRoot != null && colliderTransform.IsChildOf(cameraRoot))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Handle Apply Build Rotation Offset.
+    private Quaternion ApplyBuildRotationOffset(Quaternion baseRotation)
+    {
+        Vector3 rotationOffset = GetActiveBuildRotationEuler();
+        if (rotationOffset.sqrMagnitude < TinyValue)
+        {
+            return baseRotation;
+        }
+
+        return baseRotation * Quaternion.Euler(rotationOffset);
+    }
+
+    // Handle Get Active Build Rotation Euler.
+    private Vector3 GetActiveBuildRotationEuler()
+    {
+        if (_inventoryBuildPrefab != null)
+        {
+            return _inventoryBuildRotationEuler;
+        }
+
+        return Vector3.zero;
+    }
+
+    // Handle Get Active Build Scale.
+    private Vector3 GetActiveBuildScale()
+    {
+        if (_inventoryBuildPrefab != null)
+        {
+            return _inventoryBuildScale;
+        }
+
+        return Vector3.one;
+    }
+
+    // Handle Sanitize Scale.
+    private static Vector3 SanitizeScale(Vector3 scale)
+    {
+        scale.x = Mathf.Abs(scale.x) < TinyValue ? 1f : scale.x;
+        scale.y = Mathf.Abs(scale.y) < TinyValue ? 1f : scale.y;
+        scale.z = Mathf.Abs(scale.z) < TinyValue ? 1f : scale.z;
+        return scale;
+    }
+
+    // Handle Apply Scale Multiplier.
+    private static void ApplyScaleMultiplier(GameObject target, Vector3 scaleMultiplier)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        Vector3 cleanScale = SanitizeScale(scaleMultiplier);
+        target.transform.localScale = Vector3.Scale(target.transform.localScale, cleanScale);
+    }
+
+    // Handle Apply Placed Object Visuals.
+    private void ApplyPlacedObjectVisuals(GameObject target)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        if (usePrefabMaterialsOnPlacedObjects)
+        {
+            return;
+        }
+
+        ApplyMaterialToMeshRenderers(target, doneBuildMaterial);
+    }
+
+    // Handle Ensure Building Capsule Active.
+    private void EnsureBuildingCapsuleActive()
+    {
+        if (!autoSwitchToBuildingCapsule)
+        {
+            return;
+        }
+
+        LookingController controller = ResolveLookingController();
+        if (controller == null)
+        {
+            return;
+        }
+
+        controller.SwitchToBuildingMode();
+    }
+
+    // Handle On Disable.
+    private void OnDisable()
+    {
+        HidePreviewAndCancelBuildInteraction();
+    }
+
+    // Handle On Destroy.
+    private void OnDestroy()
+    {
+        ClearDestroyTargetHighlight();
+        ClearExtrudeGhosts();
+
+        if (_previewObject != null)
+        {
+            Destroy(_previewObject);
+            _previewObject = null;
+        }
     }
 
     // Handle Get Floor Placement Y.
@@ -436,7 +956,7 @@ public class RayCastScriptTest : MonoBehaviour
         for (int i = 0; i < hitCount; i++)
         {
             Collider collider = _placementHits[i].collider;
-            if (collider == null || IsSnapMarkerTransform(collider.transform))
+            if (ShouldSkipPlacementCollider(collider))
             {
                 continue;
             }
@@ -631,7 +1151,7 @@ public class RayCastScriptTest : MonoBehaviour
         if (camera == null) return false;
 
         Ray ray = GetCenterRay();
-        if (Physics.Raycast(ray, out RaycastHit hit, range, hitMask, QueryTriggerInteraction.Ignore))
+        if (TryGetPlacementHit(ray, out RaycastHit hit))
         {
             point = hit.point;
             return true;
@@ -680,7 +1200,8 @@ public class RayCastScriptTest : MonoBehaviour
                 }
 
                 GameObject created = Instantiate(_extrudePrefab, placementPosition, _extrudeStartRotation);
-                ApplyMaterialToMeshRenderers(created, doneBuildMaterial);
+                ApplyScaleMultiplier(created, GetActiveBuildScale());
+                ApplyPlacedObjectVisuals(created);
                 existing.Add(created.transform);
                 placedCount++;
             }
@@ -774,6 +1295,7 @@ public class RayCastScriptTest : MonoBehaviour
     private GameObject CreateExtrudeGhost(Vector3 position)
     {
         GameObject ghost = Instantiate(_extrudePrefab, position, _extrudeStartRotation);
+        ApplyScaleMultiplier(ghost, GetActiveBuildScale());
         SetPreviewMode(ghost, true);
         ApplyMaterialToMeshRenderers(ghost, buildingMaterial);
         return ghost;

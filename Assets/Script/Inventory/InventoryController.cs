@@ -22,8 +22,7 @@ public class InventoryController : MonoBehaviour
     {
         if (Input.GetKeyDown(keycode))
         {
-            UIshown = !UIshown;
-            ApplyUIState();
+            SetInventoryShown(!UIshown);
         }
     }
 
@@ -39,6 +38,19 @@ public class InventoryController : MonoBehaviour
     {
         IsInventoryOpen = false;
         ApplyCursorState();
+    }
+
+    // Handle Set Inventory Shown.
+    public void SetInventoryShown(bool shown)
+    {
+        UIshown = shown;
+        ApplyUIState();
+    }
+
+    // Handle Close Inventory.
+    public void CloseInventory()
+    {
+        SetInventoryShown(false);
     }
 
     // Handle Apply UIState.

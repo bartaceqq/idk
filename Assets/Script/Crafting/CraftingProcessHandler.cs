@@ -387,10 +387,17 @@ public class CraftingProcessHandler : MonoBehaviour
     // Handle Auto Select Craftable Item.
     private void AutoSelectCraftableItem()
     {
-        if (craftableItem != null || craftingManager == null || craftingManager.slots == null)
+        if (craftingManager == null || craftingManager.slots == null)
         {
             return;
         }
+
+        if (craftableItem != null && IsCraftableVisibleInSlots(craftableItem))
+        {
+            return;
+        }
+
+        craftableItem = null;
 
         for (int i = 0; i < craftingManager.slots.Count; i++)
         {
@@ -403,6 +410,31 @@ public class CraftingProcessHandler : MonoBehaviour
             craftableItem = slot.craftableItemReference;
             return;
         }
+    }
+
+    // Handle Is Craftable Visible In Slots.
+    private bool IsCraftableVisibleInSlots(CraftableItem target)
+    {
+        if (target == null || craftingManager == null || craftingManager.slots == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < craftingManager.slots.Count; i++)
+        {
+            CraftableSlot slot = craftingManager.slots[i];
+            if (slot == null || !slot.occupied || slot.locked)
+            {
+                continue;
+            }
+
+            if (slot.craftableItemReference == target)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Handle Find First In Scene.

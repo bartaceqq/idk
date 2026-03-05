@@ -87,6 +87,30 @@ public class LookingController : MonoBehaviour
         Cursor.visible = uiOpen;
     }
 
+    // Handle Switch To Building Mode.
+    public void SwitchToBuildingMode()
+    {
+        SyncSwitchStateFromActiveCapsule();
+        if (switched)
+        {
+            return;
+        }
+
+        Switch();
+    }
+
+    // Handle Switch To Normal Mode.
+    public void SwitchToNormalMode()
+    {
+        SyncSwitchStateFromActiveCapsule();
+        if (!switched)
+        {
+            return;
+        }
+
+        Switch();
+    }
+
     // Handle Resolve Look Transform.
     private static Transform ResolveLookTransform(GameObject capsule, Transform explicitLookTransform)
     {

@@ -17,6 +17,9 @@ public class InventoryItem : MonoBehaviour
     public string name;
     public InventoryItemType itemType = InventoryItemType.Usable;
     public GameObject itemPrefab;
+    [Header("Build Placement")]
+    public Vector3 buildRotationEuler = Vector3.zero;
+    public Vector3 buildScale = Vector3.one;
     public int mingain = 1;
     public int maxgain = 1;
     public SlotManager slotManager;
@@ -98,9 +101,31 @@ public class InventoryItem : MonoBehaviour
 
         if (!logWarning || HasRequiredPrefab())
         {
-            return;
+            ValidateBuildScale();
+        }
+        else
+        {
+            Debug.LogWarning($"{name}: Item type {itemType} requires itemPrefab.", this);
+            ValidateBuildScale();
+        }
+    }
+
+    // Handle Validate Build Scale.
+    private void ValidateBuildScale()
+    {
+        buildScale.x = ValidateScaleAxis(buildScale.x);
+        buildScale.y = ValidateScaleAxis(buildScale.y);
+        buildScale.z = ValidateScaleAxis(buildScale.z);
+    }
+
+    // Handle Validate Scale Axis.
+    private static float ValidateScaleAxis(float axisValue)
+    {
+        if (Mathf.Abs(axisValue) < 0.0001f)
+        {
+            return 1f;
         }
 
-        Debug.LogWarning($"{name}: Item type {itemType} requires itemPrefab.", this);
+        return axisValue;
     }
 }
