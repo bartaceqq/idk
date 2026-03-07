@@ -9,6 +9,9 @@ public class ChestChecker : MonoBehaviour
     public Animator animator;
     public float range = 10;
     public KeyCode pressEkey;
+    public ChestItemGenerator chestItemGenerator;
+    public string type;
+    public bool looted = false;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -20,9 +23,11 @@ public class ChestChecker : MonoBehaviour
     {
         if (Input.GetKeyDown(pressEkey))
         {
-            if(CheckDistance() < range)
+            if(CheckDistance() < range && !looted)
             {
                 animator.SetTrigger("OpenChest");
+                StartCoroutine(chestItemGenerator.WaitFiveSeconds(type));
+                looted = true;
             }
         }
         HandleProcess();

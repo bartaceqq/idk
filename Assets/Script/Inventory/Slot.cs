@@ -38,15 +38,20 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
             return;
         }
 
-        if (sprite == null)
+        if (IsEmpty())
         {
             inventoryItemReference = inventoryItem;
             sprite = inventoryItem.inventorysprite;
-            itemName = inventoryItem.name;
+            itemName = NormalizeItemName(inventoryItem.name);
         }
         else if (inventoryItemReference == null)
         {
             inventoryItemReference = inventoryItem;
+        }
+
+        if (string.IsNullOrWhiteSpace(itemName))
+        {
+            itemName = NormalizeItemName(inventoryItem.name);
         }
 
         int addedAmount = explicitAmount > 0 ? explicitAmount : GetCount(inventoryItem);
@@ -95,12 +100,14 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
             return true;
         }
 
-        if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(inventoryItem.name))
+        string thisItemName = GetComparableItemName();
+        string otherItemName = NormalizeItemName(inventoryItem.name);
+        if (string.IsNullOrEmpty(thisItemName) || string.IsNullOrEmpty(otherItemName))
         {
             return false;
         }
 
-        return string.Equals(itemName, inventoryItem.name, System.StringComparison.OrdinalIgnoreCase);
+        return string.Equals(thisItemName, otherItemName, System.StringComparison.OrdinalIgnoreCase);
     }
 
     // Handle Update UI.
@@ -138,12 +145,14 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
             return true;
         }
 
-        if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(other.itemName))
+        string thisItemName = GetComparableItemName();
+        string otherItemName = other.GetComparableItemName();
+        if (string.IsNullOrEmpty(thisItemName) || string.IsNullOrEmpty(otherItemName))
         {
             return false;
         }
 
-        return string.Equals(itemName, other.itemName, System.StringComparison.OrdinalIgnoreCase);
+        return string.Equals(thisItemName, otherItemName, System.StringComparison.OrdinalIgnoreCase);
     }
 
     // Handle Clear Data.
@@ -459,5 +468,22 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
         }
 
         return rawName.Trim();
+    }
+
+    // Handle Get Comparable Item Name.
+    private string GetComparableItemName()
+    {
+        string normalizedSlotName = NormalizeItemName(itemName);
+        if (!string.IsNullOrEmpty(normalizedSlotName))
+        {
+            return normalizedSlotName;
+        }
+
+        if (inventoryItemReference != null)
+        {
+            return NormalizeItemName(inventoryItemReference.name);
+        }
+
+        return string.Empty;
     }
 }

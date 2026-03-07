@@ -16,13 +16,32 @@ public class RandomSkeletonScript : MonoBehaviour
 
     [Header("Behavior")]
     public float followRange = 15f;
+    public float detectionRange = 15f;
     public float attackRange = 2f;
+    public float attackRangeBuffer = 0.35f;
     public float attackCooldown = 1.2f;
     public float attackAnimLockSeconds = 0.8f;
     public EnemiesHandler enemiesHandler;
 
+    [Header("Detection")]
+    public bool autoFindPlayerByTag = true;
+    public string playerTag = "Player";
+    public bool debugRangeLogs = true;
+    public float debugLogInterval = 0.25f;
+
+    [Header("Roaming")]
+    public bool enableRoaming = true;
+    public float roamRadius = 25f;
+    public float roamRepathInterval = 2f;
+    public float roamMinMoveDistance = 3f;
+    public int roamDestinationTries = 8;
+
     private float _nextAttackTime;
     private float _attackAnimUnlockTime;
+    private Vector3 _roamAnchor;
+    private float _nextRoamRepathTime;
+    private float _nextDebugLogTime;
+    private bool _wasPlayerInRangeLastFrame;
 
     void Awake()
     {
@@ -47,9 +66,15 @@ public class RandomSkeletonScript : MonoBehaviour
             enemiesHandler.enemies.Add(gameObject);
         }
 
+        _roamAnchor = transform.position;
+        if (detectionRange <= 0f)
+        {
+            detectionRange = followRange;
+        }
+
         if (navMeshAgent != null)
         {
-            navMeshAgent.stoppingDistance = attackRange;
+            navMeshAgent.stoppingDistance = Mathf.Max(0.1f, attackRange - 0.25f);
         }
     }
 
@@ -69,24 +94,25 @@ public class RandomSkeletonScript : MonoBehaviour
             return;
         }
 
-        if (Time.time < _attackAnimUnlockTime)
-        {
-            StopMoving();
-            FacePlayer();
-            SetWalkAnimation(false);
-            return;
-        }
-
         float distanceToPlayer = Vector3.Distance(transform.position, playertransform.position);
+        float rangeToUse = detectionRange > 0f ? detectionRange : followRange;
+        float effectiveFollowRange = Mathf.Max(attackRange + 0.1f, rangeToUse);
+        bool playerInRange = distanceToPlayer <= effectiveFollowRange;
 
-        if (distanceToPlayer > followRange)
+        DebugPlayerDistance(distanceToPlayer, effectiveFollowRange, playerInRange);
+
+        if (!playerInRange)
         {
-            StopMoving();
-            SetWalkAnimation(false);
+            TryRoamAroundSpawn();
             return;
         }
 
-        if (distanceToPlayer <= attackRange)
+        // Player entered detection range: cancel locked/roam behavior and chase now.
+        _attackAnimUnlockTime = 0f;
+        _nextRoamRepathTime = 0f;
+
+        bool playerInAttackRange = IsPlayerInAttackRange(distanceToPlayer);
+        if (playerInAttackRange)
         {
             StopMoving();
             FacePlayer();
@@ -152,7 +178,31 @@ public class RandomSkeletonScript : MonoBehaviour
             }
         }
 
+        if (resolved == null)
+        {
+            resolved = TryFindPlayerByTag();
+        }
+
         playertransform = resolved;
+    }
+
+    // Handle Try Find Player By Tag.
+    private Transform TryFindPlayerByTag()
+    {
+        if (!autoFindPlayerByTag || string.IsNullOrWhiteSpace(playerTag))
+        {
+            return null;
+        }
+
+        try
+        {
+            GameObject taggedPlayer = GameObject.FindGameObjectWithTag(playerTag);
+            return taggedPlayer != null ? taggedPlayer.transform : null;
+        }
+        catch (UnityException)
+        {
+            return null;
+        }
     }
 
     // Handle Chase Player.
@@ -207,6 +257,10 @@ public class RandomSkeletonScript : MonoBehaviour
 
         _nextAttackTime = Time.time + attackCooldown;
         _attackAnimUnlockTime = Time.time + attackAnimLockSeconds;
+        if (debugRangeLogs)
+        {
+            Debug.Log($"[Skeleton:{name}] ATTACK triggered", this);
+        }
         Attack();
     }
 
@@ -244,6 +298,132 @@ public class RandomSkeletonScript : MonoBehaviour
         SetWalkAnimation(false);
     }
 
+    // Handle Try Roam Around Spawn.
+    private void TryRoamAroundSpawn()
+    {
+        if (!CanUseNavMeshAgent())
+        {
+            SetWalkAnimation(false);
+            return;
+        }
+
+        if (!enableRoaming || roamRadius <= 0.1f)
+        {
+            StopMoving();
+            SetWalkAnimation(false);
+            return;
+        }
+
+        bool reachedDestination =
+            !navMeshAgent.pathPending &&
+            navMeshAgent.hasPath &&
+            navMeshAgent.remainingDistance <= Mathf.Max(navMeshAgent.stoppingDistance + 0.2f, 0.35f);
+
+        if (reachedDestination)
+        {
+            _nextRoamRepathTime = 0f;
+        }
+
+        if (Time.time < _nextRoamRepathTime && navMeshAgent.hasPath)
+        {
+            navMeshAgent.isStopped = false;
+            SetWalkAnimation(true);
+            return;
+        }
+
+        if (!TryGetRoamDestination(out Vector3 roamDestination))
+        {
+            StopMoving();
+            SetWalkAnimation(false);
+            _nextRoamRepathTime = Time.time + 0.5f;
+            return;
+        }
+
+        navMeshAgent.isStopped = false;
+        navMeshAgent.SetDestination(roamDestination);
+        SetWalkAnimation(true);
+        _nextRoamRepathTime = Time.time + Mathf.Max(0.1f, roamRepathInterval);
+    }
+
+    // Handle Try Get Roam Destination.
+    private bool TryGetRoamDestination(out Vector3 destination)
+    {
+        destination = Vector3.zero;
+        int tries = Mathf.Max(1, roamDestinationTries);
+        float minDistance = Mathf.Max(0f, roamMinMoveDistance);
+
+        for (int i = 0; i < tries; i++)
+        {
+            Vector2 randomCircle = Random.insideUnitCircle * roamRadius;
+            Vector3 candidate = _roamAnchor + new Vector3(randomCircle.x, 0f, randomCircle.y);
+
+            if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, Mathf.Max(1f, roamRadius * 0.5f), NavMesh.AllAreas))
+            {
+                if (Vector3.Distance(transform.position, hit.position) < minDistance)
+                {
+                    continue;
+                }
+
+                destination = hit.position;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Handle Is Player In Attack Range.
+    private bool IsPlayerInAttackRange(float distanceToPlayer)
+    {
+        float effectiveAttackRange = Mathf.Max(0.1f, attackRange + Mathf.Max(0f, attackRangeBuffer));
+        if (distanceToPlayer <= effectiveAttackRange)
+        {
+            return true;
+        }
+
+        if (!CanUseNavMeshAgent())
+        {
+            return false;
+        }
+
+        if (navMeshAgent.pathPending)
+        {
+            return false;
+        }
+
+        if (navMeshAgent.hasPath)
+        {
+            float remaining = navMeshAgent.remainingDistance;
+            float stopThreshold = Mathf.Max(navMeshAgent.stoppingDistance + 0.2f, effectiveAttackRange);
+            return remaining <= stopThreshold;
+        }
+
+        return false;
+    }
+
+    // Handle Debug Player Distance.
+    private void DebugPlayerDistance(float distanceToPlayer, float effectiveFollowRange, bool playerInRange)
+    {
+        if (!debugRangeLogs)
+        {
+            _wasPlayerInRangeLastFrame = playerInRange;
+            return;
+        }
+
+        bool rangeStateChanged = playerInRange != _wasPlayerInRangeLastFrame;
+        bool shouldLogNow = Time.time >= _nextDebugLogTime || rangeStateChanged;
+        if (shouldLogNow)
+        {
+            string stateText = playerInRange ? "IN RANGE -> CHASE" : "OUT OF RANGE -> ROAM";
+            Debug.Log(
+                $"[Skeleton:{name}] distance={distanceToPlayer:F2}, range={effectiveFollowRange:F2}, state={stateText}",
+                this);
+            _nextDebugLogTime = Time.time + Mathf.Max(0.05f, debugLogInterval);
+        }
+
+        _wasPlayerInRangeLastFrame = playerInRange;
+    }
+
     // Handle Can Use Nav Mesh Agent.
     private bool CanUseNavMeshAgent()
     {
@@ -251,5 +431,18 @@ public class RandomSkeletonScript : MonoBehaviour
                && navMeshAgent.enabled
                && navMeshAgent.gameObject.activeInHierarchy
                && navMeshAgent.isOnNavMesh;
+    }
+
+    // Draw follow/attack ranges for tuning.
+    private void OnDrawGizmosSelected()
+    {
+        float rangeToUse = detectionRange > 0f ? detectionRange : followRange;
+        float effectiveFollowRange = Mathf.Max(attackRange + 0.1f, rangeToUse);
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, effectiveFollowRange);
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, attackRange);
     }
 }

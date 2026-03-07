@@ -69,6 +69,10 @@ public class FPSController : MonoBehaviour
     private bool _isLeftRun;
     private bool _isRightWalk;
     private bool _isRightRun;
+    private bool _isForwardLeftWalk;
+    private bool _isForwardLeftRun;
+    private bool _isForwardRightWalk;
+    private bool _isForwardRightRun;
     private bool _sprintLocked;
     private bool _jumpTriggeredThisFrame;
     private float _nextJumpAllowedTime;
@@ -167,6 +171,10 @@ public class FPSController : MonoBehaviour
             _isLeftRun = false;
             _isRightWalk = false;
             _isRightRun = false;
+            _isForwardLeftWalk = false;
+            _isForwardLeftRun = false;
+            _isForwardRightWalk = false;
+            _isForwardRightRun = false;
 
             RunCallbacks();
             _cc.Move(new Vector3(0f, _velocity.y, 0f) * Time.deltaTime);
@@ -381,23 +389,32 @@ public class FPSController : MonoBehaviour
     private void UpdateMovementFlags(Vector2 moveInput, bool isRunning)
     {
         const float deadzone = 0.1f;
-        bool hasInput = moveInput.sqrMagnitude >= deadzone * deadzone;
-        bool forwardDominant = Mathf.Abs(moveInput.y) >= Mathf.Abs(moveInput.x);
+        bool xPositive = moveInput.x > deadzone;
+        bool xNegative = moveInput.x < -deadzone;
+        bool yPositive = moveInput.y > deadzone;
+        bool yNegative = moveInput.y < -deadzone;
+        bool hasInput = xPositive || xNegative || yPositive || yNegative;
 
-        bool forward = hasInput && forwardDominant && moveInput.y > 0f;
-        bool backward = hasInput && forwardDominant && moveInput.y < 0f;
-        bool right = hasInput && !forwardDominant && moveInput.x > 0f;
-        bool left = hasInput && !forwardDominant && moveInput.x < 0f;
+        bool forwardOnly = yPositive && !xPositive && !xNegative;
+        bool backwardAny = yNegative;
+        bool leftOnly = xNegative && !yPositive && !yNegative;
+        bool rightOnly = xPositive && !yPositive && !yNegative;
+        bool forwardLeft = yPositive && xNegative;
+        bool forwardRight = yPositive && xPositive;
 
         _isIdle = !hasInput;
-        _isForwardWalk = forward && !isRunning;
-        _isForwardRun = forward && isRunning;
-        _isBackwardWalk = backward && !isRunning;
-        _isBackwardRun = backward && isRunning;
-        _isLeftWalk = left && !isRunning;
-        _isLeftRun = left && isRunning;
-        _isRightWalk = right && !isRunning;
-        _isRightRun = right && isRunning;
+        _isForwardWalk = forwardOnly && !isRunning;
+        _isForwardRun = forwardOnly && isRunning;
+        _isBackwardWalk = backwardAny && !isRunning;
+        _isBackwardRun = backwardAny && isRunning;
+        _isLeftWalk = leftOnly && !isRunning;
+        _isLeftRun = leftOnly && isRunning;
+        _isRightWalk = rightOnly && !isRunning;
+        _isRightRun = rightOnly && isRunning;
+        _isForwardLeftWalk = forwardLeft && !isRunning;
+        _isForwardLeftRun = forwardLeft && isRunning;
+        _isForwardRightWalk = forwardRight && !isRunning;
+        _isForwardRightRun = forwardRight && isRunning;
     }
 
     // Handle Run Callbacks.
@@ -419,7 +436,13 @@ public class FPSController : MonoBehaviour
             actionScript.Idle(false);
             actionScript.Walk(false);
             actionScript.WalkBackwards(false);
+            actionScript.WalkLeft(false);
+            actionScript.WalkRight(false);
+            actionScript.WalkForwardLeft(false);
+            actionScript.WalkForwardRight(false);
             actionScript.Sprint(false, false);
+            actionScript.SprintForwardLeft(false);
+            actionScript.SprintForwardRight(false);
             return;
         }
 
@@ -428,21 +451,33 @@ public class FPSController : MonoBehaviour
             actionScript.Idle(false);
             actionScript.Walk(false);
             actionScript.WalkBackwards(false);
+            actionScript.WalkLeft(false);
+            actionScript.WalkRight(false);
+            actionScript.WalkForwardLeft(false);
+            actionScript.WalkForwardRight(false);
             actionScript.Sprint(false, false);
+            actionScript.SprintForwardLeft(false);
+            actionScript.SprintForwardRight(false);
             return;
         }
 
-        bool forwardWalk = _isForwardWalk || _isLeftWalk || _isRightWalk;
-        bool forwardRun = _isForwardRun || _isLeftRun || _isRightRun;
+        bool forwardWalk = _isForwardWalk;
+        bool forwardRun = _isForwardRun;
         bool backward = _isBackwardWalk || _isBackwardRun;
-        bool anyRun = _isForwardRun || _isBackwardRun || _isLeftRun || _isRightRun;
+        bool anyRun = _isForwardRun || _isBackwardRun || _isLeftRun || _isRightRun || _isForwardLeftRun || _isForwardRightRun;
 
         if (_isJumping)
         {
             actionScript.Idle(false);
             actionScript.Walk(false);
             actionScript.WalkBackwards(false);
+            actionScript.WalkLeft(false);
+            actionScript.WalkRight(false);
+            actionScript.WalkForwardLeft(false);
+            actionScript.WalkForwardRight(false);
             actionScript.Sprint(false, false);
+            actionScript.SprintForwardLeft(false);
+            actionScript.SprintForwardRight(false);
             return;
         }
 
@@ -450,7 +485,13 @@ public class FPSController : MonoBehaviour
         actionScript.Idle(_isIdle);
         actionScript.Walk(forwardWalk);
         actionScript.WalkBackwards(backward);
+        actionScript.WalkLeft(_isLeftWalk || _isLeftRun);
+        actionScript.WalkRight(_isRightWalk || _isRightRun);
+        actionScript.WalkForwardLeft(_isForwardLeftWalk);
+        actionScript.WalkForwardRight(_isForwardRightWalk);
         actionScript.Sprint(anyRun, forwardRun);
+        actionScript.SprintForwardLeft(_isForwardLeftRun);
+        actionScript.SprintForwardRight(_isForwardRightRun);
     }
 
     // Handle On Jump.
@@ -557,6 +598,6 @@ public class FPSController : MonoBehaviour
     // Handle Is UIBlocking Gameplay.
     private static bool IsUiBlockingGameplay()
     {
-        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen;
+        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen || VisualCommunication.IsTalking;
     }
 }

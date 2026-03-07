@@ -169,6 +169,6 @@ public class LookingController : MonoBehaviour
     // Handle Is UIBlocking Gameplay.
     private static bool IsUiBlockingGameplay()
     {
-        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen;
+        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen || VisualCommunication.IsTalking;
     }
 }

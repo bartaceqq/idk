@@ -27,6 +27,10 @@ public class RayScript : MonoBehaviour
     public float swingCooldownSeconds = 1f;
     public float swordAttackCooldownSeconds = 2.5f;
     public float swordHitDelaySeconds = 1.10f;
+    public float swordHeavyAttackCooldownSeconds = 3.3f;
+    public float swordHeavyHitDelaySeconds = 1.45f;
+    public float unarmedAttackCooldownSeconds = 0.55f;
+    public float unarmedHitDelaySeconds = 0.25f;
 
     [Header("Proximity Interaction")]
     public Transform interactionOrigin;
@@ -87,12 +91,15 @@ public class RayScript : MonoBehaviour
             return;
         }
 
-        if (!Input.GetMouseButtonDown(0) || Time.time < _nextSwingTime)
+        bool leftClick = Input.GetMouseButtonDown(0);
+        bool rightClick = Input.GetMouseButtonDown(1);
+
+        if ((!leftClick && !rightClick) || Time.time < _nextSwingTime)
         {
             return;
         }
 
-        float cooldown = HandleCurrentItemAction();
+        float cooldown = HandleCurrentItemAction(leftClick, rightClick);
         if (cooldown > 0f)
         {
             _nextSwingTime = Time.time + cooldown;
@@ -100,19 +107,36 @@ public class RayScript : MonoBehaviour
     }
 
     // Handle Current Item Action.
-    private float HandleCurrentItemAction()
+    private float HandleCurrentItemAction(bool leftClick, bool rightClick)
     {
         int currentItemId = itemSwitchScript != null ? itemSwitchScript.currentitemid : 0;
         switch (currentItemId)
         {
             case 1:
+                if (!leftClick)
+                {
+                    return 0f;
+                }
+                actionScript?.ResetUnarmedPunchCombo();
                 return HandleAxeAction();
             case 2:
+                if (!leftClick)
+                {
+                    return 0f;
+                }
+                actionScript?.ResetUnarmedPunchCombo();
                 return HandlePickaxeAction();
             case 3:
-                return HandleSwordAction();
+                actionScript?.ResetUnarmedPunchCombo();
+                if (!IsSwordEquipped())
+                {
+                    return 0f;
+                }
+                return HandleSwordAction(leftClick, rightClick);
             default:
-                return 0f;
+                return currentItemId == 0
+                    ? HandleUnarmedAction(leftClick, rightClick)
+                    : 0f;
         }
     }
 
@@ -180,8 +204,13 @@ public class RayScript : MonoBehaviour
     }
 
     // Handle Sword Action.
-    private float HandleSwordAction()
+    private float HandleSwordAction(bool leftClick, bool rightClick)
     {
+        if (!leftClick && !rightClick)
+        {
+            return 0f;
+        }
+
         bool canSwing = true;
         if (actionScript != null && actionScript.staminaScript != null)
         {
@@ -193,14 +222,63 @@ public class RayScript : MonoBehaviour
             return 0f;
         }
 
+        bool heavyAttack = rightClick;
         if (actionScript != null)
         {
-            actionScript.Attack();
+            if (heavyAttack)
+            {
+                actionScript.AttackHeavy();
+            }
+            else
+            {
+                actionScript.AttackLight();
+            }
         }
 
-        StartCoroutine(TriggerSwordAttackAfterDelay(swordHitDelaySeconds));
+        if (heavyAttack)
+        {
+            StartCoroutine(TriggerMeleeAttackAfterDelay(swordHeavyHitDelaySeconds));
+            TryPlayWeaponSound(swordAudioSource, swordSoundDelaySeconds, ref _nextSwordSoundAllowedTime, swordHeavyAttackCooldownSeconds);
+            return swordHeavyAttackCooldownSeconds;
+        }
+
+        StartCoroutine(TriggerMeleeAttackAfterDelay(swordHitDelaySeconds));
         TryPlayWeaponSound(swordAudioSource, swordSoundDelaySeconds, ref _nextSwordSoundAllowedTime, swordAttackCooldownSeconds);
         return swordAttackCooldownSeconds;
+    }
+
+    // Handle Unarmed Action.
+    private float HandleUnarmedAction(bool leftClick, bool rightClick)
+    {
+        if (!leftClick)
+        {
+            return 0f;
+        }
+
+        if (actionScript != null)
+        {
+            actionScript.UnarmedPunchCombo();
+        }
+
+        StartCoroutine(TriggerMeleeAttackAfterDelay(unarmedHitDelaySeconds));
+        return unarmedAttackCooldownSeconds;
+    }
+
+    // Handle Is Sword Equipped.
+    private bool IsSwordEquipped()
+    {
+        if (itemSwitchScript == null)
+        {
+            return false;
+        }
+
+        string equippedName = itemSwitchScript.currentitemname;
+        if (!string.IsNullOrWhiteSpace(equippedName))
+        {
+            return string.Equals(equippedName.Trim(), "Sword", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        return itemSwitchScript.currentitemid == 3;
     }
 
     // Handle Cache Pickable Layer.
@@ -656,8 +734,8 @@ public class RayScript : MonoBehaviour
         }
     }
 
-    // Handle Trigger Sword Attack After Delay.
-    private IEnumerator TriggerSwordAttackAfterDelay(float delaySeconds)
+    // Handle Trigger Melee Attack After Delay.
+    private IEnumerator TriggerMeleeAttackAfterDelay(float delaySeconds)
     {
         yield return new WaitForSeconds(delaySeconds);
         if (radiusForAttackScript != null)
@@ -714,6 +792,6 @@ public class RayScript : MonoBehaviour
     // Handle Is UIBlocking Gameplay.
     private static bool IsUiBlockingGameplay()
     {
-        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen;
+        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen || VisualCommunication.IsTalking;
     }
 }
