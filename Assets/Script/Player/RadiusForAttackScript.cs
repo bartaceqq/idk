@@ -13,6 +13,7 @@ public class RadiusForAttackScript : MonoBehaviour
 
     private readonly Collider[] _overlapHits = new Collider[128];
     private readonly HashSet<NPCDemageScript> _uniqueTargets = new HashSet<NPCDemageScript>();
+    private readonly HashSet<Animalec> _uniqueAnimals = new HashSet<Animalec>();
 
     void Awake()
     {
@@ -47,6 +48,7 @@ public class RadiusForAttackScript : MonoBehaviour
         float radiusSqr = radius * radius;
 
         _uniqueTargets.Clear();
+        _uniqueAnimals.Clear();
 
         int hitCount = Physics.OverlapSphereNonAlloc(
             origin,
@@ -77,12 +79,32 @@ public class RadiusForAttackScript : MonoBehaviour
             {
                 _uniqueTargets.Add(damageTarget);
             }
+
+            Animalec animalTarget = hit.GetComponent<Animalec>();
+            if (animalTarget == null)
+            {
+                animalTarget = hit.GetComponentInParent<Animalec>();
+            }
+            if (animalTarget == null)
+            {
+                animalTarget = hit.GetComponentInChildren<Animalec>();
+            }
+
+            if (animalTarget != null)
+            {
+                _uniqueAnimals.Add(animalTarget);
+            }
         }
 
-        // Fallback for enemies without colliders in mask or incomplete setup.
+        // Fallback for targets without colliders in mask or incomplete setup.
         if (_uniqueTargets.Count == 0)
         {
             CollectTargetsFromEnemyLists(origin, radiusSqr);
+        }
+
+        if (_uniqueAnimals.Count == 0)
+        {
+            CollectAnimalTargetsFromScene(origin, radiusSqr);
         }
 
         foreach (NPCDemageScript damageTarget in _uniqueTargets)
@@ -99,6 +121,22 @@ public class RadiusForAttackScript : MonoBehaviour
             }
 
             damageTarget.TakeDemage(attackDamage);
+        }
+
+        foreach (Animalec animalTarget in _uniqueAnimals)
+        {
+            if (animalTarget == null)
+            {
+                continue;
+            }
+
+            Vector3 delta = animalTarget.transform.position - origin;
+            if (delta.sqrMagnitude > radiusSqr)
+            {
+                continue;
+            }
+
+            animalTarget.TakeDamage(attackDamage);
         }
     }
 
@@ -153,6 +191,29 @@ public class RadiusForAttackScript : MonoBehaviour
             if (delta.sqrMagnitude <= radiusSqr)
             {
                 _uniqueTargets.Add(damageTarget);
+            }
+        }
+    }
+
+    // Handle Collect Animal Targets From Scene.
+    private void CollectAnimalTargetsFromScene(Vector3 origin, float radiusSqr)
+    {
+        Animalec[] allAnimals = FindObjectsByType<Animalec>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < allAnimals.Length; i++)
+        {
+            Animalec animal = allAnimals[i];
+            if (animal == null)
+            {
+                continue;
+            }
+
+            Vector3 delta = animal.transform.position - origin;
+            if (delta.sqrMagnitude <= radiusSqr)
+            {
+                _uniqueAnimals.Add(animal);
             }
         }
     }

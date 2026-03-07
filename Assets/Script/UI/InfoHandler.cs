@@ -1,4 +1,5 @@
-﻿using System.Collections;
+using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,13 +14,22 @@ public class InfoHandler : MonoBehaviour
     public Sprite toshowimage;
     public float fadeDuration = 0.25f;
     public float showDuration = 2f;
+
     private Coroutine showInfoCoroutine;
+    private readonly Queue<InfoPayload> queuedInfos = new Queue<InfoPayload>();
+
+    private struct InfoPayload
+    {
+        public string message;
+        public Sprite icon;
+    }
 
     // Handle Show Info Now.
     public void ShowInfoNow(string message, Sprite icon)
     {
         texttoshow = message;
         toshowimage = icon;
+        queuedInfos.Clear();
 
         if (showInfoCoroutine != null)
         {
@@ -27,19 +37,65 @@ public class InfoHandler : MonoBehaviour
             showInfoCoroutine = null;
         }
 
-        showInfoCoroutine = StartCoroutine(ShowInfoRoutine());
+        showInfoCoroutine = StartCoroutine(ShowImmediateRoutine(texttoshow, toshowimage));
+    }
+
+    // Handle Queue Info.
+    public void QueueInfo(string message, Sprite icon)
+    {
+        if (string.IsNullOrWhiteSpace(message) && icon == null)
+        {
+            return;
+        }
+
+        queuedInfos.Enqueue(new InfoPayload
+        {
+            message = message,
+            icon = icon
+        });
+
+        if (showInfoCoroutine == null)
+        {
+            showInfoCoroutine = StartCoroutine(ShowQueueRoutine());
+        }
+    }
+
+    // Handle Show Immediate Routine.
+    private IEnumerator ShowImmediateRoutine(string message, Sprite icon)
+    {
+        yield return ShowInfoRoutine(message, icon);
+        showInfoCoroutine = null;
+    }
+
+    // Handle Show Queue Routine.
+    private IEnumerator ShowQueueRoutine()
+    {
+        while (queuedInfos.Count > 0)
+        {
+            InfoPayload payload = queuedInfos.Dequeue();
+            yield return ShowInfoRoutine(payload.message, payload.icon);
+        }
+
+        showInfoCoroutine = null;
     }
 
     // Handle Show Info Routine.
-    private IEnumerator ShowInfoRoutine()
+    private IEnumerator ShowInfoRoutine(string message, Sprite icon)
     {
-        if (text != null) text.text = texttoshow;
-        if (image != null && toshowimage != null) image.sprite = toshowimage;
+        if (text != null)
+        {
+            text.text = message;
+        }
+
+        if (image != null)
+        {
+            image.sprite = icon;
+        }
 
         SetAlpha(0f);
         SetEnabled(true);
 
-        // Fade in
+        // Fade in.
         float t = 0f;
         while (t < fadeDuration)
         {
@@ -49,10 +105,10 @@ public class InfoHandler : MonoBehaviour
             yield return null;
         }
 
-        // Hold
+        // Hold.
         yield return new WaitForSeconds(showDuration);
 
-        // Fade out
+        // Fade out.
         t = 0f;
         while (t < fadeDuration)
         {
@@ -63,7 +119,6 @@ public class InfoHandler : MonoBehaviour
         }
 
         SetEnabled(false);
-        showInfoCoroutine = null;
     }
 
     // Handle Set Alpha.
@@ -75,12 +130,14 @@ public class InfoHandler : MonoBehaviour
             c.a = a;
             text.color = c;
         }
+
         if (image != null)
         {
             Color c = image.color;
             c.a = a;
             image.color = c;
         }
+
         if (background != null)
         {
             Color c = background.color;
@@ -92,8 +149,19 @@ public class InfoHandler : MonoBehaviour
     // Handle Set Enabled.
     private void SetEnabled(bool enabled)
     {
-        if (text != null) text.enabled = enabled;
-        if (image != null) image.enabled = enabled;
-        if (background != null) background.enabled = enabled;
+        if (text != null)
+        {
+            text.enabled = enabled;
+        }
+
+        if (image != null)
+        {
+            image.enabled = enabled;
+        }
+
+        if (background != null)
+        {
+            background.enabled = enabled;
+        }
     }
 }

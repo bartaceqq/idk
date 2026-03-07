@@ -6,11 +6,14 @@ using UnityEngine.InputSystem;
 // Controls attack, chop, and mine interactions.
 public class RayScript : MonoBehaviour
 {
+    private static InfoHandler cachedInfoHandler;
+
     public ParticleSystem stoneparticle;
     public ItemSwitchScript itemSwitchScript;
     public ActionScript actionScript;
     public TMP_Text pickuptext;
     public string pickupPromptMessage = "Press (E)";
+    public InfoHandler infoHandler;
 
     [Header("Legacy Raycast (unused by proximity mode)")]
     public Camera camera;
@@ -71,6 +74,7 @@ public class RayScript : MonoBehaviour
     {
         ResolveInteractionOrigin();
         CachePickableLayer();
+        ResolveInfoHandler();
         SetPickupTextVisible(false, null);
     }
 
@@ -372,6 +376,8 @@ public class RayScript : MonoBehaviour
             return;
         }
 
+        ShowPickupInfo(inventoryItem, amount);
+
         DetailPickupMarker marker = pickableObject.GetComponent<DetailPickupMarker>();
         if (marker == null && inventoryItem != null)
         {
@@ -390,6 +396,28 @@ public class RayScript : MonoBehaviour
         }
 
         Destroy(ResolvePickupDestroyTarget(pickableObject, inventoryItem));
+    }
+
+    // Handle Show Pickup Info.
+    private void ShowPickupInfo(InventoryItem inventoryItem, int amount)
+    {
+        if (inventoryItem == null)
+        {
+            return;
+        }
+
+        ResolveInfoHandler();
+        if (infoHandler == null)
+        {
+            return;
+        }
+
+        string displayName = ToDisplayName(inventoryItem.name);
+        string message = amount > 1
+            ? $"Picked up ({amount}) {displayName}"
+            : $"Picked up {displayName}";
+
+        infoHandler.QueueInfo(message, inventoryItem.inventorysprite);
     }
 
     // Handle Set Pickup Text Visible.
@@ -558,6 +586,34 @@ public class RayScript : MonoBehaviour
             Transform root = transform.root;
             interactionOrigin = root != null ? root : transform;
         }
+    }
+
+    // Handle Resolve Info Handler.
+    private void ResolveInfoHandler()
+    {
+        if (infoHandler == null)
+        {
+            if (cachedInfoHandler == null)
+            {
+                cachedInfoHandler = FindInfoHandlerInScene();
+            }
+
+            infoHandler = cachedInfoHandler;
+        }
+        else
+        {
+            cachedInfoHandler = infoHandler;
+        }
+    }
+
+    // Handle Find Info Handler In Scene.
+    private static InfoHandler FindInfoHandlerInScene()
+    {
+#if UNITY_2023_1_OR_NEWER
+        return FindFirstObjectByType<InfoHandler>(FindObjectsInactive.Include);
+#else
+        return FindObjectOfType<InfoHandler>(true);
+#endif
     }
 
     // Handle Try Get Closest Tree Target.
@@ -793,5 +849,29 @@ public class RayScript : MonoBehaviour
     private static bool IsUiBlockingGameplay()
     {
         return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen || VisualCommunication.IsTalking;
+    }
+
+    // Handle To Display Name.
+    private static string ToDisplayName(string rawName)
+    {
+        if (string.IsNullOrWhiteSpace(rawName))
+        {
+            return "Item";
+        }
+
+        string normalized = rawName.Trim().Replace('_', ' ');
+        string[] parts = normalized.Split(' ');
+        for (int i = 0; i < parts.Length; i++)
+        {
+            if (string.IsNullOrWhiteSpace(parts[i]))
+            {
+                continue;
+            }
+
+            string lower = parts[i].ToLowerInvariant();
+            parts[i] = char.ToUpperInvariant(lower[0]) + lower.Substring(1);
+        }
+
+        return string.Join(" ", parts);
     }
 }

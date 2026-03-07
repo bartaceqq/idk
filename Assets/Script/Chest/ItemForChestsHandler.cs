@@ -109,7 +109,7 @@ public class ItemForChestsHandler : MonoBehaviour
             List<InventoryItem> returnlislegendary = new List<InventoryItem>();
             foreach(int num in numberslegendary)
                 {
-                    returnlislegendary.Add(epic[num]);
+                    returnlislegendary.Add(legendary[num]);
                 }
                 return returnlislegendary;
             break;
