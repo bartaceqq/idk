@@ -76,6 +76,25 @@ public class InventoryController : MonoBehaviour
         {
             tmpTexts[i].enabled = UIshown;
         }
+
+        // Re-apply per-slot visibility rules after global UI toggle.
+        Slot[] slots = inventoryobject.GetComponentsInChildren<Slot>(true);
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i] != null)
+            {
+                slots[i].UpdateUI();
+            }
+        }
+
+        WeaponSlot[] weaponSlots = inventoryobject.GetComponentsInChildren<WeaponSlot>(true);
+        for (int i = 0; i < weaponSlots.Length; i++)
+        {
+            if (weaponSlots[i] != null)
+            {
+                weaponSlots[i].RefreshVisual();
+            }
+        }
     }
 
     // Handle Apply Cursor State.

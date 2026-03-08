@@ -80,6 +80,12 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         SyncAllWeaponSlotsToItemSwitch();
     }
 
+    // Handle Refresh Visual.
+    public void RefreshVisual()
+    {
+        UpdateVisual();
+    }
+
     // Handle Try Assign From Slot.
     private bool TryAssignFromSlot(Slot sourceSlot, bool logWarnings)
     {
@@ -197,11 +203,30 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
     {
         if (iconImage == null)
         {
+            Transform preferred = transform.Find("ImagePlace");
+            if (preferred == null)
+            {
+                preferred = transform.Find("WhiteInside");
+            }
+
+            if (preferred != null)
+            {
+                iconImage = preferred.GetComponent<Image>();
+            }
+        }
+
+        if (iconImage == null)
+        {
             Image[] images = GetComponentsInChildren<Image>(true);
             for (int i = 0; i < images.Length; i++)
             {
                 if (images[i] != null && images[i].gameObject != gameObject)
                 {
+                    if (images[i].name == "BlackBakground")
+                    {
+                        continue;
+                    }
+
                     iconImage = images[i];
                     break;
                 }
@@ -241,13 +266,39 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         iconImage.sprite = equippedSprite;
 
         bool isRootImage = iconImage.gameObject == gameObject;
-        if (!hasItem && hideIconWhenEmpty && !isRootImage)
+        if (!hasItem && !isRootImage)
         {
             iconImage.enabled = false;
+            HideExtraPlaceholderImages();
             return;
         }
 
         iconImage.enabled = true;
+        HideExtraPlaceholderImages();
+    }
+
+    // Handle Hide Extra Placeholder Images.
+    private void HideExtraPlaceholderImages()
+    {
+        Image[] images = GetComponentsInChildren<Image>(true);
+        for (int i = 0; i < images.Length; i++)
+        {
+            Image candidate = images[i];
+            if (candidate == null || candidate == iconImage || candidate.gameObject == gameObject)
+            {
+                continue;
+            }
+
+            if (candidate.name == "BlackBakground")
+            {
+                continue;
+            }
+
+            if (candidate.sprite == null)
+            {
+                candidate.enabled = false;
+            }
+        }
     }
 
     // Handle Sync All Weapon Slots To Item Switch.

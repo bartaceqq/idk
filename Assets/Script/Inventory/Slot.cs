@@ -13,6 +13,7 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
     public string itemName;
     public Image image;
     public TMP_Text counttext;
+    private Image resolvedItemImage;
 
     private static Slot currentDragSource;
     private static GameObject dragIconObject;
@@ -27,6 +28,7 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
             slotManager.RegisterSlot(this);
         }
 
+        ResolveVisualReferences();
         UpdateUI();
     }
 
@@ -113,21 +115,98 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
     // Handle Update UI.
     public void UpdateUI()
     {
-        if (image != null)
+        bool hasItem = !IsEmpty();
+        ResolveVisualReferences();
+
+        if (resolvedItemImage != null)
         {
-            image.sprite = sprite;
+            resolvedItemImage.sprite = sprite;
+            resolvedItemImage.enabled = hasItem && sprite != null;
         }
 
         if (counttext != null)
         {
-            counttext.text = count > 0 ? count.ToString() : "0";
+            counttext.text = hasItem ? count.ToString() : string.Empty;
+            counttext.enabled = hasItem;
         }
+
+        HideExtraPlaceholderImages();
     }
 
     // Handle Is Empty.
     public bool IsEmpty()
     {
         return sprite == null || count <= 0;
+    }
+
+    // Handle Resolve Visual References.
+    private void ResolveVisualReferences()
+    {
+        if (resolvedItemImage != null)
+        {
+            return;
+        }
+
+        if (image != null && image.gameObject != gameObject)
+        {
+            resolvedItemImage = image;
+            return;
+        }
+
+        Transform preferred = transform.Find("ImagePlace");
+        if (preferred == null)
+        {
+            preferred = transform.Find("WhiteInside");
+        }
+
+        if (preferred != null)
+        {
+            resolvedItemImage = preferred.GetComponent<Image>();
+        }
+
+        if (resolvedItemImage == null)
+        {
+            Image[] images = GetComponentsInChildren<Image>(true);
+            for (int i = 0; i < images.Length; i++)
+            {
+                if (images[i] == null || images[i].gameObject == gameObject)
+                {
+                    continue;
+                }
+
+                if (images[i].name == "BlackBakground")
+                {
+                    continue;
+                }
+
+                resolvedItemImage = images[i];
+                break;
+            }
+        }
+    }
+
+    // Handle Hide Extra Placeholder Images.
+    private void HideExtraPlaceholderImages()
+    {
+        Image[] images = GetComponentsInChildren<Image>(true);
+        for (int i = 0; i < images.Length; i++)
+        {
+            Image candidate = images[i];
+            if (candidate == null || candidate == resolvedItemImage || candidate.gameObject == gameObject)
+            {
+                continue;
+            }
+
+            if (candidate.name == "BlackBakground")
+            {
+                continue;
+            }
+
+            if (candidate.sprite == null)
+            {
+                candidate.enabled = false;
+            }
+        }
     }
 
     // Handle Can Stack With.
