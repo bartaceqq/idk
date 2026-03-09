@@ -10,12 +10,18 @@ public class ActionScript : MonoBehaviour
     public float swordMovementAnimationLockSeconds = 0.9f;
     public float swordHeavyMovementAnimationLockSeconds = 1.35f;
     public float unarmedPunchMovementAnimationLockSeconds = 0.6f;
+    public float mineUpperBodySeconds = 0.9f;
+    public float chopUpperBodySeconds = 0.9f;
+    public string upperBodyLayerName = "UpperBody";
+    public float upperBodyLayerBlendSpeed = 18f;
+    public float upperBodyMinimumActiveSeconds = 0.25f;
     public MovementAnimationScript movementAnimationScript;
     public AxeAnimationScript axeAnimationScript;
     public PickaxeAnimationScript pickaxeAnimationScript;
     public SwordAnimationScript swordAnimationScript;
 
     private float movementAnimationLockUntil;
+    private float upperBodyLayerActiveUntil;
     private int unarmedPunchStep;
 
     private static readonly int AttackWeaponStateHash = Animator.StringToHash("AttackWeapon");
@@ -25,11 +31,16 @@ public class ActionScript : MonoBehaviour
     private static readonly int MiningStateHash = Animator.StringToHash("Mining");
     private static readonly int ChopStateHash = Animator.StringToHash("Chop");
     private static readonly int JumpStateHash = Animator.StringToHash("Jump");
-   
-    
+
+    private void Update()
+    {
+        UpdateUpperBodyLayerWeight();
+    }
+
     // Handle Chop.
     public void Chop()
     {
+        ActivateUpperBodyLayer(chopUpperBodySeconds);
         axeAnimationScript.ChopAnimation();
     }
     // Handle Walk.
@@ -70,6 +81,7 @@ public class ActionScript : MonoBehaviour
     // Handle Mine.
     public void Mine()
     {
+        ActivateUpperBodyLayer(mineUpperBodySeconds);
         pickaxeAnimationScript.Mine();
     }
     // Handle Attack.
@@ -81,7 +93,7 @@ public class ActionScript : MonoBehaviour
     // Handle Attack Light.
     public void AttackLight()
     {
-        LockMovementAnimations(swordMovementAnimationLockSeconds);
+        ActivateUpperBodyLayer(swordMovementAnimationLockSeconds);
         if (swordAnimationScript != null)
         {
             swordAnimationScript.AttackLight();
@@ -91,7 +103,7 @@ public class ActionScript : MonoBehaviour
     // Handle Attack Heavy.
     public void AttackHeavy()
     {
-        LockMovementAnimations(swordHeavyMovementAnimationLockSeconds);
+        ActivateUpperBodyLayer(swordHeavyMovementAnimationLockSeconds);
         if (swordAnimationScript != null)
         {
             swordAnimationScript.AttackHeavy();
@@ -102,7 +114,7 @@ public class ActionScript : MonoBehaviour
     public void UnarmedPunchCombo()
     {
         bool punchLeft = (unarmedPunchStep % 2) == 0;
-        LockMovementAnimations(unarmedPunchMovementAnimationLockSeconds);
+        ActivateUpperBodyLayer(unarmedPunchMovementAnimationLockSeconds);
 
         if (swordAnimationScript != null)
         {
@@ -242,6 +254,114 @@ public class ActionScript : MonoBehaviour
         movementAnimationScript.WalkForwardRight(false);
         movementAnimationScript.SprintForwardLeft(false);
         movementAnimationScript.SprintForwardRight(false);
+    }
+
+    // Handle Activate Upper Body Layer.
+    private void ActivateUpperBodyLayer(float activeSeconds)
+    {
+        Animator animator = ResolveCharacterAnimator();
+        if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex))
+        {
+            return;
+        }
+
+        float holdSeconds = Mathf.Max(upperBodyMinimumActiveSeconds, activeSeconds);
+        float activeUntil = Time.time + holdSeconds;
+        if (activeUntil > upperBodyLayerActiveUntil)
+        {
+            upperBodyLayerActiveUntil = activeUntil;
+        }
+
+        if (animator.GetLayerWeight(layerIndex) < 1f)
+        {
+            animator.SetLayerWeight(layerIndex, 1f);
+        }
+    }
+
+    // Handle Update Upper Body Layer Weight.
+    private void UpdateUpperBodyLayerWeight()
+    {
+        Animator animator = ResolveCharacterAnimator();
+        if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex))
+        {
+            return;
+        }
+
+        bool timerActive = Time.time < upperBodyLayerActiveUntil;
+        bool layerPlayingAction = IsAnimatorLayerInActionState(animator, layerIndex);
+        float targetWeight = (timerActive || layerPlayingAction) ? 1f : 0f;
+        float currentWeight = animator.GetLayerWeight(layerIndex);
+        float blendSpeed = Mathf.Max(1f, upperBodyLayerBlendSpeed);
+        float nextWeight = Mathf.MoveTowards(currentWeight, targetWeight, blendSpeed * Time.deltaTime);
+        if (!Mathf.Approximately(currentWeight, nextWeight))
+        {
+            animator.SetLayerWeight(layerIndex, nextWeight);
+        }
+    }
+
+    // Handle Is Animator Layer In Action State.
+    private static bool IsAnimatorLayerInActionState(Animator animator, int layerIndex)
+    {
+        if (animator == null || layerIndex < 0 || layerIndex >= animator.layerCount)
+        {
+            return false;
+        }
+
+        AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
+        if (IsActionState(current))
+        {
+            return true;
+        }
+
+        if (animator.IsInTransition(layerIndex))
+        {
+            AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
+            if (IsActionState(next))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Handle Resolve Character Animator.
+    private Animator ResolveCharacterAnimator()
+    {
+        if (movementAnimationScript != null && movementAnimationScript.animator != null)
+        {
+            return movementAnimationScript.animator;
+        }
+
+        if (swordAnimationScript != null && swordAnimationScript.animator != null)
+        {
+            return swordAnimationScript.animator;
+        }
+
+        if (pickaxeAnimationScript != null && pickaxeAnimationScript.animator != null)
+        {
+            return pickaxeAnimationScript.animator;
+        }
+
+        if (axeAnimationScript != null && axeAnimationScript.axeanimator != null)
+        {
+            return axeAnimationScript.axeanimator;
+        }
+
+        return null;
+    }
+
+    // Handle Try Get Upper Body Layer Index.
+    private bool TryGetUpperBodyLayerIndex(Animator animator, out int layerIndex)
+    {
+        layerIndex = -1;
+        if (animator == null || string.IsNullOrWhiteSpace(upperBodyLayerName))
+        {
+            return false;
+        }
+
+        layerIndex = animator.GetLayerIndex(upperBodyLayerName);
+        return layerIndex >= 0;
     }
 
     // Handle Is Animator In Action State.

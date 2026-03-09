@@ -6,6 +6,7 @@ using UnityEngine.UI;
 public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
 {
     private static SlotInsideUI draggedSlot;
+    public static SlotInsideUI CurrentDragSource => draggedSlot;
 
     public InventoryManager inventoryManager;
     public int count;
@@ -118,7 +119,7 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
     }
 
     // Handle Has Item.
-    private bool HasItem()
+    public bool HasItem()
     {
         return occupied && Item != null && count > 0;
     }

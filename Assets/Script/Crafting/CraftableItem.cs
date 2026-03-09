@@ -121,6 +121,11 @@ public class CraftableItem : MonoBehaviour
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(target.nameofitem))
+        {
+            target.nameofitem = name;
+        }
+
         if (string.IsNullOrWhiteSpace(target.name))
         {
             target.name = name;

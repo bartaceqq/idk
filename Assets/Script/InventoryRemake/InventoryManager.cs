@@ -11,6 +11,7 @@ public class InventoryManager : MonoBehaviour
     public List<SlotInsideUI> slotlist = new List<SlotInsideUI>();
     public bool UIShown = false;
     public KeyCode key;
+    public List<WeaponSlot> weaponSlots = new List<WeaponSlot>();
 
     private void Awake()
     {
@@ -124,10 +125,30 @@ public class InventoryManager : MonoBehaviour
                 continue;
             }
 
-            if (slot.image != null) slot.image.enabled = status;
-            if(!slot.occupied) slot.image.enabled = false;
+            if (slot.image != null)
+            {
+                slot.image.enabled = status && slot.occupied;
+            }
             if (slot.background != null) slot.background.enabled = status;
             if (slot.text != null) slot.text.enabled = status;
+        }
+        foreach(WeaponSlot weaponSlot in weaponSlots)
+        {
+            if (weaponSlot == null)
+            {
+                continue;
+            }
+
+            if (weaponSlot.Backgroundimage != null)
+            {
+                weaponSlot.Backgroundimage.enabled = status;
+            }
+
+            weaponSlot.RefreshVisual();
+            if (!status && weaponSlot.iconImage != null)
+            {
+                weaponSlot.iconImage.enabled = false;
+            }
         }
     }
 
