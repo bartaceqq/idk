@@ -1,4 +1,4 @@
-﻿using TMPro;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -100,7 +100,7 @@ public class InventoryController : MonoBehaviour
     // Handle Apply Cursor State.
     private static void ApplyCursorState()
     {
-        bool uiOpen = IsInventoryOpen || CraftingManager.IsCraftingOpen;
+        bool uiOpen = IsInventoryOpen || InventoryManager.IsInventoryOpen || CraftingManager.IsCraftingOpen;
         Cursor.lockState = uiOpen ? CursorLockMode.None : CursorLockMode.Locked;
         Cursor.visible = uiOpen;
     }

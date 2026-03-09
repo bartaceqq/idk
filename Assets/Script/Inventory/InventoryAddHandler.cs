@@ -3,57 +3,34 @@ using UnityEngine;
 // Handles adding usable inventory items through a single method call.
 public class InventoryAddHandler : MonoBehaviour
 {
-    [SerializeField] private SlotManager slotManager;
+    public InventoryManager inventoryManager;
 
     // Handle Add Item To Inventory.
-    public bool AddItemToInventory(InventoryItem inventoryItem)
+    public bool AddItemToInventory(InventoryItem Item)
     {
-        if (inventoryItem == null)
+        if (Item == null || inventoryManager == null)
         {
-            Debug.LogWarning("InventoryAddHandler: InventoryItem is null.", this);
             return false;
         }
 
-        if (inventoryItem.itemType != InventoryItemType.Usable)
+        int maxExclusive = Mathf.Max(Item.mingain + 1, Item.maxgain + 1);
+        int roll = Random.Range(Item.mingain, maxExclusive);
+
+        return inventoryManager.AddItem(Item, roll);
+    }
+
+    // Handle Add Item To Inventory Amount.
+    public bool AddItemToInventoryAmount(InventoryItem item, int amount)
+    {
+        if (item == null || inventoryManager == null || amount <= 0)
         {
-            Debug.LogWarning($"InventoryAddHandler: Item '{inventoryItem.name}' is not Usable.", inventoryItem);
             return false;
         }
 
-        SlotManager targetSlotManager = ResolveSlotManager(inventoryItem);
-        if (targetSlotManager == null)
-        {
-            Debug.LogWarning($"InventoryAddHandler: No SlotManager found for item '{inventoryItem.name}'.", this);
-            return false;
-        }
-
-        return targetSlotManager.AddItem(inventoryItem);
+        return inventoryManager.AddItem(item, amount);
     }
 
     // Handle Resolve Slot Manager.
-    private SlotManager ResolveSlotManager(InventoryItem inventoryItem)
-    {
-        if (slotManager != null)
-        {
-            return slotManager;
-        }
+  
 
-        if (inventoryItem != null)
-        {
-            inventoryItem.ResolveReferences();
-            if (inventoryItem.slotManager != null)
-            {
-                slotManager = inventoryItem.slotManager;
-                return slotManager;
-            }
-        }
-
-#if UNITY_2023_1_OR_NEWER
-        slotManager = FindFirstObjectByType<SlotManager>(FindObjectsInactive.Include);
-#else
-        slotManager = FindObjectOfType<SlotManager>(true);
-#endif
-
-        return slotManager;
-    }
 }

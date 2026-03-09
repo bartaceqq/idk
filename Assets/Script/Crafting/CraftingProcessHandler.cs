@@ -9,6 +9,7 @@ public class CraftingProcessHandler : MonoBehaviour
     public CraftingManager craftingManager;
     public InventoryListHandler inventoryListHandler;
     public SlotManager slotManager;
+    public InventoryManager inventoryManager;
     public Button button;
     public bool hasenough;
 
@@ -63,14 +64,6 @@ public class CraftingProcessHandler : MonoBehaviour
             return;
         }
 
-        if (slotManager == null)
-        {
-            Debug.LogWarning("CraftingProcessHandler: SlotManager is missing.", this);
-            hasenough = false;
-            OnCraftMissingResources();
-            return;
-        }
-
         if (!TryResolveCraftResult(out InventoryItem craftedItem, out int craftedAmount, true))
         {
             hasenough = false;
@@ -78,21 +71,49 @@ public class CraftingProcessHandler : MonoBehaviour
             return;
         }
 
-        if (!slotManager.CanAddItem(craftedItem))
+        if (!CanReceiveCraftedItem())
         {
             hasenough = false;
             OnCraftMissingResources();
             return;
         }
 
-        if (!slotManager.TryConsumeResources(requiredResources))
+        bool consumedResources;
+        if (inventoryManager != null)
+        {
+            consumedResources = TryConsumeResourcesFromInventoryManager(requiredResources);
+        }
+        else if (slotManager != null)
+        {
+            consumedResources = slotManager.TryConsumeResources(requiredResources);
+        }
+        else
+        {
+            consumedResources = false;
+        }
+
+        if (!consumedResources)
         {
             hasenough = false;
             OnCraftMissingResources();
             return;
         }
 
-        if (!slotManager.AddItem(craftedItem, craftedAmount))
+        bool addedCraftedItem;
+        if (inventoryManager != null)
+        {
+            addedCraftedItem = inventoryManager.AddItem(craftedItem, craftedAmount);
+        }
+        else if (slotManager != null)
+        {
+            addedCraftedItem = slotManager.AddItem(craftedItem, craftedAmount);
+        }
+        else
+        {
+            addedCraftedItem = false;
+        }
+
+        if (!addedCraftedItem)
         {
             hasenough = false;
             OnCraftMissingResources();
@@ -156,7 +177,11 @@ public class CraftingProcessHandler : MonoBehaviour
             return true;
         }
 
-        Dictionary<string, int> availableByName = BuildAvailableByNameFromSlots();
+        Dictionary<string, int> availableByName = BuildAvailableByNameFromInventoryManagerSlots();
+        if (availableByName.Count == 0)
+        {
+            availableByName = BuildAvailableByNameFromSlots();
+        }
         if (availableByName.Count == 0 && inventoryListHandler != null)
         {
             Dictionary<InventoryItem, int> list = inventoryListHandler.itemlist;
@@ -182,11 +207,6 @@ public class CraftingProcessHandler : MonoBehaviour
     // Handle Can Receive Crafted Item.
     private bool CanReceiveCraftedItem()
     {
-        if (slotManager == null)
-        {
-            return false;
-        }
-
         if (!TryResolveCraftResult(out InventoryItem craftedItem, out int craftedAmount, false))
         {
             return false;
@@ -197,7 +217,21 @@ public class CraftingProcessHandler : MonoBehaviour
             return false;
         }
 
-        return slotManager.CanAddItem(craftedItem);
+        if (inventoryManager != null && inventoryManager.slotlist != null)
+        {
+            for (int i = 0; i < inventoryManager.slotlist.Count; i++)
+            {
+                SlotInsideUI slot = inventoryManager.slotlist[i];
+                if (slot != null && !slot.occupied)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return slotManager != null && slotManager.CanAddItem(craftedItem);
     }
 
     // Handle Try Resolve Craft Result.
@@ -250,6 +284,48 @@ public class CraftingProcessHandler : MonoBehaviour
             string key = slot.itemName.Trim();
             int amount = Mathf.Max(0, slot.count);
             if (amount <= 0)
+            {
+                continue;
+            }
+
+            if (availableByName.TryGetValue(key, out int currentAmount))
+            {
+                availableByName[key] = currentAmount + amount;
+            }
+            else
+            {
+                availableByName[key] = amount;
+            }
+        }
+
+        return availableByName;
+    }
+
+    // Handle Build Available By Name From Inventory Manager Slots.
+    private Dictionary<string, int> BuildAvailableByNameFromInventoryManagerSlots()
+    {
+        Dictionary<string, int> availableByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (inventoryManager == null || inventoryManager.slotlist == null)
+        {
+            return availableByName;
+        }
+
+        for (int i = 0; i < inventoryManager.slotlist.Count; i++)
+        {
+            SlotInsideUI slot = inventoryManager.slotlist[i];
+            if (slot == null || !slot.occupied)
+            {
+                continue;
+            }
+
+            int amount = Mathf.Max(0, slot.count);
+            if (amount <= 0)
+            {
+                continue;
+            }
+
+            string key = GetBestSlotName(slot);
+            if (string.IsNullOrWhiteSpace(key))
             {
                 continue;
             }
@@ -381,6 +457,11 @@ public class CraftingProcessHandler : MonoBehaviour
         if (slotManager != null && slotManager.inventoryListHandler == null && inventoryListHandler != null)
         {
             slotManager.inventoryListHandler = inventoryListHandler;
+        }
+
+        if (inventoryManager == null)
+        {
+            inventoryManager = FindFirstInScene<InventoryManager>();
         }
     }
 
@@ -568,5 +649,154 @@ public class CraftingProcessHandler : MonoBehaviour
 
         itemName = trimmed;
         return true;
+    }
+
+    // Handle Try Consume Resources From Inventory Manager.
+    private bool TryConsumeResourcesFromInventoryManager(Dictionary<string, int> requiredResources)
+    {
+        if (requiredResources == null || requiredResources.Count == 0)
+        {
+            return true;
+        }
+
+        if (inventoryManager == null || inventoryManager.slotlist == null)
+        {
+            return false;
+        }
+
+        if (!HasEnoughResources(requiredResources))
+        {
+            return false;
+        }
+
+        foreach (KeyValuePair<string, int> required in requiredResources)
+        {
+            int remaining = required.Value;
+            if (remaining <= 0)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < inventoryManager.slotlist.Count && remaining > 0; i++)
+            {
+                SlotInsideUI slot = inventoryManager.slotlist[i];
+                if (slot == null || !slot.occupied || slot.count <= 0)
+                {
+                    continue;
+                }
+
+                if (!SlotMatchesRequirement(slot, required.Key))
+                {
+                    continue;
+                }
+
+                int consume = Mathf.Min(slot.count, remaining);
+                slot.count -= consume;
+                remaining -= consume;
+
+                if (slot.count <= 0)
+                {
+                    ClearInventoryManagerSlot(slot);
+                }
+                else
+                {
+                    UpdateInventoryManagerSlotVisual(slot);
+                }
+            }
+
+            if (remaining > 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // Handle Slot Matches Requirement.
+    private static bool SlotMatchesRequirement(SlotInsideUI slot, string requiredName)
+    {
+        if (slot == null || string.IsNullOrWhiteSpace(requiredName))
+        {
+            return false;
+        }
+
+        string required = NormalizeItemToken(requiredName);
+        if (string.IsNullOrEmpty(required))
+        {
+            return false;
+        }
+
+        string slotName = NormalizeItemToken(GetBestSlotName(slot));
+        return string.Equals(slotName, required, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Handle Get Best Slot Name.
+    private static string GetBestSlotName(SlotInsideUI slot)
+    {
+        if (slot == null)
+        {
+            return string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(slot.nameofslot))
+        {
+            return slot.nameofslot.Trim();
+        }
+
+        if (slot.Item != null && !string.IsNullOrWhiteSpace(slot.Item.nameofitem))
+        {
+            return slot.Item.nameofitem.Trim();
+        }
+
+        if (slot.Item != null && !string.IsNullOrWhiteSpace(slot.Item.name))
+        {
+            return slot.Item.name.Trim();
+        }
+
+        return string.Empty;
+    }
+
+    // Handle Normalize Item Token.
+    private static string NormalizeItemToken(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return string.Empty;
+        }
+
+        return raw.Trim().Replace('_', ' ').ToLowerInvariant();
+    }
+
+    // Handle Clear Inventory Manager Slot.
+    private static void ClearInventoryManagerSlot(SlotInsideUI slot)
+    {
+        if (slot == null)
+        {
+            return;
+        }
+
+        slot.count = 0;
+        slot.occupied = false;
+        slot.nameofslot = string.Empty;
+        slot.Item = null;
+
+        if (slot.image != null)
+        {
+            slot.image.sprite = null;
+        }
+
+        UpdateInventoryManagerSlotVisual(slot);
+    }
+
+    // Handle Update Inventory Manager Slot Visual.
+    private static void UpdateInventoryManagerSlotVisual(SlotInsideUI slot)
+    {
+        if (slot == null || slot.text == null)
+        {
+            return;
+        }
+
+        slot.text.text = slot.count > 0 ? slot.count.ToString() : "0";
     }
 }

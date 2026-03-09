@@ -181,7 +181,7 @@ public class FPSController : MonoBehaviour
             return;
         }
 
-        if (!InventoryController.IsInventoryOpen)
+        if (!InventoryController.IsInventoryOpen && !InventoryManager.IsInventoryOpen)
         {
             Vector2 look = _lookAction.ReadValue<Vector2>();
             _yaw += look.x * mouseSensitivity;
@@ -598,6 +598,6 @@ public class FPSController : MonoBehaviour
     // Handle Is UIBlocking Gameplay.
     private static bool IsUiBlockingGameplay()
     {
-        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen || VisualCommunication.IsTalking;
+        return InventoryController.IsInventoryOpen || InventoryManager.IsInventoryOpen || CraftingManager.IsCraftingOpen || VisualCommunication.IsTalking;
     }
 }

@@ -48,13 +48,13 @@ public class ChestChecker : MonoBehaviour
     {
         if(CheckDistance() < range)
         {
-            Debug.Log(true);
+            
             text.enabled = true;
             
         }
         else
         {
-              Debug.Log(false);
+            
             text.enabled = false;
         }
     }

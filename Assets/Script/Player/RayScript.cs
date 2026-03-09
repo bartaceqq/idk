@@ -7,6 +7,7 @@ using UnityEngine.InputSystem;
 public class RayScript : MonoBehaviour
 {
     private static InfoHandler cachedInfoHandler;
+    private static InventoryAddHandler cachedInventoryAddHandler;
 
     public ParticleSystem stoneparticle;
     public ItemSwitchScript itemSwitchScript;
@@ -14,6 +15,7 @@ public class RayScript : MonoBehaviour
     public TMP_Text pickuptext;
     public string pickupPromptMessage = "Press (E)";
     public InfoHandler infoHandler;
+    public InventoryAddHandler inventoryAddHandler;
 
     [Header("Legacy Raycast (unused by proximity mode)")]
     public Camera camera;
@@ -75,6 +77,7 @@ public class RayScript : MonoBehaviour
         ResolveInteractionOrigin();
         CachePickableLayer();
         ResolveInfoHandler();
+        ResolveInventoryAddHandler();
         SetPickupTextVisible(false, null);
     }
 
@@ -363,14 +366,14 @@ public class RayScript : MonoBehaviour
             return;
         }
 
-        inventoryItem.ResolveReferences();
-        if (inventoryItem.slotManager == null)
+        ResolveInventoryAddHandler();
+        if (inventoryAddHandler == null)
         {
-            Debug.LogWarning($"RayScript: InventoryItem '{inventoryItem.name}' has no SlotManager assigned.", this);
+            Debug.LogWarning("RayScript: No InventoryAddHandler found for pickups.", this);
             return;
         }
 
-        if (!inventoryItem.slotManager.AddItem(inventoryItem, amount))
+        if (!inventoryAddHandler.AddItemToInventoryAmount(inventoryItem, amount))
         {
             // Inventory full or add failed.
             return;
@@ -603,6 +606,28 @@ public class RayScript : MonoBehaviour
         else
         {
             cachedInfoHandler = infoHandler;
+        }
+    }
+
+    // Handle Resolve Inventory Add Handler.
+    private void ResolveInventoryAddHandler()
+    {
+        if (inventoryAddHandler == null)
+        {
+            if (cachedInventoryAddHandler == null)
+            {
+#if UNITY_2023_1_OR_NEWER
+                cachedInventoryAddHandler = FindFirstObjectByType<InventoryAddHandler>(FindObjectsInactive.Include);
+#else
+                cachedInventoryAddHandler = FindObjectOfType<InventoryAddHandler>(true);
+#endif
+            }
+
+            inventoryAddHandler = cachedInventoryAddHandler;
+        }
+        else
+        {
+            cachedInventoryAddHandler = inventoryAddHandler;
         }
     }
 
@@ -848,7 +873,7 @@ public class RayScript : MonoBehaviour
     // Handle Is UIBlocking Gameplay.
     private static bool IsUiBlockingGameplay()
     {
-        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen || VisualCommunication.IsTalking;
+        return InventoryController.IsInventoryOpen || InventoryManager.IsInventoryOpen || CraftingManager.IsCraftingOpen || VisualCommunication.IsTalking;
     }
 
     // Handle To Display Name.

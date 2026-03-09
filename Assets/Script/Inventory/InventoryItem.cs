@@ -14,7 +14,7 @@ public class InventoryItem : MonoBehaviour
     private static SlotManager cachedSlotManager;
 
     public Sprite inventorysprite;
-    public string name;
+    public string nameofitem;
     public InventoryItemType itemType = InventoryItemType.Usable;
     public GameObject itemPrefab;
     [Header("Build Placement")]

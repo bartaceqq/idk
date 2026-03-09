@@ -486,7 +486,7 @@ public class CraftingManager : MonoBehaviour
     // Handle Apply Cursor State.
     private static void ApplyCursorState()
     {
-        bool uiOpen = InventoryController.IsInventoryOpen || IsCraftingOpen;
+        bool uiOpen = InventoryController.IsInventoryOpen || InventoryManager.IsInventoryOpen || IsCraftingOpen;
         Cursor.lockState = uiOpen ? CursorLockMode.None : CursorLockMode.Locked;
         Cursor.visible = uiOpen;
     }
