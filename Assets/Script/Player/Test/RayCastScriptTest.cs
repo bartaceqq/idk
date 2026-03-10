@@ -2217,7 +2217,7 @@ public class RayCastScriptTest : MonoBehaviour
     // Handle Is UIBlocking Gameplay.
     private static bool IsUiBlockingGameplay()
     {
-        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen || VisualCommunication.IsTalking;
+        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen || DialogueState.IsConversationRunning;
     }
 
     // Handle Try Get Nearest Snap Point YNear Reference.

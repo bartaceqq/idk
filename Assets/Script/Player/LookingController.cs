@@ -22,7 +22,10 @@ public class LookingController : MonoBehaviour
     // Run this logic every frame.
     private void Update()
     {
-        if (IsUiBlockingGameplay())
+        bool uiBlocking = IsUiBlockingGameplay();
+        SetCursorStateForUiBlock(uiBlocking);
+
+        if (uiBlocking)
         {
             return;
         }
@@ -169,6 +172,23 @@ public class LookingController : MonoBehaviour
     // Handle Is UIBlocking Gameplay.
     private static bool IsUiBlockingGameplay()
     {
-        return InventoryController.IsInventoryOpen || InventoryManager.IsInventoryOpen || CraftingManager.IsCraftingOpen || VisualCommunication.IsTalking;
+        return InventoryController.IsInventoryOpen || InventoryManager.IsInventoryOpen || CraftingManager.IsCraftingOpen || DialogueState.IsConversationRunning;
+    }
+
+    // Handle Set Cursor State For UIBlock.
+    private static void SetCursorStateForUiBlock(bool uiBlocking)
+    {
+        CursorLockMode targetLockMode = uiBlocking ? CursorLockMode.None : CursorLockMode.Locked;
+        bool targetVisible = uiBlocking;
+
+        if (Cursor.lockState != targetLockMode)
+        {
+            Cursor.lockState = targetLockMode;
+        }
+
+        if (Cursor.visible != targetVisible)
+        {
+            Cursor.visible = targetVisible;
+        }
     }
 }

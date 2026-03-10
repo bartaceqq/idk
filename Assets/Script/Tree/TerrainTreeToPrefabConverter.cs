@@ -137,9 +137,11 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
             return;
         }
 
-        if (detailPrefabsToConvert == null || detailPrefabsToConvert.Count == 0)
+        bool hasExplicitDetailPrefabFilter = detailPrefabsToConvert != null && detailPrefabsToConvert.Count > 0;
+        bool canAutoConvertPickableDetails = includePickableItems;
+        if (!hasExplicitDetailPrefabFilter && !canAutoConvertPickableDetails)
         {
-            Debug.LogWarning("TerrainTreeToPrefabConverter: No detail prefabs assigned for conversion.", this);
+            Debug.LogWarning("TerrainTreeToPrefabConverter: No detail prefabs assigned for conversion and pickable detail auto-convert is disabled.", this);
             return;
         }
 
@@ -312,6 +314,11 @@ Done:
         if (protoPrefab == null)
         {
             return false;
+        }
+
+        if (includePickableItems && protoPrefab.GetComponentInChildren<InventoryItem>(true) != null)
+        {
+            return true;
         }
 
         if (detailPrefabsToConvert == null || detailPrefabsToConvert.Count == 0)

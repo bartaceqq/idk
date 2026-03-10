@@ -330,11 +330,8 @@ public class RayScript : MonoBehaviour
             switch (objectik.tag)
             {
                 case "Stick":
-
-                    TryPickupInventoryItem(objectik, 1);
-                    break;
                 case "LittleStone":
-
+                case "Bamboo":
                     TryPickupInventoryItem(objectik, 1);
                     break;
 
@@ -873,7 +870,7 @@ public class RayScript : MonoBehaviour
     // Handle Is UIBlocking Gameplay.
     private static bool IsUiBlockingGameplay()
     {
-        return InventoryController.IsInventoryOpen || InventoryManager.IsInventoryOpen || CraftingManager.IsCraftingOpen || VisualCommunication.IsTalking;
+        return InventoryController.IsInventoryOpen || InventoryManager.IsInventoryOpen || CraftingManager.IsCraftingOpen || DialogueState.IsConversationRunning;
     }
 
     // Handle To Display Name.

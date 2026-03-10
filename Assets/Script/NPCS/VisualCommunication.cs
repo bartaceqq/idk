@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using Yarn.Unity;
 
 public class VisualCommunication : MonoBehaviour
 {
@@ -132,5 +133,70 @@ public class VisualCommunication : MonoBehaviour
         {
             text.enabled = false;
         }
+    }
+}
+
+// Tracks dialogue state across legacy and Yarn communication systems.
+public static class DialogueState
+{
+    private static DialogueRunner _cachedDialogueRunner;
+    private static float _nextLookupTime;
+    private const float LookupIntervalSeconds = 0.5f;
+
+    // Handle Is Conversation Running.
+    public static bool IsConversationRunning
+    {
+        get
+        {
+            if (VisualCommunication.IsTalking)
+            {
+                return true;
+            }
+
+            if (!TryGetDialogueRunner(out DialogueRunner runner))
+            {
+                return false;
+            }
+
+            return runner.IsDialogueRunning;
+        }
+    }
+
+    // Handle Register Dialogue Runner.
+    public static void RegisterDialogueRunner(DialogueRunner dialogueRunner)
+    {
+        if (dialogueRunner == null)
+        {
+            return;
+        }
+
+        _cachedDialogueRunner = dialogueRunner;
+        _nextLookupTime = 0f;
+    }
+
+    // Handle Try Get Dialogue Runner.
+    public static bool TryGetDialogueRunner(out DialogueRunner dialogueRunner)
+    {
+        if (_cachedDialogueRunner != null)
+        {
+            dialogueRunner = _cachedDialogueRunner;
+            return true;
+        }
+
+        if (!Application.isPlaying || Time.unscaledTime < _nextLookupTime)
+        {
+            dialogueRunner = null;
+            return false;
+        }
+
+        _nextLookupTime = Time.unscaledTime + LookupIntervalSeconds;
+#if UNITY_2023_1_OR_NEWER
+        _cachedDialogueRunner = UnityEngine.Object.FindFirstObjectByType<DialogueRunner>(FindObjectsInactive.Include);
+#else
+        _cachedDialogueRunner = UnityEngine.Object.FindObjectOfType<DialogueRunner>(true);
+#endif
+
+        dialogueRunner = _cachedDialogueRunner;
+        return dialogueRunner != null;
     }
 }
