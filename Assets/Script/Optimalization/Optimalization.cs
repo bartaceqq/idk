@@ -8,8 +8,10 @@ public class Optimalization : MonoBehaviour
     [SerializeField] private bool applyOnStart = true;
 
     [Header("Performance")]
+    [Tooltip("If true, removes frame cap by setting Application.targetFrameRate = -1.")]
+    [SerializeField] private bool unlockFrameRate = true;
     [Tooltip("Set to 0 to disable frame cap. Example: 60 for 60 FPS target.")]
-    [SerializeField] private int targetFrameRate = 60;
+    [SerializeField] private int targetFrameRate = 0;
 
     [Tooltip("If true, VSync is disabled so targetFrameRate can control FPS.")]
     [SerializeField] private bool disableVSync = true;
@@ -40,7 +42,14 @@ public class Optimalization : MonoBehaviour
         }
 
         // Limit or unlock FPS depending on the value.
-        Application.targetFrameRate = targetFrameRate <= 0 ? -1 : targetFrameRate;
+        if (unlockFrameRate)
+        {
+            Application.targetFrameRate = -1;
+        }
+        else
+        {
+            Application.targetFrameRate = targetFrameRate <= 0 ? -1 : targetFrameRate;
+        }
 
         // Keep app running when window loses focus (optional).
         Application.runInBackground = runInBackground;

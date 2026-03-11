@@ -1,0 +1,109 @@
+Date : 2026-03-11 11:51:00
+Directory : c:\Users\adamb\Documents\GitHub\idk\Assets\Script
+Total : 66 files,  13340 codes, 687 comments, 2500 blanks, all 16527 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| C#       |         66 |     13,340 |        687 |      2,500 |     16,527 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                     | files      | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                        |         66 |     13,340 |        687 |      2,500 |     16,527 |
+| . (Files)                                                                                |          1 |        565 |          2 |         97 |        664 |
+| Animals                                                                                  |          1 |        447 |          1 |         88 |        536 |
+| Chest                                                                                    |          4 |        380 |         31 |         52 |        463 |
+| Crafting                                                                                 |          5 |      1,408 |         73 |        285 |      1,766 |
+| CutScenes                                                                                |          1 |        120 |          9 |         25 |        154 |
+| Enemies                                                                                  |          7 |      1,214 |         67 |        219 |      1,500 |
+| Inventory                                                                                |          7 |      1,552 |         94 |        309 |      1,955 |
+| InventoryRemake                                                                          |          3 |        409 |         24 |         76 |        509 |
+| Lightning                                                                                |          1 |        160 |         14 |         35 |        209 |
+| NPCS                                                                                     |          3 |        293 |         19 |         64 |        376 |
+| Optimalization                                                                           |          1 |         40 |          9 |          9 |         58 |
+| Player                                                                                   |         20 |      4,561 |        260 |        864 |      5,685 |
+| Player (Files)                                                                           |         14 |      2,324 |        146 |        443 |      2,913 |
+| Player\Test                                                                              |          6 |      2,237 |        114 |        421 |      2,772 |
+| Projectile                                                                               |          1 |          8 |          2 |          3 |         13 |
+| Spawning                                                                                 |          1 |        363 |         18 |         61 |        442 |
+| Stone                                                                                    |          4 |        488 |         29 |         78 |        595 |
+| Tree                                                                                     |          5 |      1,201 |         24 |        209 |      1,434 |
+| UI                                                                                       |          1 |        131 |         11 |         26 |        168 |
++------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                                 | language | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Animals\Animalec.cs                    | C#       |        447 |          1 |         88 |        536 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Chest\ChestChecker.cs                  | C#       |         48 |          2 |         13 |         63 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Chest\ChestController.cs               | C#       |         69 |         22 |         11 |        102 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Chest\ChestItemGenerator.cs            | C#       |        148 |          5 |         23 |        176 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Chest\ItemForChestsHandler.cs          | C#       |        115 |          2 |          5 |        122 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Crafting\CraftableItem.cs              | C#       |        134 |          9 |         34 |        177 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Crafting\CraftableSlot.cs              | C#       |        168 |         10 |         33 |        211 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Crafting\CraftingManager.cs            | C#       |        401 |         21 |         83 |        505 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Crafting\CraftingProcessHandler.cs     | C#       |        653 |         27 |        123 |        803 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Crafting\CraftingStation.cs            | C#       |         52 |          6 |         12 |         70 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\CutScenes\StartCutSceneScript.cs       | C#       |        120 |          9 |         25 |        154 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Enemies\EnemiesHandler.cs              | C#       |          6 |          1 |          3 |         10 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Enemies\NPCDemageScript.cs             | C#       |        148 |         10 |         29 |        187 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Enemies\NPCHealthScript.cs             | C#       |        141 |          9 |         22 |        172 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Enemies\RandomSkeletonScript.cs        | C#       |        409 |         20 |         71 |        500 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Enemies\RandomZombieScript.cs          | C#       |        484 |         21 |         88 |        593 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Enemies\SkeletonAnimatopmScript.cs     | C#       |         13 |          3 |          3 |         19 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Enemies\ZombieAnimationScript.cs       | C#       |         13 |          3 |          3 |         19 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\InventoryRemake\InventoryManager.cs    | C#       |        177 |          7 |         29 |        213 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\InventoryRemake\Item.cs                | C#       |         19 |          2 |          6 |         27 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\InventoryRemake\SlotInsideUI.cs        | C#       |        213 |         15 |         41 |        269 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\InventoryAddHandler.cs       | C#       |         23 |          4 |         10 |         37 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\InventoryController.cs       | C#       |         84 |          6 |         18 |        108 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\InventoryItem.cs             | C#       |        102 |         10 |         20 |        132 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\InventoryListHandler.cs      | C#       |        125 |          8 |         27 |        160 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\Slot.cs                      | C#       |        455 |         25 |         89 |        569 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\SlotManager.cs               | C#       |        267 |         20 |         51 |        338 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\WeaponSlot.cs                | C#       |        496 |         21 |         94 |        611 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Lightning\RandomRainCycleController.cs | C#       |        160 |         14 |         35 |        209 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\NPCS\NPCText.cs                        | C#       |         13 |          2 |          5 |         20 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\NPCS\StartCommunication.cs             | C#       |        118 |         10 |         25 |        153 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\NPCS\VisualCommunication.cs            | C#       |        162 |          7 |         34 |        203 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Optimalization\Optimalization.cs       | C#       |         40 |          9 |          9 |         58 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\ActionScrip.cs                  | C#       |        333 |         28 |         61 |        422 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\AnimationScript.cs              | C#       |          8 |          2 |          4 |         14 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\AxeAnimationScript.cs           | C#       |         10 |          2 |          5 |         17 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\FPSController.cs                | C#       |        513 |         24 |         87 |        624 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\Item.cs                         | C#       |          8 |          1 |          3 |         12 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\ItemSwitchScript.cs             | C#       |        132 |          8 |         27 |        167 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\LevelingManager.cs              | C#       |         13 |          2 |          5 |         20 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\LookingController.cs            | C#       |        151 |         12 |         32 |        195 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\MovementAnimationScript.cs      | C#       |        110 |         13 |         22 |        145 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\PickaxeAnimationScript.cs       | C#       |          9 |          2 |          4 |         15 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\RadiusForAttackScript.cs        | C#       |        182 |          6 |         33 |        221 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\RayScript.cs                    | C#       |        738 |         34 |        137 |        909 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\StaminaScript.cs                | C#       |         62 |          4 |         11 |         77 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\SwordAnimationScript.cs         | C#       |         55 |          8 |         12 |         75 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\Test\FPSControllerTest.cs       | C#       |        350 |         22 |         68 |        440 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\Test\FloorScript.cs             | C#       |         13 |          2 |          3 |         18 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\Test\RayCastScriptTest.cs       | C#       |      1,852 |         86 |        342 |      2,280 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\Test\SnapPoint.cs               | C#       |          4 |          1 |          3 |          8 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\Test\StairScript.cs             | C#       |         13 |          2 |          3 |         18 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\Test\WallSnapPoints.cs          | C#       |          5 |          1 |          2 |          8 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Projectile\ProjectileScript.cs         | C#       |          8 |          2 |          3 |         13 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\ResHandler.cs                          | C#       |        565 |          2 |         97 |        664 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Spawning\SpawnNpcsAtNight.cs           | C#       |        363 |         18 |         61 |        442 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Stone\GetRandomOreType.cs              | C#       |        113 |          5 |         19 |        137 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Stone\MineStone.cs                     | C#       |        326 |         18 |         50 |        394 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Stone\Ore.cs                           | C#       |         14 |          1 |          3 |         18 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Stone\StoneColliderScript.cs           | C#       |         35 |          5 |          6 |         46 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Tree\ColliderScript.cs                 | C#       |         21 |          3 |          5 |         29 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Tree\CutTree.cs                        | C#       |        266 |         14 |         47 |        327 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Tree\DetailPickupMarker.cs             | C#       |         45 |          1 |          8 |         54 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Tree\TerrainDetailPickupSpawner.cs     | C#       |        288 |          2 |         50 |        340 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Tree\TerrainTreeToPrefabConverter.cs   | C#       |        581 |          4 |         99 |        684 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\UI\InfoHandler.cs                      | C#       |        131 |         11 |         26 |        168 |
+| Total                                                                                    |          |     13,340 |        687 |      2,500 |     16,527 |
++------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+

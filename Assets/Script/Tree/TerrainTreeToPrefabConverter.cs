@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 // Controls Terrain Tree To Prefab Converter behavior.
 public class TerrainTreeToPrefabConverter : MonoBehaviour
@@ -11,6 +14,14 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
     [SerializeField] private bool includeMineableStones = true;
     [SerializeField] private bool includePickableItems = true;
     [SerializeField] private bool clearConvertedTerrainTrees = true;
+    [Header("Reverse Conversion")]
+    [Tooltip("When restoring prefabs back to terrain trees, include existing terrain trees instead of replacing them.")]
+    [SerializeField] private bool appendToExistingTerrainTrees = true;
+    [Tooltip("Use all descendants under parentForSpawnedTrees. Disable to use only direct children.")]
+    [SerializeField] private bool restoreFromAllDescendants = false;
+    [SerializeField] private bool includeInactiveForRestore = true;
+    [SerializeField] private bool removeRestoredGameObjects = true;
+    [SerializeField] private bool clearParentAfterRestore = false;
     [Header("Detail Mesh Conversion")]
     [SerializeField] private bool convertDetailMeshes = false;
     [Tooltip("Only convert detail prototypes that match these prefabs.")]
@@ -127,6 +138,113 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
         {
             ConvertDetailMeshesToPrefabs(targetTerrain, parentForSpawnedTrees);
         }
+    }
+
+    [ContextMenu("Convert Prefabs Back To Terrain Trees")]
+    // Handle Convert Prefabs Back To Terrain Trees.
+    public void ConvertPrefabsBackToTerrainTrees()
+    {
+        if (targetTerrain == null)
+        {
+            targetTerrain = GetComponent<Terrain>();
+        }
+
+        if (targetTerrain == null || targetTerrain.terrainData == null)
+        {
+            Debug.LogWarning("TerrainTreeToPrefabConverter: Missing Terrain reference for restore.", this);
+            return;
+        }
+
+        if (parentForSpawnedTrees == null)
+        {
+            Debug.LogWarning("TerrainTreeToPrefabConverter: parentForSpawnedTrees is not set for restore.", this);
+            return;
+        }
+
+        TerrainData terrainData = targetTerrain.terrainData;
+        TreePrototype[] prototypes = terrainData.treePrototypes;
+        if (prototypes == null || prototypes.Length == 0)
+        {
+            Debug.LogWarning("TerrainTreeToPrefabConverter: Terrain has no tree prototypes.", this);
+            return;
+        }
+
+        Dictionary<string, int> prototypeByName = BuildPrototypeNameMap(prototypes);
+        List<TreeInstance> result = appendToExistingTerrainTrees
+            ? new List<TreeInstance>(terrainData.treeInstances)
+            : new List<TreeInstance>();
+
+        List<GameObject> candidates = CollectRestoreCandidates(parentForSpawnedTrees, includeInactiveForRestore, restoreFromAllDescendants);
+        int restoredCount = 0;
+        int skippedCount = 0;
+        int outsideTerrainCount = 0;
+
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            GameObject candidate = candidates[i];
+            if (candidate == null)
+            {
+                skippedCount++;
+                continue;
+            }
+
+            int prototypeIndex = ResolvePrototypeIndexForRestoredObject(candidate, prototypes, prototypeByName);
+            if (prototypeIndex < 0)
+            {
+                skippedCount++;
+                continue;
+            }
+
+            if (!TryCreateTreeInstanceFromObject(candidate.transform, targetTerrain, prototypes, prototypeIndex, out TreeInstance treeInstance))
+            {
+                outsideTerrainCount++;
+                continue;
+            }
+
+            result.Add(treeInstance);
+            restoredCount++;
+
+            if (removeRestoredGameObjects)
+            {
+                if (Application.isPlaying)
+                {
+                    Destroy(candidate);
+                }
+                else
+                {
+                    DestroyImmediate(candidate);
+                }
+            }
+        }
+
+        terrainData.treeInstances = result.ToArray();
+
+        if (removeRestoredGameObjects && clearParentAfterRestore && parentForSpawnedTrees != null)
+        {
+            int childCount = parentForSpawnedTrees.childCount;
+            for (int i = childCount - 1; i >= 0; i--)
+            {
+                Transform child = parentForSpawnedTrees.GetChild(i);
+                if (child == null)
+                {
+                    continue;
+                }
+
+                if (Application.isPlaying)
+                {
+                    Destroy(child.gameObject);
+                }
+                else
+                {
+                    DestroyImmediate(child.gameObject);
+                }
+            }
+        }
+
+        Debug.Log(
+            $"TerrainTreeToPrefabConverter: Restored {restoredCount} prefab objects back to terrain trees. " +
+            $"Skipped={skippedCount}, OutsideTerrain={outsideTerrainCount}, TotalTerrainTrees={result.Count}.",
+            this);
     }
 
     private void ConvertDetailMeshesToPrefabs(Terrain terrain, Transform parent)
@@ -382,6 +500,170 @@ Done:
 #endif
 
         return null;
+    }
+
+    private static Dictionary<string, int> BuildPrototypeNameMap(TreePrototype[] prototypes)
+    {
+        Dictionary<string, int> map = new Dictionary<string, int>();
+        if (prototypes == null)
+        {
+            return map;
+        }
+
+        for (int i = 0; i < prototypes.Length; i++)
+        {
+            TreePrototype proto = prototypes[i];
+            if (proto == null || proto.prefab == null)
+            {
+                continue;
+            }
+
+            string key = NormalizePrefabName(proto.prefab.name);
+            if (!map.ContainsKey(key))
+            {
+                map.Add(key, i);
+            }
+        }
+
+        return map;
+    }
+
+    private static List<GameObject> CollectRestoreCandidates(Transform root, bool includeInactive, bool useAllDescendants)
+    {
+        List<GameObject> result = new List<GameObject>();
+        if (root == null)
+        {
+            return result;
+        }
+
+        if (!useAllDescendants)
+        {
+            int childCount = root.childCount;
+            for (int i = 0; i < childCount; i++)
+            {
+                Transform child = root.GetChild(i);
+                if (child == null)
+                {
+                    continue;
+                }
+
+                if (!includeInactive && !child.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                result.Add(child.gameObject);
+            }
+
+            return result;
+        }
+
+        Transform[] descendants = root.GetComponentsInChildren<Transform>(includeInactive);
+        for (int i = 0; i < descendants.Length; i++)
+        {
+            Transform t = descendants[i];
+            if (t == null || t == root)
+            {
+                continue;
+            }
+
+            // Keep only top-most descendants under root to avoid duplicating nested prefab parts.
+            if (t.parent != root)
+            {
+                continue;
+            }
+
+            result.Add(t.gameObject);
+        }
+
+        return result;
+    }
+
+    private static int ResolvePrototypeIndexForRestoredObject(GameObject candidate, TreePrototype[] prototypes, Dictionary<string, int> prototypeByName)
+    {
+        if (candidate == null)
+        {
+            return -1;
+        }
+
+#if UNITY_EDITOR
+        GameObject source = PrefabUtility.GetCorrespondingObjectFromSource(candidate);
+        if (source != null)
+        {
+            for (int i = 0; i < prototypes.Length; i++)
+            {
+                TreePrototype proto = prototypes[i];
+                if (proto != null && proto.prefab == source)
+                {
+                    return i;
+                }
+            }
+        }
+#endif
+
+        string normalized = NormalizePrefabName(candidate.name);
+        return prototypeByName.TryGetValue(normalized, out int mappedIndex)
+            ? mappedIndex
+            : -1;
+    }
+
+    private static bool TryCreateTreeInstanceFromObject(
+        Transform source,
+        Terrain terrain,
+        TreePrototype[] prototypes,
+        int prototypeIndex,
+        out TreeInstance treeInstance)
+    {
+        treeInstance = default;
+
+        if (source == null || terrain == null || terrain.terrainData == null)
+        {
+            return false;
+        }
+
+        TerrainData data = terrain.terrainData;
+        Vector3 local = source.position - terrain.transform.position;
+        Vector3 normalized = new Vector3(
+            data.size.x > 0f ? local.x / data.size.x : 0f,
+            data.size.y > 0f ? local.y / data.size.y : 0f,
+            data.size.z > 0f ? local.z / data.size.z : 0f);
+
+        if (normalized.x < 0f || normalized.x > 1f || normalized.z < 0f || normalized.z > 1f)
+        {
+            return false;
+        }
+
+        normalized.x = Mathf.Clamp01(normalized.x);
+        normalized.y = Mathf.Clamp01(normalized.y);
+        normalized.z = Mathf.Clamp01(normalized.z);
+
+        Vector3 sourceScale = source.localScale;
+        Vector3 prefabScale = Vector3.one;
+        TreePrototype prototype = prototypes[prototypeIndex];
+        if (prototype != null && prototype.prefab != null)
+        {
+            prefabScale = prototype.prefab.transform.localScale;
+        }
+
+        float widthScaleX = Mathf.Abs(prefabScale.x) > 0.0001f ? sourceScale.x / prefabScale.x : 1f;
+        float widthScaleZ = Mathf.Abs(prefabScale.z) > 0.0001f ? sourceScale.z / prefabScale.z : widthScaleX;
+        float widthScale = Mathf.Max(0.01f, (widthScaleX + widthScaleZ) * 0.5f);
+        float heightScale = Mathf.Abs(prefabScale.y) > 0.0001f
+            ? Mathf.Max(0.01f, sourceScale.y / prefabScale.y)
+            : 1f;
+
+        treeInstance = new TreeInstance
+        {
+            position = normalized,
+            widthScale = widthScale,
+            heightScale = heightScale,
+            rotation = source.eulerAngles.y * Mathf.Deg2Rad,
+            prototypeIndex = prototypeIndex,
+            color = Color.white,
+            lightmapColor = Color.white
+        };
+
+        return true;
     }
 
     private static float HashTo01(int seed, int a, int b, int c, int d, int e)

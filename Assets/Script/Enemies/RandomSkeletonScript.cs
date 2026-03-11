@@ -1,4 +1,3 @@
-﻿using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -26,7 +25,7 @@ public class RandomSkeletonScript : MonoBehaviour
     [Header("Detection")]
     public bool autoFindPlayerByTag = true;
     public string playerTag = "Player";
-    public bool debugRangeLogs = true;
+    public bool debugRangeLogs = false;
     public float debugLogInterval = 0.25f;
 
     [Header("Roaming")]
@@ -36,12 +35,24 @@ public class RandomSkeletonScript : MonoBehaviour
     public float roamMinMoveDistance = 3f;
     public int roamDestinationTries = 8;
 
+    [Header("Performance")]
+    [Tooltip("How often AI logic runs. Higher value = lower CPU use.")]
+    [Range(0.02f, 0.5f)] public float aiThinkInterval = 0.08f;
+    [Tooltip("How often player target references are refreshed when needed.")]
+    [Range(0.1f, 2f)] public float playerResolveInterval = 0.5f;
+    [Tooltip("Minimum player movement before requesting a new NavMesh destination.")]
+    [Range(0.05f, 3f)] public float minRepathDistance = 0.75f;
+
     private float _nextAttackTime;
     private float _attackAnimUnlockTime;
     private Vector3 _roamAnchor;
     private float _nextRoamRepathTime;
     private float _nextDebugLogTime;
     private bool _wasPlayerInRangeLastFrame;
+    private float _nextThinkTime;
+    private float _nextResolvePlayerTime;
+    private Vector3 _lastRequestedDestination;
+    private bool _hasRequestedDestination;
 
     void Awake()
     {
@@ -76,11 +87,21 @@ public class RandomSkeletonScript : MonoBehaviour
         {
             navMeshAgent.stoppingDistance = Mathf.Max(0.1f, attackRange - 0.25f);
         }
+
+        _nextThinkTime = Time.time + Random.Range(0f, Mathf.Max(0.02f, aiThinkInterval));
+        _nextResolvePlayerTime = 0f;
+        _hasRequestedDestination = false;
     }
 
     void Update()
     {
-        ResolvePlayerTransform();
+        if (Time.time < _nextThinkTime)
+        {
+            return;
+        }
+
+        _nextThinkTime = Time.time + Mathf.Max(0.02f, aiThinkInterval);
+        ResolvePlayerTransformThrottled();
 
         if (!CanUseNavMeshAgent())
         {
@@ -186,6 +207,18 @@ public class RandomSkeletonScript : MonoBehaviour
         playertransform = resolved;
     }
 
+    // Handle Resolve Player Transform Throttled.
+    private void ResolvePlayerTransformThrottled()
+    {
+        if (Time.time < _nextResolvePlayerTime)
+        {
+            return;
+        }
+
+        _nextResolvePlayerTime = Time.time + Mathf.Max(0.1f, playerResolveInterval);
+        ResolvePlayerTransform();
+    }
+
     // Handle Try Find Player By Tag.
     private Transform TryFindPlayerByTag()
     {
@@ -213,8 +246,22 @@ public class RandomSkeletonScript : MonoBehaviour
             return;
         }
 
+        Vector3 target = playertransform.position;
+        float minDelta = Mathf.Max(0.01f, minRepathDistance);
+        bool shouldRepath = !_hasRequestedDestination ||
+                            !navMeshAgent.hasPath ||
+                            (target - _lastRequestedDestination).sqrMagnitude >= minDelta * minDelta;
+
+        if (!shouldRepath)
+        {
+            navMeshAgent.isStopped = false;
+            return;
+        }
+
         navMeshAgent.isStopped = false;
-        navMeshAgent.SetDestination(playertransform.position);
+        navMeshAgent.SetDestination(target);
+        _lastRequestedDestination = target;
+        _hasRequestedDestination = true;
     }
 
     // Handle Stop Moving.
@@ -230,6 +277,8 @@ public class RandomSkeletonScript : MonoBehaviour
         {
             navMeshAgent.ResetPath();
         }
+
+        _hasRequestedDestination = false;
     }
 
     // Handle Face Player.
@@ -343,6 +392,8 @@ public class RandomSkeletonScript : MonoBehaviour
         navMeshAgent.SetDestination(roamDestination);
         SetWalkAnimation(true);
         _nextRoamRepathTime = Time.time + Mathf.Max(0.1f, roamRepathInterval);
+        _lastRequestedDestination = roamDestination;
+        _hasRequestedDestination = true;
     }
 
     // Handle Try Get Roam Destination.

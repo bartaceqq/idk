@@ -17,9 +17,13 @@ public class TerrainDetailPickupSpawner : MonoBehaviour
     [SerializeField] private bool deterministicPlacement = true;
     [SerializeField] private int placementSeed = 1337;
     [SerializeField, Range(0f, 1f)] private float cellJitter = 0.6f;
+    [SerializeField, Range(0.02f, 1f)] private float spawnRefreshInterval = 0.15f;
+    [SerializeField, Range(0.1f, 3f)] private float resolveReferencesInterval = 1f;
 
     private readonly Dictionary<long, DetailPickupMarker> active = new Dictionary<long, DetailPickupMarker>();
     private int cachedDetailIndex = -1;
+    private float _nextSpawnRefreshTime;
+    private float _nextResolveReferencesTime;
 
     private void Awake()
     {
@@ -28,11 +32,23 @@ public class TerrainDetailPickupSpawner : MonoBehaviour
 
     private void Update()
     {
-        ResolveReferences();
+        if (Time.time >= _nextResolveReferencesTime)
+        {
+            ResolveReferences();
+            _nextResolveReferencesTime = Time.time + Mathf.Max(0.1f, resolveReferencesInterval);
+        }
+
         if (targetTerrain == null || player == null || pickupConfigs == null || pickupConfigs.Count == 0)
         {
             return;
         }
+
+        if (Time.time < _nextSpawnRefreshTime)
+        {
+            return;
+        }
+
+        _nextSpawnRefreshTime = Time.time + Mathf.Max(0.02f, spawnRefreshInterval);
 
         for (int i = 0; i < pickupConfigs.Count; i++)
         {
@@ -196,6 +212,9 @@ public class TerrainDetailPickupSpawner : MonoBehaviour
             return;
         }
 
+        float maxDistanceSqr = despawnRadius * despawnRadius;
+        Vector3 playerPos = player.position;
+
         List<long> toRemove = null;
         foreach (KeyValuePair<long, DetailPickupMarker> pair in active)
         {
@@ -205,8 +224,8 @@ public class TerrainDetailPickupSpawner : MonoBehaviour
                 continue;
             }
 
-            float dist = Vector3.Distance(player.position, marker.transform.position);
-            if (dist > despawnRadius)
+            float distSqr = (playerPos - marker.transform.position).sqrMagnitude;
+            if (distSqr > maxDistanceSqr)
             {
                 marker.Despawn();
                 if (toRemove == null)

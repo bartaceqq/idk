@@ -1,0 +1,72 @@
+Date : 2026-03-11 11:51:00
+Directory : c:\Users\adamb\Documents\GitHub\idk\Assets\Script
+Total : 33 files,  4279 codes, 179 comments, 769 blanks, all 5227 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| C#       |         33 |      4,279 |        179 |        769 |      5,227 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++----------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                   | files      | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                      |         33 |      4,279 |        179 |        769 |      5,227 |
+| . (Files)                                                                              |          1 |        557 |          1 |         95 |        653 |
+| Animals                                                                                |          1 |        447 |          1 |         88 |        536 |
+| Chest                                                                                  |          4 |        295 |         27 |         30 |        352 |
+| Crafting                                                                               |          2 |        192 |          7 |         36 |        235 |
+| Enemies                                                                                |          2 |        373 |         14 |         72 |        459 |
+| Inventory                                                                              |          4 |        365 |         18 |         74 |        457 |
+| InventoryRemake                                                                        |          3 |        409 |         24 |         76 |        509 |
+| NPCS                                                                                   |          3 |        293 |         19 |         64 |        376 |
+| Optimalization                                                                         |          1 |          9 |          0 |          0 |          9 |
+| Player                                                                                 |          8 |        663 |         45 |        115 |        823 |
+| Player (Files)                                                                         |          7 |        648 |         44 |        111 |        803 |
+| Player\Test                                                                            |          1 |         15 |          1 |          4 |         20 |
+| Spawning                                                                               |          1 |        363 |         18 |         61 |        442 |
+| Tree                                                                                   |          2 |        261 |          2 |         45 |        308 |
+| UI                                                                                     |          1 |         52 |          3 |         13 |         68 |
++----------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++----------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                               | language | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Animals\Animalec.cs                  | C#       |        447 |          1 |         88 |        536 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Chest\ChestChecker.cs                | C#       |          3 |          0 |          2 |          5 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Chest\ChestController.cs             | C#       |         29 |         20 |          0 |         49 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Chest\ChestItemGenerator.cs          | C#       |        148 |          5 |         23 |        176 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Chest\ItemForChestsHandler.cs        | C#       |        115 |          2 |          5 |        122 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Crafting\CraftableItem.cs            | C#       |          4 |          0 |          1 |          5 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Crafting\CraftingProcessHandler.cs   | C#       |        188 |          7 |         35 |        230 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Enemies\RandomSkeletonScript.cs      | C#       |        198 |          8 |         38 |        244 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Enemies\RandomZombieScript.cs        | C#       |        175 |          6 |         34 |        215 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\InventoryRemake\InventoryManager.cs  | C#       |        177 |          7 |         29 |        213 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\InventoryRemake\Item.cs              | C#       |         19 |          2 |          6 |         27 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\InventoryRemake\SlotInsideUI.cs      | C#       |        213 |         15 |         41 |        269 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\InventoryAddHandler.cs     | C#       |         23 |          4 |         10 |         37 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\InventoryController.cs     | C#       |         16 |          1 |          2 |         19 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\Slot.cs                    | C#       |         86 |          3 |         16 |        105 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\WeaponSlot.cs              | C#       |        240 |         10 |         46 |        296 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\NPCS\NPCText.cs                      | C#       |         13 |          2 |          5 |         20 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\NPCS\StartCommunication.cs           | C#       |        118 |         10 |         25 |        153 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\NPCS\VisualCommunication.cs          | C#       |        162 |          7 |         34 |        203 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Optimalization\Optimalization.cs     | C#       |          9 |          0 |          0 |          9 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\ActionScrip.cs                | C#       |        254 |         19 |         46 |        319 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\FPSController.cs              | C#       |         56 |          1 |          4 |         61 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\LookingController.cs          | C#       |         15 |          1 |          4 |         20 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\MovementAnimationScript.cs    | C#       |         67 |          9 |         16 |         92 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\RadiusForAttackScript.cs      | C#       |         51 |          1 |          9 |         61 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\RayScript.cs                  | C#       |        159 |          7 |         23 |        189 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\SwordAnimationScript.cs       | C#       |         46 |          6 |          9 |         61 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\Test\FPSControllerTest.cs     | C#       |         15 |          1 |          4 |         20 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\ResHandler.cs                        | C#       |        557 |          1 |         95 |        653 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Spawning\SpawnNpcsAtNight.cs         | C#       |        363 |         18 |         61 |        442 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Tree\TerrainDetailPickupSpawner.cs   | C#       |         15 |          0 |          4 |         19 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Tree\TerrainTreeToPrefabConverter.cs | C#       |        246 |          2 |         41 |        289 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\UI\InfoHandler.cs                    | C#       |         52 |          3 |         13 |         68 |
+| Total                                                                                  |          |      4,279 |        179 |        769 |      5,227 |
++----------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+

@@ -57,6 +57,7 @@ public class RayScript : MonoBehaviour
     public string pickableLayerName = "Pickable";
     public float pickableDetectionRange = 3f;
     public QueryTriggerInteraction pickableTriggerInteraction = QueryTriggerInteraction.Collide;
+    [Range(0.01f, 0.25f)] public float pickableScanInterval = 0.05f;
     public bool runPickableMethodEveryFrameInRange = false;
     public bool allowPickableWithoutColliderFallback = true;
     public GameObject nearestPickableObject;
@@ -71,6 +72,7 @@ public class RayScript : MonoBehaviour
     private float _nextSwordSoundAllowedTime;
     private readonly Collider[] _proximityHits = new Collider[128];
     private int _pickableLayer = -1;
+    private float _nextPickableScanTime;
 
     private void Awake()
     {
@@ -301,10 +303,17 @@ public class RayScript : MonoBehaviour
     // Handle Update Nearest Pickable.
     private void UpdateNearestPickable()
     {
-        GameObject nearest = FindNearestPickableInRange();
-        bool changed = nearest != nearestPickableObject;
-        nearestPickableObject = nearest;
-        SetPickupTextVisible(nearestPickableObject != null, nearestPickableObject);
+        bool shouldRescan = Time.time >= _nextPickableScanTime || nearestPickableObject == null;
+        bool changed = false;
+
+        if (shouldRescan)
+        {
+            _nextPickableScanTime = Time.time + Mathf.Max(0.01f, pickableScanInterval);
+            GameObject nearest = FindNearestPickableInRange();
+            changed = nearest != nearestPickableObject;
+            nearestPickableObject = nearest;
+            SetPickupTextVisible(nearestPickableObject != null, nearestPickableObject);
+        }
 
         if (nearestPickableObject == null)
         {

@@ -12,11 +12,13 @@ public class SpawnNpcsAtNight : MonoBehaviour
 
     [Header("Spawn Area")]
     public Terrain[] terrains;
-    public int monstersPerTerrain = 100;
+    public int monstersPerTerrain = 20;
     public int maxSpawnAttemptsPerMonster = 25;
     public float navMeshSampleRadius = 12f;
     public float minDistanceFromPlayer = 20f;
     public Transform spawnedParent;
+    [Tooltip("Hard cap for alive enemies spawned by this spawner. Set <= 0 to disable cap.")]
+    public int maxTotalAliveFromThisSpawner = 60;
 
     [Header("Night Settings")]
     public LightingManager lightingManager;
@@ -89,6 +91,7 @@ public class SpawnNpcsAtNight : MonoBehaviour
     {
         ResolveReferences();
         ResolveTerrains();
+        PruneMissingSpawnedEnemies();
 
         if (terrains == null || terrains.Length == 0)
         {
@@ -104,9 +107,24 @@ public class SpawnNpcsAtNight : MonoBehaviour
 
         EnsureSpawnedParent();
 
+        int spawnBudget = maxTotalAliveFromThisSpawner <= 0
+            ? int.MaxValue
+            : Mathf.Max(0, maxTotalAliveFromThisSpawner - _spawnedEnemies.Count);
+
+        if (spawnBudget <= 0)
+        {
+            Debug.Log($"SpawnNpcsAtNight: spawn skipped, cap reached ({_spawnedEnemies.Count}/{maxTotalAliveFromThisSpawner}).");
+            return;
+        }
+
         int totalSpawned = 0;
         for (int terrainIndex = 0; terrainIndex < terrains.Length; terrainIndex++)
         {
+            if (totalSpawned >= spawnBudget)
+            {
+                break;
+            }
+
             Terrain terrain = terrains[terrainIndex];
             if (terrain == null || terrain.terrainData == null)
             {
@@ -116,6 +134,11 @@ public class SpawnNpcsAtNight : MonoBehaviour
             int spawnedOnThisTerrain = 0;
             for (int i = 0; i < monstersPerTerrain; i++)
             {
+                if (totalSpawned >= spawnBudget)
+                {
+                    break;
+                }
+
                 if (!TryGetSpawnPositionOnTerrain(terrain, out Vector3 spawnPos))
                 {
                     continue;
@@ -169,6 +192,18 @@ public class SpawnNpcsAtNight : MonoBehaviour
         }
 
         _spawnedEnemies.Clear();
+    }
+
+    // Handle Prune Missing Spawned Enemies.
+    private void PruneMissingSpawnedEnemies()
+    {
+        for (int i = _spawnedEnemies.Count - 1; i >= 0; i--)
+        {
+            if (_spawnedEnemies[i] == null)
+            {
+                _spawnedEnemies.RemoveAt(i);
+            }
+        }
     }
 
     // Handle Resolve References.
