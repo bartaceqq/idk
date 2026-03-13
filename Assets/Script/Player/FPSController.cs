@@ -36,6 +36,22 @@ public class FPSController : MonoBehaviour
     public float cameraSnapInSpeed = 25f;
     public LayerMask cameraCollisionMask = ~0;
 
+    [Header("Shot Shoulder Camera")]
+    public bool enableShotShoulderCamera = true;
+    public Vector3 shotCameraPivotOffset = new Vector3(0.45f, 1.55f, 0f);
+    public float shotCameraDistance = 2.6f;
+    public float shotCameraTransitionSpeed = 12f;
+    public float shotCameraHoldSeconds = 0.2f;
+
+    [Header("Aim Camera")]
+    public bool enableAimCamera = true;
+    public Vector3 aimCameraPivotOffset = new Vector3(0f, 1.6f, 0.12f);
+    public float aimCameraDistance = 0f;
+    public float aimCameraTransitionSpeed = 16f;
+    public float defaultCameraFieldOfView = 60f;
+    public float aimCameraFieldOfView = 72f;
+    public float fieldOfViewTransitionSpeed = 12f;
+
     [Header("Camera Shake")]
     public bool enableCameraShake = false;
     public float cameraShakeAmplitude = 0.04f;
@@ -50,14 +66,29 @@ public class FPSController : MonoBehaviour
     private CharacterController _cc;
     private CapsuleCollider _extraCapsuleCollider;
     private readonly RaycastHit[] _cameraHits = new RaycastHit[8];
+    private Camera _playerCameraComponent;
 
     private float _pitch;
     private float _yaw;
     private Vector3 _velocity;
     private Vector3 _cameraVelocity;
     private float _currentCameraDistance;
+    private float _currentRequestedCameraDistance;
+    private Vector3 _currentCameraPivotOffset;
     private bool _cameraDistanceInitialized;
+    private bool _cameraOffsetInitialized;
     private float _cameraShakeSeed;
+    private float _shotCameraActiveUntil;
+    private bool _holdShoulderCameraActive;
+    private bool _aimCameraActive;
+    private bool _useAimCameraOverride;
+    private Vector3 _aimCameraPivotOffsetOverride;
+    private float _aimCameraDistanceOverride;
+    private float _aimCameraFieldOfViewOverride;
+    private float _aimCameraTransitionSpeedOverride;
+    private float _aimCameraFieldOfViewTransitionSpeedOverride;
+    private Transform _aimCameraAnchorOverride;
+    private Vector3 _aimCameraAnchorLocalOffsetOverride;
 
     private bool _isJumping;
     private bool _isIdle;
@@ -101,6 +132,14 @@ public class FPSController : MonoBehaviour
         {
             Debug.LogWarning("Missing player camera reference.");
         }
+        else
+        {
+            _playerCameraComponent = playerCamera.GetComponent<Camera>();
+            if (_playerCameraComponent == null)
+            {
+                _playerCameraComponent = playerCamera.GetComponentInChildren<Camera>(true);
+            }
+        }
 
         _cameraShakeSeed = Random.Range(0f, 1000f);
     }
@@ -136,6 +175,12 @@ public class FPSController : MonoBehaviour
         _lookAction = null;
         _jumpAction = null;
         _runAction = null;
+        _holdShoulderCameraActive = false;
+        _aimCameraActive = false;
+        _shotCameraActiveUntil = 0f;
+        _useAimCameraOverride = false;
+        _aimCameraAnchorOverride = null;
+        _aimCameraAnchorLocalOffsetOverride = Vector3.zero;
 
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -282,35 +327,82 @@ public class FPSController : MonoBehaviour
         }
 
         Quaternion lookRotation = Quaternion.Euler(_pitch, _yaw, 0f);
-        Vector3 pivot = transform.position + cameraPivotOffset;
-        float requestedDistance = Mathf.Max(minCameraDistance, cameraDistance);
+        bool aimCameraActive = enableAimCamera && _aimCameraActive;
+        bool useAimCameraOverride = aimCameraActive && _useAimCameraOverride;
+        Vector3 resolvedAimPivotOffset = useAimCameraOverride ? _aimCameraPivotOffsetOverride : aimCameraPivotOffset;
+        float resolvedAimDistance = useAimCameraOverride ? _aimCameraDistanceOverride : aimCameraDistance;
+        float resolvedAimTransitionSpeed = useAimCameraOverride ? _aimCameraTransitionSpeedOverride : aimCameraTransitionSpeed;
+        float resolvedAimFieldOfView = useAimCameraOverride ? _aimCameraFieldOfViewOverride : aimCameraFieldOfView;
+        float resolvedAimFieldOfViewTransitionSpeed = useAimCameraOverride
+            ? _aimCameraFieldOfViewTransitionSpeedOverride
+            : fieldOfViewTransitionSpeed;
+        Transform resolvedAimAnchor = useAimCameraOverride ? _aimCameraAnchorOverride : null;
+        Vector3 resolvedAimAnchorLocalOffset = useAimCameraOverride ? _aimCameraAnchorLocalOffsetOverride : Vector3.zero;
+        bool shoulderCameraActive = !aimCameraActive && enableShotShoulderCamera &&
+            (_holdShoulderCameraActive || Time.time < _shotCameraActiveUntil);
+        Vector3 targetPivotOffset = aimCameraActive
+            ? resolvedAimPivotOffset
+            : shoulderCameraActive
+                ? shotCameraPivotOffset
+                : cameraPivotOffset;
+
+        float targetRequestedDistance = aimCameraActive
+            ? Mathf.Max(0f, resolvedAimDistance)
+            : Mathf.Max(
+                minCameraDistance,
+                shoulderCameraActive ? shotCameraDistance : cameraDistance);
+
+        if (!_cameraOffsetInitialized || deltaTime <= 0f)
+        {
+            _currentCameraPivotOffset = targetPivotOffset;
+            _currentRequestedCameraDistance = targetRequestedDistance;
+            _cameraOffsetInitialized = true;
+        }
+        else
+        {
+            float transitionSpeed = aimCameraActive ? resolvedAimTransitionSpeed : shotCameraTransitionSpeed;
+            float transitionT = 1f - Mathf.Exp(-Mathf.Max(0f, transitionSpeed) * deltaTime);
+            _currentCameraPivotOffset = Vector3.Lerp(_currentCameraPivotOffset, targetPivotOffset, transitionT);
+            _currentRequestedCameraDistance = Mathf.Lerp(_currentRequestedCameraDistance, targetRequestedDistance, transitionT);
+        }
+
+        Vector3 pivot = aimCameraActive && resolvedAimAnchor != null
+            ? resolvedAimAnchor.position + (resolvedAimAnchor.rotation * resolvedAimAnchorLocalOffset)
+            : transform.position + (transform.rotation * _currentCameraPivotOffset);
+        float requestedDistance = aimCameraActive
+            ? Mathf.Max(0f, _currentRequestedCameraDistance)
+            : Mathf.Max(minCameraDistance, _currentRequestedCameraDistance);
         float resolvedDistance = requestedDistance;
         Vector3 backward = -(lookRotation * Vector3.forward);
 
-        int hitCount = Physics.SphereCastNonAlloc(
-            pivot,
-            cameraCollisionRadius,
-            backward,
-            _cameraHits,
-            requestedDistance,
-            cameraCollisionMask,
-            QueryTriggerInteraction.Ignore);
-
-        for (int i = 0; i < hitCount; i++)
+        if (requestedDistance > 0.0001f)
         {
-            Collider hitCollider = _cameraHits[i].collider;
-            if (hitCollider == null || hitCollider.transform.IsChildOf(transform))
-            {
-                continue;
-            }
+            int hitCount = Physics.SphereCastNonAlloc(
+                pivot,
+                cameraCollisionRadius,
+                backward,
+                _cameraHits,
+                requestedDistance,
+                cameraCollisionMask,
+                QueryTriggerInteraction.Ignore);
 
-            if (_cameraHits[i].distance > 0.001f && _cameraHits[i].distance < resolvedDistance)
+            for (int i = 0; i < hitCount; i++)
             {
-                resolvedDistance = _cameraHits[i].distance;
+                Collider hitCollider = _cameraHits[i].collider;
+                if (hitCollider == null || hitCollider.transform.IsChildOf(transform))
+                {
+                    continue;
+                }
+
+                if (_cameraHits[i].distance > 0.001f && _cameraHits[i].distance < resolvedDistance)
+                {
+                    resolvedDistance = _cameraHits[i].distance;
+                }
             }
         }
 
-        float targetDistance = Mathf.Max(minCameraDistance, resolvedDistance - 0.05f);
+        float minimumDistance = aimCameraActive ? 0f : minCameraDistance;
+        float targetDistance = Mathf.Max(minimumDistance, resolvedDistance - (aimCameraActive ? 0.01f : 0.05f));
         if (!_cameraDistanceInitialized || deltaTime <= 0f)
         {
             _currentCameraDistance = targetDistance;
@@ -343,6 +435,11 @@ public class FPSController : MonoBehaviour
         }
 
         playerCamera.rotation = lookRotation;
+        UpdateCameraFieldOfView(
+            aimCameraActive,
+            resolvedAimFieldOfView,
+            resolvedAimFieldOfViewTransitionSpeed,
+            deltaTime);
     }
 
     // Handle Sync Look Angles From Transforms.
@@ -361,8 +458,71 @@ public class FPSController : MonoBehaviour
 
         transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
         _cameraDistanceInitialized = false;
+        _cameraOffsetInitialized = false;
         _currentCameraDistance = Mathf.Max(minCameraDistance, cameraDistance);
+        _currentRequestedCameraDistance = _currentCameraDistance;
+        _currentCameraPivotOffset = cameraPivotOffset;
         _cameraVelocity = Vector3.zero;
+    }
+
+    // Handle Trigger Shot Shoulder Camera.
+    public void TriggerShotShoulderCamera(float holdSeconds = -1f)
+    {
+        if (!enableShotShoulderCamera)
+        {
+            return;
+        }
+
+        float duration = holdSeconds > 0f ? holdSeconds : Mathf.Max(0f, shotCameraHoldSeconds);
+        _shotCameraActiveUntil = Mathf.Max(_shotCameraActiveUntil, Time.time + duration);
+    }
+
+    // Handle Clear Shot Shoulder Camera.
+    public void ClearShotShoulderCamera()
+    {
+        _shotCameraActiveUntil = 0f;
+    }
+
+    // Handle Set Hold Shoulder Camera.
+    public void SetHoldShoulderCamera(bool active)
+    {
+        _holdShoulderCameraActive = active;
+    }
+
+    // Handle Set Aim Camera Active.
+    public void SetAimCameraActive(bool active)
+    {
+        _aimCameraActive = active && enableAimCamera;
+    }
+
+    // Handle Set Aim Camera Override.
+    public void SetAimCameraOverride(
+        Vector3 pivotOffset,
+        float distance,
+        float fieldOfView,
+        float transitionSpeed = -1f,
+        float fieldOfViewTransitionSpeedOverride = -1f,
+        Transform anchor = null,
+        Vector3 anchorLocalOffset = default)
+    {
+        _useAimCameraOverride = true;
+        _aimCameraPivotOffsetOverride = pivotOffset;
+        _aimCameraDistanceOverride = Mathf.Max(0f, distance);
+        _aimCameraFieldOfViewOverride = Mathf.Clamp(fieldOfView, 1f, 179f);
+        _aimCameraTransitionSpeedOverride = transitionSpeed > 0f ? transitionSpeed : aimCameraTransitionSpeed;
+        _aimCameraFieldOfViewTransitionSpeedOverride = fieldOfViewTransitionSpeedOverride > 0f
+            ? fieldOfViewTransitionSpeedOverride
+            : fieldOfViewTransitionSpeed;
+        _aimCameraAnchorOverride = anchor;
+        _aimCameraAnchorLocalOffsetOverride = anchorLocalOffset;
+    }
+
+    // Handle Clear Aim Camera Override.
+    public void ClearAimCameraOverride()
+    {
+        _useAimCameraOverride = false;
+        _aimCameraAnchorOverride = null;
+        _aimCameraAnchorLocalOffsetOverride = Vector3.zero;
     }
 
     // Handle Normalize Angle.
@@ -371,6 +531,38 @@ public class FPSController : MonoBehaviour
         while (angle > 180f) angle -= 360f;
         while (angle < -180f) angle += 360f;
         return angle;
+    }
+
+    // Handle Update Camera Field Of View.
+    private void UpdateCameraFieldOfView(
+        bool aimCameraActive,
+        float resolvedAimFieldOfView,
+        float resolvedFieldOfViewTransitionSpeed,
+        float deltaTime)
+    {
+        if (_playerCameraComponent == null && playerCamera != null)
+        {
+            _playerCameraComponent = playerCamera.GetComponent<Camera>();
+            if (_playerCameraComponent == null)
+            {
+                _playerCameraComponent = playerCamera.GetComponentInChildren<Camera>(true);
+            }
+        }
+
+        if (_playerCameraComponent == null)
+        {
+            return;
+        }
+
+        float targetFieldOfView = aimCameraActive ? resolvedAimFieldOfView : defaultCameraFieldOfView;
+        if (deltaTime <= 0f || resolvedFieldOfViewTransitionSpeed <= 0f)
+        {
+            _playerCameraComponent.fieldOfView = targetFieldOfView;
+            return;
+        }
+
+        float t = 1f - Mathf.Exp(-Mathf.Max(0f, resolvedFieldOfViewTransitionSpeed) * deltaTime);
+        _playerCameraComponent.fieldOfView = Mathf.Lerp(_playerCameraComponent.fieldOfView, targetFieldOfView, t);
     }
 
     // Handle Get Camera Shake Offset.

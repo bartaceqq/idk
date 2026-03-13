@@ -5,9 +5,9 @@ using UnityEngine;
 
 public class HolotnaUrpConverterWindow : EditorWindow
 {
-    private const string PackRoot = "Assets/Holotna/Mountain";
-    private const string MaterialsFolder = "Assets/Holotna/Mountain/Materials";
-    private const string UrpPackagePath = "Assets/Holotna/Mountain/_URP/URP.unitypackage";
+    private const string PackRoot = "Assets/Environment_MountainPack_Holotna/Mountain";
+    private const string MaterialsFolder = "Assets/Environment_MountainPack_Holotna/Mountain/Materials";
+    private const string UrpPackagePath = "Assets/Environment_MountainPack_Holotna/Mountain/_URP/URP.unitypackage";
 
     [MenuItem("Tools/Holotna/URP Converter")]
     public static void Open()
@@ -43,7 +43,7 @@ public class HolotnaUrpConverterWindow : EditorWindow
 
         if (!Directory.Exists(PackRoot))
         {
-            EditorGUILayout.HelpBox("Holotna pack not found at Assets/Holotna/Mountain.", MessageType.Warning);
+            EditorGUILayout.HelpBox("Holotna pack not found at Assets/Environment_MountainPack_Holotna/Mountain.", MessageType.Warning);
         }
     }
 

@@ -15,6 +15,13 @@ public class ActionScript : MonoBehaviour
     public string upperBodyLayerName = "UpperBody";
     public float upperBodyLayerBlendSpeed = 18f;
     public float upperBodyMinimumActiveSeconds = 0.25f;
+    public float upperBodyStateBlendTime = 0.02f;
+    public string upperBodyLightAttackStateName = "UpperAttackWeapon";
+    public string upperBodyHeavyAttackStateName = "UpperAttackTwoHanded";
+    public string upperBodyPunchLeftStateName = "UpperPunchLeft";
+    public string upperBodyPunchRightStateName = "UpperPunchRight";
+    public string upperBodyMiningStateName = "UpperMining";
+    public string upperBodyChopStateName = "UpperChop";
     public MovementAnimationScript movementAnimationScript;
     public AxeAnimationScript axeAnimationScript;
     public PickaxeAnimationScript pickaxeAnimationScript;
@@ -23,6 +30,7 @@ public class ActionScript : MonoBehaviour
     private float movementAnimationLockUntil;
     private float upperBodyLayerActiveUntil;
     private int unarmedPunchStep;
+    private bool upperBodyExternalHold;
 
     private static readonly int AttackWeaponStateHash = Animator.StringToHash("AttackWeapon");
     private static readonly int AttackTwoHandedStateHash = Animator.StringToHash("AttackTwoHanded");
@@ -41,7 +49,10 @@ public class ActionScript : MonoBehaviour
     public void Chop()
     {
         ActivateUpperBodyLayer(chopUpperBodySeconds);
-        axeAnimationScript.ChopAnimation();
+        if (!TryPlayUpperBodyState(upperBodyChopStateName) && axeAnimationScript != null)
+        {
+            axeAnimationScript.ChopAnimation();
+        }
     }
     // Handle Walk.
     public void Walk(bool status)
@@ -82,7 +93,10 @@ public class ActionScript : MonoBehaviour
     public void Mine()
     {
         ActivateUpperBodyLayer(mineUpperBodySeconds);
-        pickaxeAnimationScript.Mine();
+        if (!TryPlayUpperBodyState(upperBodyMiningStateName) && pickaxeAnimationScript != null)
+        {
+            pickaxeAnimationScript.Mine();
+        }
     }
     // Handle Attack.
     public void Attack()
@@ -94,7 +108,7 @@ public class ActionScript : MonoBehaviour
     public void AttackLight()
     {
         ActivateUpperBodyLayer(swordMovementAnimationLockSeconds);
-        if (swordAnimationScript != null)
+        if (!TryPlayUpperBodyState(upperBodyLightAttackStateName) && swordAnimationScript != null)
         {
             swordAnimationScript.AttackLight();
         }
@@ -104,7 +118,7 @@ public class ActionScript : MonoBehaviour
     public void AttackHeavy()
     {
         ActivateUpperBodyLayer(swordHeavyMovementAnimationLockSeconds);
-        if (swordAnimationScript != null)
+        if (!TryPlayUpperBodyState(upperBodyHeavyAttackStateName) && swordAnimationScript != null)
         {
             swordAnimationScript.AttackHeavy();
         }
@@ -116,7 +130,11 @@ public class ActionScript : MonoBehaviour
         bool punchLeft = (unarmedPunchStep % 2) == 0;
         ActivateUpperBodyLayer(unarmedPunchMovementAnimationLockSeconds);
 
-        if (swordAnimationScript != null)
+        string targetUpperBodyState = punchLeft
+            ? upperBodyPunchLeftStateName
+            : upperBodyPunchRightStateName;
+
+        if (!TryPlayUpperBodyState(targetUpperBodyState) && swordAnimationScript != null)
         {
             if (punchLeft)
             {
@@ -289,7 +307,7 @@ public class ActionScript : MonoBehaviour
 
         bool timerActive = Time.time < upperBodyLayerActiveUntil;
         bool layerPlayingAction = IsAnimatorLayerInActionState(animator, layerIndex);
-        float targetWeight = (timerActive || layerPlayingAction) ? 1f : 0f;
+        float targetWeight = (timerActive || layerPlayingAction || upperBodyExternalHold) ? 1f : 0f;
         float currentWeight = animator.GetLayerWeight(layerIndex);
         float blendSpeed = Mathf.Max(1f, upperBodyLayerBlendSpeed);
         float nextWeight = Mathf.MoveTowards(currentWeight, targetWeight, blendSpeed * Time.deltaTime);
@@ -297,6 +315,12 @@ public class ActionScript : MonoBehaviour
         {
             animator.SetLayerWeight(layerIndex, nextWeight);
         }
+    }
+
+    // Handle Set Upper Body External Hold.
+    public void SetUpperBodyExternalHold(bool active)
+    {
+        upperBodyExternalHold = active;
     }
 
     // Handle Is Animator Layer In Action State.
@@ -362,6 +386,46 @@ public class ActionScript : MonoBehaviour
 
         layerIndex = animator.GetLayerIndex(upperBodyLayerName);
         return layerIndex >= 0;
+    }
+
+    // Handle Try Play Upper Body State.
+    private bool TryPlayUpperBodyState(string stateName)
+    {
+        Animator animator = ResolveCharacterAnimator();
+        if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex) ||
+            string.IsNullOrWhiteSpace(stateName))
+        {
+            return false;
+        }
+
+        int fullPathHash = Animator.StringToHash($"{upperBodyLayerName}.{stateName}");
+        int shortNameHash = Animator.StringToHash(stateName);
+        int stateHash;
+
+        if (animator.HasState(layerIndex, fullPathHash))
+        {
+            stateHash = fullPathHash;
+        }
+        else if (animator.HasState(layerIndex, shortNameHash))
+        {
+            stateHash = shortNameHash;
+        }
+        else
+        {
+            return false;
+        }
+
+        float blendTime = Mathf.Max(0f, upperBodyStateBlendTime);
+        if (blendTime > 0f)
+        {
+            animator.CrossFadeInFixedTime(stateHash, blendTime, layerIndex);
+        }
+        else
+        {
+            animator.Play(stateHash, layerIndex, 0f);
+        }
+
+        return true;
     }
 
     // Handle Is Animator In Action State.

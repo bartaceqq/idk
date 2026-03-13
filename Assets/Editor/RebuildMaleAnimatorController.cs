@@ -10,10 +10,10 @@ public static class RebuildMaleAnimatorController
     private const string SprintPath = "Assets/Animations/Male/SprintForeWard.anim";
     private const string BackwardPath = "Assets/Animations/Male/WalkBackWards.anim";
     private const string JumpPath = "Assets/Animations/Male/Jump.anim";
-    private const string AttackLightPath = "Assets/Blink/Art/Animations/Animations_Starter_Pack/Combat/MeleeAttack_OneHanded.fbx";
-    private const string AttackHeavyPath = "Assets/Blink/Art/Animations/Animations_Starter_Pack/Combat/MeleeAttack_TwoHanded.fbx";
-    private const string PunchLeftPath = "Assets/Blink/Art/Animations/Animations_Starter_Pack/Combat/PunchLeft.fbx";
-    private const string PunchRightPath = "Assets/Blink/Art/Animations/Animations_Starter_Pack/Combat/PunchRight.fbx";
+    private const string AttackLightPath = "Assets/Characters_StarterPack_Blink/Art/Animations/Animations_Starter_Pack/Combat/MeleeAttack_OneHanded.fbx";
+    private const string AttackHeavyPath = "Assets/Characters_StarterPack_Blink/Art/Animations/Animations_Starter_Pack/Combat/MeleeAttack_TwoHanded.fbx";
+    private const string PunchLeftPath = "Assets/Characters_StarterPack_Blink/Art/Animations/Animations_Starter_Pack/Combat/PunchLeft.fbx";
+    private const string PunchRightPath = "Assets/Characters_StarterPack_Blink/Art/Animations/Animations_Starter_Pack/Combat/PunchRight.fbx";
     private const string MinePath = "Assets/Animations/Male/Mining.anim";
     private const string ChopPath = "Assets/Animations/Male/Chop.anim";
     private const string WalkLeftPath = "Assets/Kevin Iglesias/Human Animations/Animations/Male/Movement/Walk/HumanM@Walk01_Left.fbx";

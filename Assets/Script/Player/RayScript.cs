@@ -63,6 +63,7 @@ public class RayScript : MonoBehaviour
     public GameObject nearestPickableObject;
 
     public RadiusForAttackScript radiusForAttackScript;
+    [HideInInspector] public bool blockAttackInput;
 
     private float _nextSwingTime;
     private float _nextAxeSwingTime;
@@ -96,6 +97,11 @@ public class RayScript : MonoBehaviour
         UpdateNearestPickable();
 
         if (IsUiBlockingGameplay())
+        {
+            return;
+        }
+
+        if (blockAttackInput)
         {
             return;
         }
@@ -622,11 +628,7 @@ public class RayScript : MonoBehaviour
         {
             if (cachedInventoryAddHandler == null)
             {
-#if UNITY_2023_1_OR_NEWER
-                cachedInventoryAddHandler = FindFirstObjectByType<InventoryAddHandler>(FindObjectsInactive.Include);
-#else
-                cachedInventoryAddHandler = FindObjectOfType<InventoryAddHandler>(true);
-#endif
+                cachedInventoryAddHandler = FindInventoryAddHandlerInScene();
             }
 
             inventoryAddHandler = cachedInventoryAddHandler;
@@ -635,6 +637,44 @@ public class RayScript : MonoBehaviour
         {
             cachedInventoryAddHandler = inventoryAddHandler;
         }
+    }
+
+    // Handle Find Inventory Add Handler In Scene.
+    private static InventoryAddHandler FindInventoryAddHandlerInScene()
+    {
+#if UNITY_2023_1_OR_NEWER
+        InventoryAddHandler[] handlers = FindObjectsByType<InventoryAddHandler>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+#else
+        InventoryAddHandler[] handlers = FindObjectsOfType<InventoryAddHandler>(true);
+#endif
+        if (handlers == null || handlers.Length == 0)
+        {
+            return null;
+        }
+
+        InventoryAddHandler fallback = null;
+        for (int i = 0; i < handlers.Length; i++)
+        {
+            InventoryAddHandler handler = handlers[i];
+            if (handler == null)
+            {
+                continue;
+            }
+
+            if (fallback == null)
+            {
+                fallback = handler;
+            }
+
+            if (handler.inventoryManager != null)
+            {
+                return handler;
+            }
+        }
+
+        return fallback;
     }
 
     // Handle Find Info Handler In Scene.
