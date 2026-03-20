@@ -9,6 +9,8 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
 {
     [SerializeField] private Terrain targetTerrain;
     [SerializeField] private Transform parentForSpawnedTrees;
+    [Header("Auto Conversion")]
+    [SerializeField] private bool convertPaintedTreesOnStart = true;
     [Tooltip("If enabled, converter will only convert resource prefabs (CutTree/MineStone).")]
     [SerializeField] private bool convertOnlyCuttableTrees = true;
     [SerializeField] private bool includeMineableStones = true;
@@ -33,6 +35,16 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
     [SerializeField] private int detailPlacementSeed = 1337;
     [SerializeField] private bool deterministicDetailPlacement = true;
     [SerializeField, Range(0f, 1f)] private float detailCellJitter = 0.6f;
+
+    private void Start()
+    {
+        if (!Application.isPlaying || !convertPaintedTreesOnStart)
+        {
+            return;
+        }
+
+        ConvertPaintedTreesToPrefabs();
+    }
 
     [ContextMenu("Convert Painted Trees To Prefabs")]
     // Handle Convert Painted Trees To Prefabs.

@@ -52,6 +52,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: WorkingStoneWithOre (7) Variant
       objectReference: {fileID: 0}
+    - target: {fileID: 7690849955164106592, guid: 7fd87be03bbcff9458a5254881d15de6, type: 3}
+      propertyPath: nameofitem
+      value: Stone
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

@@ -98,9 +98,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InventoryItem
   inventorysprite: {fileID: 21300000, guid: 16af44e083422fc4da77bd39424da75c, type: 3}
-  name: Stick
+  nameofitem: Stick
   itemType: 0
   itemPrefab: {fileID: 0}
+  buildRotationEuler: {x: 0, y: 0, z: 0}
+  buildScale: {x: 1, y: 1, z: 1}
   mingain: 1
   maxgain: 1
   slotManager: {fileID: 0}
