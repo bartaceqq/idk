@@ -43,6 +43,7 @@ public class RayScript : MonoBehaviour
     public float pickaxeInteractionRadius = 3f;
     public LayerMask proximityMask = ~0;
     public QueryTriggerInteraction triggerInteraction = QueryTriggerInteraction.Ignore;
+    public bool allowTreeHandlerWithoutColliderFallback = true;
 
     [Header("Weapon Sounds")]
     public AudioSource axeaudiosource;
@@ -171,7 +172,18 @@ public class RayScript : MonoBehaviour
             TryPlayWeaponSound(axeaudiosource, 0f, ref _nextAxeSoundAllowedTime, swingCooldownSeconds);
         }
 
-        if (TryGetClosestTreeTarget(out ColliderScript treeTarget))
+        if (TryGetClosestTreeHandlerTarget(out TreeHandler treeHandlerTarget))
+        {
+            if (!useDelayedAxeHit || axeHitDelaySeconds <= 0f)
+            {
+                treeHandlerTarget.Chop(interactionOrigin);
+            }
+            else
+            {
+                StartCoroutine(TriggerAfterDelayTreeHandler(treeHandlerTarget, interactionOrigin, axeHitDelaySeconds));
+            }
+        }
+        else if (TryGetClosestTreeTarget(out ColliderScript treeTarget))
         {
             if (!useDelayedAxeHit || axeHitDelaySeconds <= 0f)
             {
@@ -184,6 +196,139 @@ public class RayScript : MonoBehaviour
         }
 
         return swingCooldownSeconds;
+    }
+
+    // Handle Try Get Closest Tree Handler Target.
+    private bool TryGetClosestTreeHandlerTarget(out TreeHandler closestTreeHandler)
+    {
+        if (TryGetClosestTreeHandlerTargetInternal(triggerInteraction, out closestTreeHandler))
+        {
+            return true;
+        }
+
+        // Fallback: some tree colliders may be marked as trigger colliders.
+        if (triggerInteraction == QueryTriggerInteraction.Ignore)
+        {
+            if (TryGetClosestTreeHandlerTargetInternal(QueryTriggerInteraction.Collide, out closestTreeHandler))
+            {
+                return true;
+            }
+        }
+
+        if (allowTreeHandlerWithoutColliderFallback)
+        {
+            return TryGetClosestTreeHandlerWithoutCollider(out closestTreeHandler);
+        }
+
+        return false;
+    }
+
+    // Handle Try Get Closest Tree Handler Target Internal.
+    private bool TryGetClosestTreeHandlerTargetInternal(QueryTriggerInteraction queryMode, out TreeHandler closestTreeHandler)
+    {
+        closestTreeHandler = null;
+        ResolveInteractionOrigin();
+        if (interactionOrigin == null)
+        {
+            return false;
+        }
+
+        float radius = Mathf.Max(0.01f, axeInteractionRadius);
+        Vector3 origin = interactionOrigin.position;
+        Transform playerRoot = interactionOrigin.root;
+        float bestDistanceSqr = float.MaxValue;
+
+        int hitCount = Physics.OverlapSphereNonAlloc(
+            origin,
+            radius,
+            _proximityHits,
+            proximityMask,
+            queryMode);
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = _proximityHits[i];
+            if (hit == null)
+            {
+                continue;
+            }
+
+            if (playerRoot != null && hit.transform.IsChildOf(playerRoot))
+            {
+                continue;
+            }
+
+            TreeHandler treeHandlerTarget = hit.GetComponent<TreeHandler>();
+            if (treeHandlerTarget == null)
+            {
+                treeHandlerTarget = hit.GetComponentInParent<TreeHandler>();
+            }
+
+            if (treeHandlerTarget == null)
+            {
+                continue;
+            }
+
+            Vector3 closestPoint = hit.ClosestPoint(origin);
+            float distanceSqr = (closestPoint - origin).sqrMagnitude;
+            if (distanceSqr >= bestDistanceSqr)
+            {
+                continue;
+            }
+
+            bestDistanceSqr = distanceSqr;
+            closestTreeHandler = treeHandlerTarget;
+        }
+
+        return closestTreeHandler != null;
+    }
+
+    // Handle Try Get Closest Tree Handler Without Collider.
+    private bool TryGetClosestTreeHandlerWithoutCollider(out TreeHandler closestTreeHandler)
+    {
+        closestTreeHandler = null;
+        ResolveInteractionOrigin();
+        if (interactionOrigin == null)
+        {
+            return false;
+        }
+
+        float radiusSqr = Mathf.Max(0.01f, axeInteractionRadius);
+        radiusSqr *= radiusSqr;
+        Vector3 origin = interactionOrigin.position;
+        Transform playerRoot = interactionOrigin.root;
+        float bestDistanceSqr = float.MaxValue;
+
+#if UNITY_2023_1_OR_NEWER
+        TreeHandler[] allTreeHandlers = FindObjectsByType<TreeHandler>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+#else
+        TreeHandler[] allTreeHandlers = FindObjectsOfType<TreeHandler>(false);
+#endif
+
+        for (int i = 0; i < allTreeHandlers.Length; i++)
+        {
+            TreeHandler candidate = allTreeHandlers[i];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (playerRoot != null && candidate.transform.IsChildOf(playerRoot))
+            {
+                continue;
+            }
+
+            float distanceSqr = (candidate.transform.position - origin).sqrMagnitude;
+            if (distanceSqr > radiusSqr || distanceSqr >= bestDistanceSqr)
+            {
+                continue;
+            }
+
+            bestDistanceSqr = distanceSqr;
+            closestTreeHandler = candidate;
+        }
+
+        return closestTreeHandler != null;
     }
 
     // Handle Pickaxe Action.
@@ -848,6 +993,16 @@ public class RayScript : MonoBehaviour
         if (colliderScript != null)
         {
             colliderScript.Trigger();
+        }
+    }
+
+    // Handle Trigger After Delay Tree Handler.
+    private IEnumerator TriggerAfterDelayTreeHandler(TreeHandler treeHandler, Transform attacker, float delaySeconds)
+    {
+        yield return new WaitForSeconds(delaySeconds);
+        if (treeHandler != null)
+        {
+            treeHandler.Chop(attacker);
         }
     }
 

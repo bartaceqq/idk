@@ -5,8 +5,11 @@ using UnityEngine;
 // Controls Cut Tree behavior.
 public class CutTree : MonoBehaviour
 {
+    private const string DestructionVfxResourcePath = "VFX_TreeDestructionBurst";
+
     private static InfoHandler cachedInfoHandler;
     private static SlotManager cachedSlotManager;
+    private static GameObject cachedDestructionVfxPrefab;
 
     public string texttoshow;
     public Sprite sprite;
@@ -15,6 +18,8 @@ public class CutTree : MonoBehaviour
     public GameObject topofthetree;
     [SerializeField] private float destroyDelaySeconds = 1f;
     [SerializeField] private float rebuildDelaySeconds = 30f;
+    [SerializeField] private GameObject destructionVfxPrefab;
+    [SerializeField] private Vector3 destructionVfxOffset = new Vector3(0f, 0.15f, 0f);
     public InventoryItem inventoryItem;
     public bool broken = false;
     private readonly List<GameObject> initialTreeParts = new List<GameObject>();
@@ -33,6 +38,77 @@ public class CutTree : MonoBehaviour
         public Vector3 localPosition;
         public Quaternion localRotation;
         public Vector3 localScale;
+    }
+
+    // Handle Spawn Destruction Vfx.
+    private void SpawnDestructionVfx()
+    {
+        GameObject vfxPrefab = ResolveDestructionVfxPrefab();
+        if (vfxPrefab == null)
+        {
+            return;
+        }
+
+        Instantiate(vfxPrefab, ResolveDestructionVfxPosition(), Quaternion.identity);
+    }
+
+    // Handle Resolve Destruction Vfx Prefab.
+    private GameObject ResolveDestructionVfxPrefab()
+    {
+        if (destructionVfxPrefab != null)
+        {
+            return destructionVfxPrefab;
+        }
+
+        if (cachedDestructionVfxPrefab == null)
+        {
+            cachedDestructionVfxPrefab = Resources.Load<GameObject>(DestructionVfxResourcePath);
+        }
+
+        return cachedDestructionVfxPrefab;
+    }
+
+    // Handle Resolve Destruction Vfx Position.
+    private Vector3 ResolveDestructionVfxPosition()
+    {
+        if (TryGetPreferredVfxBounds(topofthetree, out Bounds bounds))
+        {
+            Vector3 position = bounds.center;
+            position.y = bounds.min.y + Mathf.Min(bounds.size.y * 0.2f, 1.5f);
+            return position + transform.TransformVector(destructionVfxOffset);
+        }
+
+        return transform.position + transform.TransformVector(destructionVfxOffset);
+    }
+
+    // Handle Try Get Preferred Vfx Bounds.
+    private static bool TryGetPreferredVfxBounds(GameObject source, out Bounds bounds)
+    {
+        bounds = default;
+        if (source == null)
+        {
+            return false;
+        }
+
+        Renderer[] renderers = source.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer currentRenderer = renderers[i];
+            if (currentRenderer == null)
+            {
+                continue;
+            }
+
+            if (bounds.size == Vector3.zero)
+            {
+                bounds = currentRenderer.bounds;
+                continue;
+            }
+
+            bounds.Encapsulate(currentRenderer.bounds);
+        }
+
+        return bounds.size != Vector3.zero;
     }
 
     // Initialize references before gameplay starts.
@@ -273,6 +349,8 @@ public class CutTree : MonoBehaviour
 
         if (treeparts.Count == 0)
         {
+            SpawnDestructionVfx();
+
             if (topMeshCollider != null)
             {
                 topMeshCollider.convex = true;

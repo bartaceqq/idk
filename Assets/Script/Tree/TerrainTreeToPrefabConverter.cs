@@ -9,6 +9,10 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
 {
     [SerializeField] private Terrain targetTerrain;
     [SerializeField] private Transform parentForSpawnedTrees;
+    [Header("Placement")]
+    [SerializeField] private bool snapConvertedObjectsToTerrain = true;
+    [SerializeField] private bool alignConvertedObjectsToTerrainNormal = false;
+    [SerializeField] private float terrainSurfaceOffset = 0f;
     [Header("Auto Conversion")]
     [SerializeField] private bool convertPaintedTreesOnStart = true;
     [Tooltip("If enabled, converter will only convert resource prefabs (CutTree/MineStone).")]
@@ -127,6 +131,7 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
                 baseScale.y * instance.heightScale,
                 baseScale.z * instance.widthScale
             );
+            ApplyTerrainPlacement(spawnedTree.transform, targetTerrain);
 
             convertedCount++;
 
@@ -257,6 +262,45 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
             $"TerrainTreeToPrefabConverter: Restored {restoredCount} prefab objects back to terrain trees. " +
             $"Skipped={skippedCount}, OutsideTerrain={outsideTerrainCount}, TotalTerrainTrees={result.Count}.",
             this);
+    }
+
+    [ContextMenu("Snap Existing Converted Objects To Terrain")]
+    // Handle Snap Existing Converted Objects To Terrain.
+    public void SnapExistingConvertedObjectsToTerrain()
+    {
+        if (targetTerrain == null)
+        {
+            targetTerrain = GetComponent<Terrain>();
+        }
+
+        if (targetTerrain == null || targetTerrain.terrainData == null)
+        {
+            Debug.LogWarning("TerrainTreeToPrefabConverter: Missing Terrain reference for snap.", this);
+            return;
+        }
+
+        if (parentForSpawnedTrees == null)
+        {
+            Debug.LogWarning("TerrainTreeToPrefabConverter: parentForSpawnedTrees is not set for snap.", this);
+            return;
+        }
+
+        List<GameObject> candidates = CollectRestoreCandidates(parentForSpawnedTrees, true, false);
+        int snappedCount = 0;
+
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            GameObject candidate = candidates[i];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            ApplyTerrainPlacement(candidate.transform, targetTerrain);
+            snappedCount++;
+        }
+
+        Debug.Log($"TerrainTreeToPrefabConverter: Snapped {snappedCount} converted objects to terrain.", this);
     }
 
     private void ConvertDetailMeshesToPrefabs(Terrain terrain, Transform parent)
@@ -397,6 +441,7 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
 
                         Vector3 baseScale = spawned.transform.localScale;
                         spawned.transform.localScale = new Vector3(baseScale.x * widthScale, baseScale.y * heightScale, baseScale.z * widthScale);
+                        ApplyTerrainPlacement(spawned.transform, terrain);
 
                         converted++;
                     }
@@ -676,6 +721,131 @@ Done:
         };
 
         return true;
+    }
+
+    private void ApplyTerrainPlacement(Transform target, Terrain terrain)
+    {
+        if (target == null || terrain == null || terrain.terrainData == null)
+        {
+            return;
+        }
+
+        if (alignConvertedObjectsToTerrainNormal)
+        {
+            AlignObjectToTerrainNormal(target, terrain);
+        }
+
+        if (snapConvertedObjectsToTerrain)
+        {
+            SnapObjectBaseToTerrain(target, terrain);
+        }
+    }
+
+    private void SnapObjectBaseToTerrain(Transform target, Terrain terrain)
+    {
+        Vector3 position = target.position;
+        float terrainHeight = terrain.SampleHeight(position) + terrain.transform.position.y + terrainSurfaceOffset;
+
+        if (TryGetObjectBounds(target, out Bounds bounds))
+        {
+            position.y += terrainHeight - bounds.min.y;
+        }
+        else
+        {
+            position.y = terrainHeight;
+        }
+
+        target.position = position;
+    }
+
+    private static bool TryGetObjectBounds(Transform target, out Bounds bounds)
+    {
+        bounds = default;
+        bool hasBounds = false;
+
+        if (target == null)
+        {
+            return false;
+        }
+
+        Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer currentRenderer = renderers[i];
+            if (currentRenderer == null)
+            {
+                continue;
+            }
+
+            if (!hasBounds)
+            {
+                bounds = currentRenderer.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                bounds.Encapsulate(currentRenderer.bounds);
+            }
+        }
+
+        if (hasBounds)
+        {
+            return true;
+        }
+
+        Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider currentCollider = colliders[i];
+            if (currentCollider == null)
+            {
+                continue;
+            }
+
+            if (!hasBounds)
+            {
+                bounds = currentCollider.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                bounds.Encapsulate(currentCollider.bounds);
+            }
+        }
+
+        return hasBounds;
+    }
+
+    private static void AlignObjectToTerrainNormal(Transform target, Terrain terrain)
+    {
+        if (target == null || terrain == null || terrain.terrainData == null)
+        {
+            return;
+        }
+
+        TerrainData terrainData = terrain.terrainData;
+        Vector3 localPosition = target.position - terrain.transform.position;
+        float normalizedX = terrainData.size.x > 0f ? Mathf.Clamp01(localPosition.x / terrainData.size.x) : 0f;
+        float normalizedZ = terrainData.size.z > 0f ? Mathf.Clamp01(localPosition.z / terrainData.size.z) : 0f;
+        Vector3 terrainNormal = terrainData.GetInterpolatedNormal(normalizedX, normalizedZ);
+
+        if (terrainNormal.sqrMagnitude < 0.0001f)
+        {
+            return;
+        }
+
+        Vector3 projectedForward = Vector3.ProjectOnPlane(target.forward, terrainNormal);
+        if (projectedForward.sqrMagnitude < 0.0001f)
+        {
+            projectedForward = Vector3.ProjectOnPlane(target.right, terrainNormal);
+        }
+
+        if (projectedForward.sqrMagnitude < 0.0001f)
+        {
+            projectedForward = Vector3.Cross(terrainNormal, Vector3.right);
+        }
+
+        target.rotation = Quaternion.LookRotation(projectedForward.normalized, terrainNormal.normalized);
     }
 
     private static float HashTo01(int seed, int a, int b, int c, int d, int e)
