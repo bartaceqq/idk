@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using InputSystemPlayerInput = UnityEngine.InputSystem.PlayerInput;
 
 // Controls Looking Controller behavior.
 public class LookingController : MonoBehaviour
@@ -162,7 +163,7 @@ public class LookingController : MonoBehaviour
             return;
         }
 
-        PlayerInput playerInput = capsule.GetComponent<PlayerInput>();
+        InputSystemPlayerInput playerInput = capsule.GetComponent<InputSystemPlayerInput>();
         if (playerInput != null)
         {
             playerInput.ActivateInput();

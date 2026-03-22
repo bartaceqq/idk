@@ -330,6 +330,7 @@ public class GunItem : MonoBehaviour
     {
         _isReloading = true;
         _shootStateToken++;
+        bool temporarilyDisabledGunEquipped = TrySetAnimatorBool(gunEquippedBoolName, false);
 
         if (!TrySetAnimatorTrigger(gunReloadTriggerName))
         {
@@ -344,6 +345,10 @@ public class GunItem : MonoBehaviour
         ammoInMagazine = magazineSize;
         _isReloading = false;
         _reloadRoutine = null;
+        if (temporarilyDisabledGunEquipped)
+        {
+            TrySetAnimatorBool(gunEquippedBoolName, _gunVisible);
+        }
 
         if (!HasAnimatorParameter(gunEquippedBoolName, AnimatorControllerParameterType.Bool))
         {
@@ -368,6 +373,7 @@ public class GunItem : MonoBehaviour
         }
 
         _isReloading = false;
+        TrySetAnimatorBool(gunEquippedBoolName, _gunVisible);
         _currentRecoilPitch = 0f;
         FinishReloadVisuals();
     }

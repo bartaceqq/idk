@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using InputSystemPlayerInput = UnityEngine.InputSystem.PlayerInput;
 
 [RequireComponent(typeof(CharacterController))]
 // Controls player movement and third-person camera behavior.
@@ -57,7 +58,7 @@ public class FPSController : MonoBehaviour
     public float cameraShakeAmplitude = 0.04f;
     public float cameraShakeFrequency = 20f;
 
-    private PlayerInput _playerInput;
+    private InputSystemPlayerInput _playerInput;
     private InputAction _moveAction;
     private InputAction _lookAction;
     private InputAction _jumpAction;
@@ -115,7 +116,7 @@ public class FPSController : MonoBehaviour
     {
         _cc = GetComponent<CharacterController>();
         _extraCapsuleCollider = GetComponent<CapsuleCollider>();
-        _playerInput = GetComponent<PlayerInput>();
+        _playerInput = GetComponent<InputSystemPlayerInput>();
 
         if (disableExtraCapsuleCollider && _extraCapsuleCollider != null)
         {

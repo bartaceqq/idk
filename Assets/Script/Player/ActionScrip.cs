@@ -49,7 +49,21 @@ public class ActionScript : MonoBehaviour
     public void Chop()
     {
         ActivateUpperBodyLayer(chopUpperBodySeconds);
-        if (!TryPlayUpperBodyState(upperBodyChopStateName) && axeAnimationScript != null)
+
+        // Axe uses the current sword light attack animation first.
+        bool played = TryPlayUpperBodyState(upperBodyLightAttackStateName);
+        if (!played)
+        {
+            played = TryPlayUpperBodyState(upperBodyChopStateName);
+        }
+
+        if (!played && swordAnimationScript != null)
+        {
+            swordAnimationScript.AttackLight();
+            return;
+        }
+
+        if (!played && axeAnimationScript != null)
         {
             axeAnimationScript.ChopAnimation();
         }

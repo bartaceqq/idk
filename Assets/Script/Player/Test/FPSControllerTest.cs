@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using InputSystemPlayerInput = UnityEngine.InputSystem.PlayerInput;
 
 [RequireComponent(typeof(CharacterController))]
 // Controls test movement and third-person camera behavior.
@@ -29,7 +30,7 @@ public class FPSControllerTest : MonoBehaviour
     public float cameraSnapInSpeed = 25f;
     public LayerMask cameraCollisionMask = ~0;
 
-    private PlayerInput _playerInput;
+    private InputSystemPlayerInput _playerInput;
     private InputAction _moveAction;
     private InputAction _lookAction;
     private InputAction _jumpAction;
@@ -62,7 +63,7 @@ public class FPSControllerTest : MonoBehaviour
     {
         _cc = GetComponent<CharacterController>();
         _extraCapsuleCollider = GetComponent<CapsuleCollider>();
-        _playerInput = GetComponent<PlayerInput>();
+        _playerInput = GetComponent<InputSystemPlayerInput>();
 
         if (disableExtraCapsuleCollider && _extraCapsuleCollider != null)
         {

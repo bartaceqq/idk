@@ -16,6 +16,11 @@ public static class RebuildMaleAnimatorController
     private const string PunchRightPath = "Assets/Characters_StarterPack_Blink/Art/Animations/Animations_Starter_Pack/Combat/PunchRight.fbx";
     private const string MinePath = "Assets/Animations/Male/Mining.anim";
     private const string ChopPath = "Assets/Animations/Male/Chop.anim";
+    private const string AimPath = "Assets/Animations/Male/ARAim.anim";
+    private const string ShootPath = "Assets/Animations/Male/ARShoot.anim";
+    private const string ReloadPath = "Assets/Animations/Male/ARReload.anim";
+    private const string DefaultUpperBodyMaskPath = "Assets/ExplosiveLLC/Warrior Pack Bundle 3 FREE/Crossbow Warrior Mecanim Animation Pack/Avatar Mask/Crossbow UpperBody AvatarMask.mask";
+    private const string GeneratedUpperBodyMaskPath = "Assets/Animations/Male/GeneratedUpperBody.mask";
     private const string WalkLeftPath = "Assets/Kevin Iglesias/Human Animations/Animations/Male/Movement/Walk/HumanM@Walk01_Left.fbx";
     private const string WalkRightPath = "Assets/Kevin Iglesias/Human Animations/Animations/Male/Movement/Walk/HumanM@Walk01_Right.fbx";
     private const string WalkForwardLeftPath = "Assets/Kevin Iglesias/Human Animations/Animations/Male/Movement/Walk/HumanM@Walk01_ForwardLeft.fbx";
@@ -37,6 +42,9 @@ public static class RebuildMaleAnimatorController
         AnimationClip punchRight = LoadClip(PunchRightPath);
         AnimationClip mine = LoadClip(MinePath);
         AnimationClip chop = LoadClip(ChopPath);
+        AnimationClip aim = LoadClip(AimPath);
+        AnimationClip shoot = LoadClip(ShootPath);
+        AnimationClip reload = LoadClip(ReloadPath);
         AnimationClip walkLeft = LoadClip(WalkLeftPath);
         AnimationClip walkRight = LoadClip(WalkRightPath);
         AnimationClip walkForwardLeft = LoadClip(WalkForwardLeftPath);
@@ -46,7 +54,7 @@ public static class RebuildMaleAnimatorController
 
         if (idle == null || forward == null || sprint == null || backward == null ||
             jump == null || attackLight == null || attackHeavy == null || punchLeft == null || punchRight == null ||
-            mine == null || chop == null ||
+            mine == null || chop == null || aim == null || shoot == null || reload == null ||
             walkLeft == null || walkRight == null || walkForwardLeft == null || walkForwardRight == null ||
             sprintForwardLeft == null || sprintForwardRight == null)
         {
@@ -88,6 +96,10 @@ public static class RebuildMaleAnimatorController
         controller.AddParameter("WalkingForwardRight", AnimatorControllerParameterType.Bool);
         controller.AddParameter("SprintingForwardLeft", AnimatorControllerParameterType.Bool);
         controller.AddParameter("SprintingForwardRight", AnimatorControllerParameterType.Bool);
+        controller.AddParameter("GunEquipped", AnimatorControllerParameterType.Bool);
+        controller.AddParameter("GunUnequipped", AnimatorControllerParameterType.Bool);
+        controller.AddParameter("GunShoot", AnimatorControllerParameterType.Trigger);
+        controller.AddParameter("GunReload", AnimatorControllerParameterType.Trigger);
 
         AnimatorControllerLayer[] layers = controller.layers;
         if (layers == null || layers.Length == 0)
@@ -144,7 +156,8 @@ public static class RebuildMaleAnimatorController
         punchLeftState.motion = punchLeft;
         punchRightState.motion = punchRight;
         mineState.motion = mine;
-        chopState.motion = chop;
+        // Reuse sword light attack animation for axe chop.
+        chopState.motion = attackLight;
         walkLeftState.motion = walkLeft;
         walkRightState.motion = walkRight;
         walkForwardLeftState.motion = walkForwardLeft;
@@ -202,6 +215,8 @@ public static class RebuildMaleAnimatorController
         AddExitTimeTransition(mineState, idleState, 1f, 0.05f);
         AddExitTimeTransition(chopState, idleState, 1f, 0.05f);
 
+        RebuildUpperBodyLayer(controller, idle, attackLight, attackHeavy, punchLeft, punchRight, mine, attackLight, aim, shoot, reload);
+
         EditorUtility.SetDirty(controller);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
@@ -227,6 +242,186 @@ public static class RebuildMaleAnimatorController
         transition.duration = duration;
         transition.canTransitionToSelf = false;
         transition.AddCondition(AnimatorConditionMode.If, 0f, triggerName);
+    }
+
+    private static void RebuildUpperBodyLayer(
+        AnimatorController controller,
+        AnimationClip idle,
+        AnimationClip attackLight,
+        AnimationClip attackHeavy,
+        AnimationClip punchLeft,
+        AnimationClip punchRight,
+        AnimationClip mine,
+        AnimationClip chopLikeSword,
+        AnimationClip aim,
+        AnimationClip shoot,
+        AnimationClip reload)
+    {
+        int upperLayerIndex = GetOrCreateLayerIndex(controller, "UpperBody");
+        if (upperLayerIndex < 0)
+        {
+            Debug.LogError("Rebuild MaleAnim aborted: could not create/find UpperBody layer.");
+            return;
+        }
+
+        AnimatorControllerLayer[] layers = controller.layers;
+        AnimatorControllerLayer upperLayer = layers[upperLayerIndex];
+        AnimatorStateMachine upperSm = upperLayer.stateMachine;
+        if (upperSm == null)
+        {
+            upperSm = new AnimatorStateMachine { name = "UpperBody" };
+            AssetDatabase.AddObjectToAsset(upperSm, controller);
+            upperLayer.stateMachine = upperSm;
+            layers[upperLayerIndex] = upperLayer;
+            controller.layers = layers;
+        }
+
+        upperLayer.blendingMode = AnimatorLayerBlendingMode.Override;
+        upperLayer.defaultWeight = 0f;
+        upperLayer.avatarMask = ResolveUpperBodyMask(upperLayer.avatarMask);
+        layers[upperLayerIndex] = upperLayer;
+        controller.layers = layers;
+
+        ClearStateMachine(upperSm);
+
+        AnimatorState upperIdleState = upperSm.AddState("UpperBodyIdle", new Vector3(420f, 220f, 0f));
+        AnimatorState upperAttackLightState = upperSm.AddState("UpperAttackWeapon", new Vector3(180f, 160f, 0f));
+        AnimatorState upperAttackHeavyState = upperSm.AddState("UpperAttackTwoHanded", new Vector3(180f, 280f, 0f));
+        AnimatorState upperPunchLeftState = upperSm.AddState("UpperPunchLeft", new Vector3(180f, 40f, 0f));
+        AnimatorState upperPunchRightState = upperSm.AddState("UpperPunchRight", new Vector3(180f, -80f, 0f));
+        AnimatorState upperMineState = upperSm.AddState("UpperMining", new Vector3(560f, 280f, 0f));
+        AnimatorState upperChopState = upperSm.AddState("UpperChop", new Vector3(560f, 160f, 0f));
+        AnimatorState upperAimState = upperSm.AddState("ARAim", new Vector3(800f, 160f, 0f));
+        AnimatorState upperShootState = upperSm.AddState("Shoot", new Vector3(960f, 240f, 0f));
+        AnimatorState upperReloadState = upperSm.AddState("ARReload", new Vector3(960f, 80f, 0f));
+
+        upperIdleState.motion = idle;
+        upperAttackLightState.motion = attackLight;
+        upperAttackHeavyState.motion = attackHeavy;
+        upperPunchLeftState.motion = punchLeft;
+        upperPunchRightState.motion = punchRight;
+        upperMineState.motion = mine;
+        upperChopState.motion = chopLikeSword;
+        upperAimState.motion = aim;
+        upperShootState.motion = shoot;
+        upperReloadState.motion = reload;
+
+        upperAttackLightState.tag = "Action";
+        upperAttackHeavyState.tag = "Action";
+        upperPunchLeftState.tag = "Action";
+        upperPunchRightState.tag = "Action";
+        upperMineState.tag = "Action";
+        upperChopState.tag = "Action";
+        upperAimState.tag = "Action";
+        upperShootState.tag = "Action";
+        upperReloadState.tag = "Action";
+
+        upperSm.defaultState = upperIdleState;
+
+        AddAnyTriggerTransition(upperSm, upperAttackLightState, "Attack", 0.02f);
+        AddAnyTriggerTransition(upperSm, upperAttackHeavyState, "AttackHeavy", 0.02f);
+        AddAnyTriggerTransition(upperSm, upperPunchLeftState, "PunchLeft", 0.02f);
+        AddAnyTriggerTransition(upperSm, upperPunchRightState, "PunchRight", 0.02f);
+        AddAnyTriggerTransition(upperSm, upperMineState, "Mine", 0.02f);
+        AddAnyTriggerTransition(upperSm, upperChopState, "Swing", 0.02f);
+        AddAnyTriggerTransition(upperSm, upperShootState, "GunShoot", 0.02f);
+        AddAnyTriggerTransition(upperSm, upperReloadState, "GunReload", 0.02f);
+
+        AddBoolTransition(upperAimState, upperIdleState, "GunEquipped", false, false, 0.05f);
+        AddBoolTransition(upperIdleState, upperAimState, "GunEquipped", true, false, 0.05f);
+
+        AddExitTimeTransition(upperAttackLightState, upperIdleState, 1f, 0.05f);
+        AddExitTimeTransition(upperAttackHeavyState, upperIdleState, 1f, 0.05f);
+        AddExitTimeTransition(upperPunchLeftState, upperIdleState, 1f, 0.05f);
+        AddExitTimeTransition(upperPunchRightState, upperIdleState, 1f, 0.05f);
+        AddExitTimeTransition(upperMineState, upperIdleState, 1f, 0.05f);
+        AddExitTimeTransition(upperChopState, upperIdleState, 1f, 0.05f);
+        AddExitTimeTransition(upperShootState, upperAimState, 1f, 0.03f);
+        AddExitTimeTransition(upperReloadState, upperAimState, 1f, 0.03f);
+    }
+
+    private static AvatarMask ResolveUpperBodyMask(AvatarMask currentMask)
+    {
+        if (currentMask != null)
+        {
+            return currentMask;
+        }
+
+        AvatarMask loadedMask = AssetDatabase.LoadAssetAtPath<AvatarMask>(DefaultUpperBodyMaskPath);
+        if (loadedMask != null)
+        {
+            return loadedMask;
+        }
+
+        AvatarMask generatedMask = AssetDatabase.LoadAssetAtPath<AvatarMask>(GeneratedUpperBodyMaskPath);
+        if (generatedMask != null)
+        {
+            return generatedMask;
+        }
+
+        generatedMask = new AvatarMask();
+        generatedMask.name = "GeneratedUpperBody";
+
+        // Enable only upper-body humanoid parts so base layer keeps leg/root motion.
+        generatedMask.SetHumanoidBodyPartActive(AvatarMaskBodyPart.Root, false);
+        generatedMask.SetHumanoidBodyPartActive(AvatarMaskBodyPart.Body, true);
+        generatedMask.SetHumanoidBodyPartActive(AvatarMaskBodyPart.Head, true);
+        generatedMask.SetHumanoidBodyPartActive(AvatarMaskBodyPart.LeftLeg, false);
+        generatedMask.SetHumanoidBodyPartActive(AvatarMaskBodyPart.RightLeg, false);
+        generatedMask.SetHumanoidBodyPartActive(AvatarMaskBodyPart.LeftArm, true);
+        generatedMask.SetHumanoidBodyPartActive(AvatarMaskBodyPart.RightArm, true);
+        generatedMask.SetHumanoidBodyPartActive(AvatarMaskBodyPart.LeftFingers, true);
+        generatedMask.SetHumanoidBodyPartActive(AvatarMaskBodyPart.RightFingers, true);
+
+        AssetDatabase.CreateAsset(generatedMask, GeneratedUpperBodyMaskPath);
+        return generatedMask;
+    }
+
+    private static int GetOrCreateLayerIndex(AnimatorController controller, string layerName)
+    {
+        AnimatorControllerLayer[] layers = controller.layers;
+        for (int i = 0; i < layers.Length; i++)
+        {
+            if (layers[i].name == layerName)
+            {
+                return i;
+            }
+        }
+
+        controller.AddLayer(layerName);
+        layers = controller.layers;
+        for (int i = 0; i < layers.Length; i++)
+        {
+            if (layers[i].name == layerName)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static void ClearStateMachine(AnimatorStateMachine sm)
+    {
+        for (int i = sm.anyStateTransitions.Length - 1; i >= 0; i--)
+        {
+            sm.RemoveAnyStateTransition(sm.anyStateTransitions[i]);
+        }
+
+        for (int i = sm.entryTransitions.Length - 1; i >= 0; i--)
+        {
+            sm.RemoveEntryTransition(sm.entryTransitions[i]);
+        }
+
+        for (int i = sm.states.Length - 1; i >= 0; i--)
+        {
+            sm.RemoveState(sm.states[i].state);
+        }
+
+        for (int i = sm.stateMachines.Length - 1; i >= 0; i--)
+        {
+            sm.RemoveStateMachine(sm.stateMachines[i].stateMachine);
+        }
     }
 
     private static void AddAnyBoolTransition(AnimatorStateMachine sm, AnimatorState to, string parameterName, bool value, float duration)

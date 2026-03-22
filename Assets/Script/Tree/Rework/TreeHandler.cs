@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class TreeHandler : MonoBehaviour
 {
+    public int placeinlist = 0;
     private static PhysicsMaterial fallbackNoRollMaterial;
     public List<Material> materials = new List<Material>();
     
@@ -38,7 +39,7 @@ public class TreeHandler : MonoBehaviour
     {
         MeshRenderer renderer = toppart.GetComponent<MeshRenderer>();
         Material[] rendmatlist = (Material[])renderer.materials.Clone();
-        rendmatlist[0] = materials[Random.Range(0, materials.Count)];
+        rendmatlist[placeinlist] = materials[Random.Range(0, materials.Count)];
         renderer.materials = rendmatlist;
 
         
