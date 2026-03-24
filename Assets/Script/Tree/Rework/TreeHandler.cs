@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class TreeHandler : MonoBehaviour
-{
+{   
+    public InventoryAddHandler inventoryAddHandler;
+    public InventoryItem inventoryItem;
     public int placeinlist = 0;
+    public int idk;
     private static PhysicsMaterial fallbackNoRollMaterial;
     public List<Material> materials = new List<Material>();
     
@@ -57,8 +60,10 @@ public class TreeHandler : MonoBehaviour
         }
         else
         {
+            inventoryAddHandler.AddItemToInventory(inventoryItem);
             TreeFall();
             StartCoroutine(destroyaftertime());
+            
         }
        
     }

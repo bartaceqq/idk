@@ -126,7 +126,7 @@ GameObject:
   - component: {fileID: 4808669262408445187}
   - component: {fileID: 2078162632301905323}
   m_Layer: 0
-  m_Name: Tree_Rounded
+  m_Name: Tree_Rounded Variant
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -161,6 +161,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cbaf0801a2c758e40b6472e8affc6e1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TreeHandler
+  placeinlist: 0
   materials:
   - {fileID: 2100000, guid: 72afdb26ea32c34449914c60a64dcfba, type: 2}
   - {fileID: 2100000, guid: 1fe53f3c2054429499cb25cef242c444, type: 2}
@@ -297,7 +298,7 @@ CapsuleCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4402231570354128787}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 41864acb179ffac43a299b5dba40e6f9, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
