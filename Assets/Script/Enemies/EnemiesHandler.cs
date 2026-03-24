@@ -4,6 +4,7 @@ using UnityEngine;
 // Controls Enemies Handler behavior.
 public class EnemiesHandler : MonoBehaviour
 {
+	public int test;
     public List<GameObject> enemies = new List<GameObject>();
 }
 

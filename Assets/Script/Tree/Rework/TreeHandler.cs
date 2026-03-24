@@ -10,7 +10,8 @@ public class TreeHandler : MonoBehaviour
     public int idk;
     private static PhysicsMaterial fallbackNoRollMaterial;
     public List<Material> materials = new List<Material>();
-    
+
+	public int test;    
     [Header("Parts")]
     public float timetowaittodestroy = 8f;
     public GameObject toppart;
