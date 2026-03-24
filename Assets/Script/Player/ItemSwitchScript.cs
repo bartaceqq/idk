@@ -12,11 +12,72 @@ public class ItemSwitchScript : MonoBehaviour
     public Item item;
 
     private readonly HashSet<string> equippedItemNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+    private ActionScript _actionScript;
+    private static readonly KeyCode[] WeaponSlotHotkeys =
+    {
+        KeyCode.Alpha1,
+        KeyCode.Alpha2,
+        KeyCode.Alpha3,
+        KeyCode.Alpha4,
+        KeyCode.Alpha5,
+        KeyCode.Alpha6,
+        KeyCode.Alpha7,
+        KeyCode.Alpha8,
+        KeyCode.Alpha9
+    };
 
     private void Update()
     {
         EnsureCurrentSelectionIsAllowed();
 
+        if (requireWeaponSlotAssignment)
+        {
+            if (TryHandleWeaponSlotHotkeys())
+            {
+                return;
+            }
+
+            return;
+        }
+
+        TryHandleLegacyItemHotkeys();
+    }
+
+    // Handle Try Handle Weapon Slot Hotkeys.
+    private bool TryHandleWeaponSlotHotkeys()
+    {
+        List<WeaponSlot> orderedSlots = WeaponSlot.GetOrderedWeaponSlots();
+        int slotCount = Mathf.Min(orderedSlots.Count, WeaponSlotHotkeys.Length);
+        for (int i = 0; i < slotCount; i++)
+        {
+            if (!Input.GetKeyDown(WeaponSlotHotkeys[i]))
+            {
+                continue;
+            }
+
+            WeaponSlot slot = orderedSlots[i];
+            if (slot == null)
+            {
+                return true;
+            }
+
+            string slotItemName = slot.GetAssignedItemName();
+            if (string.IsNullOrEmpty(slotItemName))
+            {
+                UnequipCurrentItem();
+                return true;
+            }
+
+            ToggleItemByName(slotItemName);
+            return true;
+        }
+
+        return false;
+    }
+
+    // Handle Try Handle Legacy Item Hotkeys.
+    private void TryHandleLegacyItemHotkeys()
+    {
         for (int i = 0; i < items.Count; i++)
         {
             Item candidate = items[i];
@@ -33,6 +94,29 @@ public class ItemSwitchScript : MonoBehaviour
             SwitchToItem(candidate);
             return;
         }
+    }
+
+    // Handle Toggle Item By Name.
+    public void ToggleItemByName(string itemNameToToggle)
+    {
+        string normalized = NormalizeItemName(itemNameToToggle);
+        if (string.IsNullOrEmpty(normalized))
+        {
+            return;
+        }
+
+        if (string.Equals(NormalizeItemName(currentitemname), normalized, System.StringComparison.OrdinalIgnoreCase))
+        {
+            UnequipCurrentItem();
+            return;
+        }
+
+        if (!TryResolveItemByName(normalized, out Item resolvedItem) || !CanUseItem(resolvedItem))
+        {
+            return;
+        }
+
+        SwitchToItem(resolvedItem);
     }
 
     // Handle Apply Equipped Item Names.
@@ -110,10 +194,7 @@ public class ItemSwitchScript : MonoBehaviour
             return;
         }
 
-        SetItemObjectVisible(item, false);
-        item = null;
-        currentitemid = 0;
-        currentitemname = string.Empty;
+        UnequipCurrentItem();
     }
 
     // Handle Switch To Item.
@@ -126,6 +207,7 @@ public class ItemSwitchScript : MonoBehaviour
 
         if (item != null && item != targetItem)
         {
+            ResolveActionScript()?.CancelUpperBodyAction();
             SetItemObjectVisible(item, false);
         }
 
@@ -133,6 +215,20 @@ public class ItemSwitchScript : MonoBehaviour
         currentitemname = targetItem.name;
         item = targetItem;
         SetItemObjectVisible(targetItem, true);
+    }
+
+    // Handle Unequip Current Item.
+    private void UnequipCurrentItem()
+    {
+        if (item != null)
+        {
+            ResolveActionScript()?.CancelUpperBodyAction();
+            SetItemObjectVisible(item, false);
+        }
+
+        item = null;
+        currentitemid = 0;
+        currentitemname = string.Empty;
     }
 
     // Handle Set Item Object Visible.
@@ -162,5 +258,64 @@ public class ItemSwitchScript : MonoBehaviour
         }
 
         return rawName.Trim();
+    }
+
+    // Handle Try Resolve Item By Name.
+    private bool TryResolveItemByName(string itemNameToResolve, out Item resolvedItem)
+    {
+        resolvedItem = null;
+        string normalized = NormalizeItemName(itemNameToResolve);
+        if (string.IsNullOrEmpty(normalized))
+        {
+            return false;
+        }
+
+        for (int i = 0; i < items.Count; i++)
+        {
+            Item candidate = items[i];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (!string.Equals(NormalizeItemName(candidate.name), normalized, System.StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            resolvedItem = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
+    // Handle Resolve Action Script.
+    private ActionScript ResolveActionScript()
+    {
+        if (_actionScript != null)
+        {
+            return _actionScript;
+        }
+
+        _actionScript = GetComponent<ActionScript>();
+        if (_actionScript != null)
+        {
+            return _actionScript;
+        }
+
+        _actionScript = GetComponentInParent<ActionScript>();
+        if (_actionScript != null)
+        {
+            return _actionScript;
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        _actionScript = FindFirstObjectByType<ActionScript>(FindObjectsInactive.Include);
+#else
+        _actionScript = FindObjectOfType<ActionScript>(true);
+#endif
+
+        return _actionScript;
     }
 }

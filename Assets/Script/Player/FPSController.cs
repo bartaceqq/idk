@@ -303,9 +303,16 @@ public class FPSController : MonoBehaviour
         Vector3 finalVelocity = new Vector3(move.x, _velocity.y, move.z);
         _cc.Move(finalVelocity * Time.deltaTime);
 
+        bool landedThisFrame = !isGroundedBeforeMove && _cc.isGrounded;
         if (_cc.isGrounded)
         {
             _lastGroundedTime = Time.time;
+            if (landedThisFrame)
+            {
+                _velocity.y = -groundedStickForce;
+                _jumpAnimationLockUntil = 0f;
+                actionScript?.ForceEndJumpAnimation();
+            }
         }
 
         bool animationGrounded = _cc.isGrounded ||

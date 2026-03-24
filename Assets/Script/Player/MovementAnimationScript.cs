@@ -4,6 +4,8 @@
 public class MovementAnimationScript : MonoBehaviour
 {
     public Animator animator;
+    public float jumpInterruptBlendSeconds = 0.04f;
+    public float jumpInterruptIgnoreActionSeconds = 0.12f;
 
     private static readonly int AttackWeaponStateHash = Animator.StringToHash("AttackWeapon");
     private static readonly int AttackTwoHandedStateHash = Animator.StringToHash("AttackTwoHanded");
@@ -12,6 +14,11 @@ public class MovementAnimationScript : MonoBehaviour
     private static readonly int MiningStateHash = Animator.StringToHash("Mining");
     private static readonly int ChopStateHash = Animator.StringToHash("Chop");
     private static readonly int JumpStateHash = Animator.StringToHash("Jump");
+    private static readonly int JumpTriggerHash = Animator.StringToHash("Jump");
+    private static readonly int IdleStateHash = Animator.StringToHash("Idle");
+    private static readonly int IdleFullPathHash = Animator.StringToHash("Base Layer.Idle");
+
+    private float _jumpInterruptedUntil;
     // Handle Walk Animation Foreward.
     public void WalkAnimation_Foreward(bool status)
 
@@ -93,7 +100,7 @@ public class MovementAnimationScript : MonoBehaviour
             return;
         }
 
-        if (value && IsAnimatorInActionState())
+        if (value && IsBlockingActionState())
         {
             return;
         }
@@ -101,11 +108,16 @@ public class MovementAnimationScript : MonoBehaviour
         animator.SetBool(parameterName, value);
     }
 
-    // Handle Is Animator In Action State.
-    private bool IsAnimatorInActionState()
+    // Handle Is Blocking Action State.
+    public bool IsBlockingActionState()
     {
+        if (animator == null || !animator.isActiveAndEnabled)
+        {
+            return false;
+        }
+
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(0);
-        if (IsActionState(current))
+        if (IsBlockingActionState(current))
         {
             return true;
         }
@@ -113,10 +125,67 @@ public class MovementAnimationScript : MonoBehaviour
         if (animator.IsInTransition(0))
         {
             AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(0);
-            if (IsActionState(next))
+            if (IsBlockingActionState(next))
             {
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    // Handle Force Exit Jump Animation.
+    public void ForceExitJumpAnimation()
+    {
+        if (animator == null || !animator.isActiveAndEnabled || !IsAnimatorInJumpState())
+        {
+            return;
+        }
+
+        animator.ResetTrigger(JumpTriggerHash);
+
+        float blendDuration = Mathf.Max(0f, jumpInterruptBlendSeconds);
+        if (animator.HasState(0, IdleFullPathHash))
+        {
+            animator.CrossFadeInFixedTime(IdleFullPathHash, blendDuration, 0);
+        }
+        else if (animator.HasState(0, IdleStateHash))
+        {
+            animator.CrossFadeInFixedTime(IdleStateHash, blendDuration, 0);
+        }
+
+        _jumpInterruptedUntil = Time.time + Mathf.Max(jumpInterruptIgnoreActionSeconds, blendDuration + 0.02f);
+    }
+
+    // Handle Is Blocking Action State For State.
+    private bool IsBlockingActionState(AnimatorStateInfo state)
+    {
+        if (!IsActionState(state))
+        {
+            return false;
+        }
+
+        if (state.shortNameHash == JumpStateHash && Time.time < _jumpInterruptedUntil)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    // Handle Is Animator In Jump State.
+    private bool IsAnimatorInJumpState()
+    {
+        AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(0);
+        if (current.shortNameHash == JumpStateHash)
+        {
+            return true;
+        }
+
+        if (animator.IsInTransition(0))
+        {
+            AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(0);
+            return next.shortNameHash == JumpStateHash;
         }
 
         return false;

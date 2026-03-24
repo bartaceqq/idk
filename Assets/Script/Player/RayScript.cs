@@ -30,6 +30,8 @@ public class RayScript : MonoBehaviour
     public float pickaxeHitDelaySeconds = 0f;
     public bool useDelayedPickaxeHit = false;
     public float swingCooldownSeconds = 1f;
+    public float axeSwingCooldownSeconds = 0.22f;
+    public float pickaxeSwingCooldownSeconds = 0.28f;
     public float swordAttackCooldownSeconds = 2.5f;
     public float swordHitDelaySeconds = 1.10f;
     public float swordHeavyAttackCooldownSeconds = 3.3f;
@@ -159,18 +161,40 @@ public class RayScript : MonoBehaviour
     // Handle Axe Action.
     private float HandleAxeAction()
     {
+        float swingCooldown = ResolveToolSwingCooldown(axeSwingCooldownSeconds);
+        if (actionScript != null)
+        {
+            float remainingChopCooldown = actionScript.GetRemainingChopCooldown();
+            if (remainingChopCooldown > 0f)
+            {
+                return remainingChopCooldown;
+            }
+        }
+
         if (Time.time < _nextAxeSwingTime)
         {
             return _nextAxeSwingTime - Time.time;
         }
 
-        _nextAxeSwingTime = Time.time + swingCooldownSeconds;
+        if (actionScript != null &&
+            actionScript.staminaScript != null &&
+            !actionScript.staminaScript.AxeSwing())
+        {
+            return 0f;
+        }
 
         if (actionScript != null)
         {
-            actionScript.Chop();
-            TryPlayWeaponSound(axeaudiosource, 0f, ref _nextAxeSoundAllowedTime, swingCooldownSeconds);
+            if (!actionScript.TryChop())
+            {
+                return actionScript.GetRemainingChopCooldown();
+            }
+
+            swingCooldown = Mathf.Max(swingCooldown, actionScript.GetChopRepeatDelaySeconds());
+            TryPlayWeaponSound(axeaudiosource, 0f, ref _nextAxeSoundAllowedTime, swingCooldown);
         }
+
+        _nextAxeSwingTime = Time.time + swingCooldown;
 
         if (TryGetClosestTreeHandlerTarget(out TreeHandler treeHandlerTarget))
         {
@@ -195,7 +219,7 @@ public class RayScript : MonoBehaviour
             }
         }
 
-        return swingCooldownSeconds;
+        return swingCooldown;
     }
 
     // Handle Try Get Closest Tree Handler Target.
@@ -334,17 +358,25 @@ public class RayScript : MonoBehaviour
     // Handle Pickaxe Action.
     private float HandlePickaxeAction()
     {
+        float swingCooldown = ResolveToolSwingCooldown(pickaxeSwingCooldownSeconds);
         if (Time.time < _nextPickaxeSwingTime)
         {
             return _nextPickaxeSwingTime - Time.time;
         }
 
-        _nextPickaxeSwingTime = Time.time + swingCooldownSeconds;
+        if (actionScript != null &&
+            actionScript.staminaScript != null &&
+            !actionScript.staminaScript.PickaxeSwing())
+        {
+            return 0f;
+        }
+
+        _nextPickaxeSwingTime = Time.time + swingCooldown;
 
         if (actionScript != null)
         {
             actionScript.Mine();
-            TryPlayWeaponSound(pickaxeAudioSource, pickaxeSoundDelaySeconds, ref _nextPickaxeSoundAllowedTime, swingCooldownSeconds);
+            TryPlayWeaponSound(pickaxeAudioSource, pickaxeSoundDelaySeconds, ref _nextPickaxeSoundAllowedTime, swingCooldown);
         }
 
         if (TryGetClosestStoneTarget(out MineStone stoneTarget))
@@ -360,7 +392,7 @@ public class RayScript : MonoBehaviour
             }
         }
 
-        return swingCooldownSeconds;
+        return swingCooldown;
     }
 
     // Handle Sword Action.
@@ -422,6 +454,17 @@ public class RayScript : MonoBehaviour
 
         StartCoroutine(TriggerMeleeAttackAfterDelay(unarmedHitDelaySeconds));
         return unarmedAttackCooldownSeconds;
+    }
+
+    // Handle Resolve Tool Swing Cooldown.
+    private float ResolveToolSwingCooldown(float dedicatedCooldown)
+    {
+        if (dedicatedCooldown > 0f)
+        {
+            return dedicatedCooldown;
+        }
+
+        return Mathf.Max(0.01f, swingCooldownSeconds);
     }
 
     // Handle Is Sword Equipped.

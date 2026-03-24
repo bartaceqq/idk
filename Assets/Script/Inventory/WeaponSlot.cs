@@ -32,6 +32,7 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
             ActiveWeaponSlots.Add(this);
         }
 
+        UpdateVisual();
         SyncAllWeaponSlotsToItemSwitch();
     }
 
@@ -82,9 +83,20 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
     // Handle On Pointer Click.
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (eventData != null && eventData.button == PointerEventData.InputButton.Right)
+        if (eventData == null)
+        {
+            return;
+        }
+
+        if (eventData.button == PointerEventData.InputButton.Right)
         {
             ClearEquippedItem();
+            return;
+        }
+
+        if (eventData.button == PointerEventData.InputButton.Left)
+        {
+            HandleLeftClickEquipToggle();
         }
     }
 
@@ -102,6 +114,39 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
     public void RefreshVisual()
     {
         UpdateVisual();
+    }
+
+    // Handle Get Ordered Weapon Slots.
+    public static List<WeaponSlot> GetOrderedWeaponSlots()
+    {
+        PruneNullWeaponSlots();
+
+        List<WeaponSlot> orderedSlots = new List<WeaponSlot>(ActiveWeaponSlots);
+        orderedSlots.Sort(CompareSlotsTopLeft);
+        return orderedSlots;
+    }
+
+    // Handle Get Assigned Item Name.
+    public string GetAssignedItemName()
+    {
+        string normalizedName = NormalizeItemName(equippedItemName);
+        if (!string.IsNullOrEmpty(normalizedName))
+        {
+            return normalizedName;
+        }
+
+        if (equippedItemReference != null)
+        {
+            normalizedName = NormalizeItemName(equippedItemReference.nameofitem);
+            if (!string.IsNullOrEmpty(normalizedName))
+            {
+                return normalizedName;
+            }
+
+            return NormalizeItemName(equippedItemReference.name);
+        }
+
+        return string.Empty;
     }
 
     // Handle Try Assign From Slot.
@@ -267,6 +312,16 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
     // Handle Resolve References.
     private void ResolveReferences()
     {
+        if (Backgroundimage == null)
+        {
+            Backgroundimage = GetComponent<Image>();
+        }
+
+        if (iconImage != null && iconImage.gameObject == gameObject)
+        {
+            iconImage = null;
+        }
+
         if (iconImage == null)
         {
             Transform preferred = transform.Find("ImagePlace");
@@ -286,22 +341,20 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
             Image[] images = GetComponentsInChildren<Image>(true);
             for (int i = 0; i < images.Length; i++)
             {
-                if (images[i] != null && images[i].gameObject != gameObject)
+                Image candidate = images[i];
+                if (candidate == null || candidate.gameObject == gameObject)
                 {
-                    if (images[i].name == "BlackBakground")
-                    {
-                        continue;
-                    }
-
-                    iconImage = images[i];
-                    break;
+                    continue;
                 }
-            }
-        }
 
-        if (iconImage == null)
-        {
-            iconImage = GetComponent<Image>();
+                if (candidate.name == "BlackBakground")
+                {
+                    continue;
+                }
+
+                iconImage = candidate;
+                break;
+            }
         }
 
         if (itemSwitchScript == null)
@@ -323,14 +376,33 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
     private void UpdateVisual()
     {
         ResolveReferences();
+
+        bool inventoryVisible = IsInventoryVisible();
+        Sprite backgroundSprite = ResolveBackgroundSprite();
+        bool hasDedicatedSurface = HasDedicatedInteractionSurface();
+        bool hasItem = equippedSprite != null;
+
+        if (Backgroundimage != null)
+        {
+            if (Backgroundimage.sprite == null && backgroundSprite != null)
+            {
+                Backgroundimage.sprite = backgroundSprite;
+            }
+
+            Backgroundimage.enabled = inventoryVisible && Backgroundimage.sprite != null;
+            Backgroundimage.raycastTarget = inventoryVisible && !hasDedicatedSurface;
+        }
+
         if (iconImage == null)
         {
             return;
         }
 
-        bool hasItem = equippedSprite != null;
         iconImage.sprite = equippedSprite;
-        iconImage.enabled = hasItem || !hideIconWhenEmpty;
+        iconImage.color = hasItem ? Color.white : new Color(1f, 1f, 1f, 0f);
+        iconImage.enabled = inventoryVisible && (hasItem || hasDedicatedSurface || !hideIconWhenEmpty);
+        iconImage.raycastTarget = inventoryVisible && hasDedicatedSurface;
+        iconImage.preserveAspect = hasItem;
         HideExtraPlaceholderImages();
     }
 
@@ -364,15 +436,11 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         HashSet<string> equippedNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
         HashSet<ItemSwitchScript> switchScripts = new HashSet<ItemSwitchScript>();
 
+        PruneNullWeaponSlots();
+
         for (int i = ActiveWeaponSlots.Count - 1; i >= 0; i--)
         {
             WeaponSlot slot = ActiveWeaponSlots[i];
-            if (slot == null)
-            {
-                ActiveWeaponSlots.RemoveAt(i);
-                continue;
-            }
-
             slot.ResolveReferences();
             if (slot.itemSwitchScript != null)
             {
@@ -606,5 +674,144 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         }
 
         return eventData.pointerDrag.GetComponentInParent<SlotInsideUI>();
+    }
+
+    // Handle Handle Left Click Equip Toggle.
+    private void HandleLeftClickEquipToggle()
+    {
+        string assignedItemName = GetAssignedItemName();
+        if (string.IsNullOrEmpty(assignedItemName))
+        {
+            return;
+        }
+
+        ResolveReferences();
+        if (itemSwitchScript == null)
+        {
+            return;
+        }
+
+        itemSwitchScript.ToggleItemByName(assignedItemName);
+    }
+
+    // Handle Resolve Background Sprite.
+    private Sprite ResolveBackgroundSprite()
+    {
+        if (Backgroundimage != null && Backgroundimage.sprite != null)
+        {
+            return Backgroundimage.sprite;
+        }
+
+        Sprite fallbackSprite = FindSharedBackgroundSprite(this);
+        if (Backgroundimage != null && fallbackSprite != null)
+        {
+            Backgroundimage.sprite = fallbackSprite;
+        }
+
+        return fallbackSprite;
+    }
+
+    // Handle Find Shared Background Sprite.
+    private static Sprite FindSharedBackgroundSprite(WeaponSlot requestingSlot)
+    {
+        PruneNullWeaponSlots();
+        for (int i = 0; i < ActiveWeaponSlots.Count; i++)
+        {
+            WeaponSlot candidate = ActiveWeaponSlots[i];
+            if (candidate == null || candidate == requestingSlot)
+            {
+                continue;
+            }
+
+            candidate.ResolveReferences();
+            if (candidate.Backgroundimage != null && candidate.Backgroundimage.sprite != null)
+            {
+                return candidate.Backgroundimage.sprite;
+            }
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        WeaponSlot[] allSlots = Object.FindObjectsByType<WeaponSlot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        WeaponSlot[] allSlots = Object.FindObjectsOfType<WeaponSlot>(true);
+#endif
+
+        for (int i = 0; i < allSlots.Length; i++)
+        {
+            WeaponSlot candidate = allSlots[i];
+            if (candidate == null || candidate == requestingSlot)
+            {
+                continue;
+            }
+
+            candidate.ResolveReferences();
+            if (candidate.Backgroundimage != null && candidate.Backgroundimage.sprite != null)
+            {
+                return candidate.Backgroundimage.sprite;
+            }
+        }
+
+        return null;
+    }
+
+    // Handle Has Dedicated Interaction Surface.
+    private bool HasDedicatedInteractionSurface()
+    {
+        return iconImage != null && iconImage.gameObject != gameObject;
+    }
+
+    // Handle Is Inventory Visible.
+    private static bool IsInventoryVisible()
+    {
+        if (!Application.isPlaying)
+        {
+            return true;
+        }
+
+        return InventoryManager.IsInventoryOpen || InventoryController.IsInventoryOpen;
+    }
+
+    // Handle Prune Null Weapon Slots.
+    private static void PruneNullWeaponSlots()
+    {
+        for (int i = ActiveWeaponSlots.Count - 1; i >= 0; i--)
+        {
+            if (ActiveWeaponSlots[i] == null)
+            {
+                ActiveWeaponSlots.RemoveAt(i);
+            }
+        }
+    }
+
+    // Handle Compare Slots Top Left.
+    private static int CompareSlotsTopLeft(WeaponSlot a, WeaponSlot b)
+    {
+        if (a == b) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+
+        RectTransform rectA = a.transform as RectTransform;
+        RectTransform rectB = b.transform as RectTransform;
+
+        Vector2 posA = rectA != null
+            ? rectA.anchoredPosition
+            : new Vector2(a.transform.position.x, a.transform.position.y);
+        Vector2 posB = rectB != null
+            ? rectB.anchoredPosition
+            : new Vector2(b.transform.position.x, b.transform.position.y);
+
+        int yCompare = posB.y.CompareTo(posA.y);
+        if (yCompare != 0)
+        {
+            return yCompare;
+        }
+
+        int xCompare = posA.x.CompareTo(posB.x);
+        if (xCompare != 0)
+        {
+            return xCompare;
+        }
+
+        return a.transform.GetSiblingIndex().CompareTo(b.transform.GetSiblingIndex());
     }
 }

@@ -12,10 +12,14 @@ public class ActionScript : MonoBehaviour
     public float unarmedPunchMovementAnimationLockSeconds = 0.6f;
     public float mineUpperBodySeconds = 0.9f;
     public float chopUpperBodySeconds = 0.9f;
+    public float chopRepeatDelaySeconds = 0.35f;
+    public string upperBodyChopSpeedParameterName = "UpperChopSpeed";
     public string upperBodyLayerName = "UpperBody";
+    public string upperBodyIdleStateName = "UpperBodyIdle";
     public float upperBodyLayerBlendSpeed = 18f;
     public float upperBodyMinimumActiveSeconds = 0.25f;
     public float upperBodyStateBlendTime = 0.02f;
+    public float upperBodyActionCompletionThreshold = 0.98f;
     public string upperBodyLightAttackStateName = "UpperAttackWeapon";
     public string upperBodyHeavyAttackStateName = "UpperAttackTwoHanded";
     public string upperBodyPunchLeftStateName = "UpperPunchLeft";
@@ -29,6 +33,7 @@ public class ActionScript : MonoBehaviour
 
     private float movementAnimationLockUntil;
     private float upperBodyLayerActiveUntil;
+    private float _nextChopAllowedTime;
     private int unarmedPunchStep;
     private bool upperBodyExternalHold;
 
@@ -48,25 +53,44 @@ public class ActionScript : MonoBehaviour
     // Handle Chop.
     public void Chop()
     {
-        ActivateUpperBodyLayer(chopUpperBodySeconds);
+        TryChop();
+    }
 
-        // Axe uses the current sword light attack animation first.
-        bool played = TryPlayUpperBodyState(upperBodyLightAttackStateName);
+    // Handle Try Chop.
+    public bool TryChop()
+    {
+        if (Time.time < _nextChopAllowedTime)
+        {
+            return false;
+        }
+
+        float repeatDelay = GetChopRepeatDelaySeconds();
+        ActivateUpperBodyLayer(repeatDelay);
+        SetUpperBodyChopAnimationSpeed();
+
+        bool played = TryPlayUpperBodyState(upperBodyChopStateName);
         if (!played)
         {
-            played = TryPlayUpperBodyState(upperBodyChopStateName);
+            played = TryPlayUpperBodyState(upperBodyLightAttackStateName);
+        }
+
+        if (!played && axeAnimationScript != null)
+        {
+            played = axeAnimationScript.TryPlayChopAnimation();
         }
 
         if (!played && swordAnimationScript != null)
         {
             swordAnimationScript.AttackLight();
-            return;
+            played = true;
         }
 
-        if (!played && axeAnimationScript != null)
+        if (played)
         {
-            axeAnimationScript.ChopAnimation();
+            _nextChopAllowedTime = Time.time + repeatDelay;
         }
+
+        return played;
     }
     // Handle Walk.
     public void Walk(bool status)
@@ -168,6 +192,29 @@ public class ActionScript : MonoBehaviour
     {
         unarmedPunchStep = 0;
     }
+
+    // Handle Get Chop Repeat Delay Seconds.
+    public float GetChopRepeatDelaySeconds()
+    {
+        return Mathf.Max(0.01f, chopRepeatDelaySeconds);
+    }
+
+    // Handle Get Remaining Chop Cooldown.
+    public float GetRemainingChopCooldown()
+    {
+        return Mathf.Max(0f, _nextChopAllowedTime - Time.time);
+    }
+
+    // Handle Force End Jump Animation.
+    public void ForceEndJumpAnimation()
+    {
+        movementAnimationLockUntil = 0f;
+        if (movementAnimationScript != null)
+        {
+            movementAnimationScript.ForceExitJumpAnimation();
+        }
+    }
+
     public void Jump()
     {
         movementAnimationScript.JumpAnimation();
@@ -319,6 +366,8 @@ public class ActionScript : MonoBehaviour
             return;
         }
 
+        TryForceCompletedUpperBodyActionToIdle(animator, layerIndex);
+
         bool timerActive = Time.time < upperBodyLayerActiveUntil;
         bool layerPlayingAction = IsAnimatorLayerInActionState(animator, layerIndex);
         float targetWeight = (timerActive || layerPlayingAction || upperBodyExternalHold) ? 1f : 0f;
@@ -335,6 +384,22 @@ public class ActionScript : MonoBehaviour
     public void SetUpperBodyExternalHold(bool active)
     {
         upperBodyExternalHold = active;
+    }
+
+    // Handle Cancel Upper Body Action.
+    public void CancelUpperBodyAction()
+    {
+        upperBodyExternalHold = false;
+        upperBodyLayerActiveUntil = 0f;
+
+        Animator animator = ResolveCharacterAnimator();
+        if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex))
+        {
+            return;
+        }
+
+        TryPlayUpperBodyIdle(animator, layerIndex, 0f);
+        animator.SetLayerWeight(layerIndex, 0f);
     }
 
     // Handle Is Animator Layer In Action State.
@@ -442,39 +507,136 @@ public class ActionScript : MonoBehaviour
         return true;
     }
 
+    // Handle Try Force Completed Upper Body Action To Idle.
+    private void TryForceCompletedUpperBodyActionToIdle(Animator animator, int layerIndex)
+    {
+        if (animator == null ||
+            upperBodyExternalHold ||
+            Time.time < upperBodyLayerActiveUntil ||
+            animator.IsInTransition(layerIndex))
+        {
+            return;
+        }
+
+        AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
+        if (!IsActionState(current))
+        {
+            return;
+        }
+
+        float completionThreshold = Mathf.Clamp01(upperBodyActionCompletionThreshold);
+        if (current.normalizedTime < Mathf.Max(0.5f, completionThreshold))
+        {
+            return;
+        }
+
+        if (TryPlayUpperBodyIdle(animator, layerIndex, upperBodyStateBlendTime))
+        {
+            animator.SetLayerWeight(layerIndex, 0f);
+        }
+    }
+
+    // Handle Try Play Upper Body Idle.
+    private bool TryPlayUpperBodyIdle(Animator animator, int layerIndex, float blendTime)
+    {
+        if (animator == null || layerIndex < 0 || string.IsNullOrWhiteSpace(upperBodyIdleStateName))
+        {
+            return false;
+        }
+
+        int fullPathHash = Animator.StringToHash($"{upperBodyLayerName}.{upperBodyIdleStateName}");
+        int shortNameHash = Animator.StringToHash(upperBodyIdleStateName);
+        int stateHash;
+
+        if (animator.HasState(layerIndex, fullPathHash))
+        {
+            stateHash = fullPathHash;
+        }
+        else if (animator.HasState(layerIndex, shortNameHash))
+        {
+            stateHash = shortNameHash;
+        }
+        else
+        {
+            return false;
+        }
+
+        float resolvedBlend = Mathf.Max(0f, blendTime);
+        if (resolvedBlend > 0f)
+        {
+            animator.CrossFadeInFixedTime(stateHash, resolvedBlend, layerIndex);
+        }
+        else
+        {
+            animator.Play(stateHash, layerIndex, 0f);
+        }
+
+        return true;
+    }
+
+    // Handle Set Upper Body Chop Animation Speed.
+    private void SetUpperBodyChopAnimationSpeed()
+    {
+        Animator animator = ResolveCharacterAnimator();
+        if (animator == null)
+        {
+            return;
+        }
+
+        float chopSpeed = axeAnimationScript != null
+            ? axeAnimationScript.GetResolvedSwingAnimationSpeed()
+            : 1f;
+
+        TrySetAnimatorFloatParameter(animator, upperBodyChopSpeedParameterName, chopSpeed);
+    }
+
+    // Handle Try Set Animator Float Parameter.
+    private static bool TrySetAnimatorFloatParameter(Animator animator, string parameterName, float value)
+    {
+        if (animator == null || string.IsNullOrWhiteSpace(parameterName))
+        {
+            return false;
+        }
+
+        AnimatorControllerParameter[] parameters = animator.parameters;
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            AnimatorControllerParameter parameter = parameters[i];
+            if (parameter.type != AnimatorControllerParameterType.Float ||
+                !string.Equals(parameter.name, parameterName, System.StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            animator.SetFloat(parameterName, Mathf.Max(0.01f, value));
+            return true;
+        }
+
+        return false;
+    }
+
     // Handle Is Animator In Action State.
     private bool IsAnimatorInActionState()
     {
-        Animator animator = movementAnimationScript != null
-            ? movementAnimationScript.animator
-            : null;
+        if (movementAnimationScript != null && movementAnimationScript.IsBlockingActionState())
+        {
+            return true;
+        }
+
+        Animator animator = movementAnimationScript != null ? movementAnimationScript.animator : null;
 
         if (animator == null && swordAnimationScript != null)
         {
             animator = swordAnimationScript.animator;
         }
 
-        if (animator == null || !animator.isActiveAndEnabled)
+        if (animator == null || !animator.isActiveAndEnabled ||
+            (movementAnimationScript != null && animator == movementAnimationScript.animator))
         {
             return false;
         }
 
-        AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(0);
-        if (IsActionState(current))
-        {
-            return true;
-        }
-
-        if (animator.IsInTransition(0))
-        {
-            AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(0);
-            if (IsActionState(next))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return IsAnimatorLayerInActionState(animator, 0);
     }
 
     // Handle Is Action State.

@@ -9,6 +9,13 @@ public class StaminaScript : MonoBehaviour
     public float valuereduce = 0.6f;
     public float valueadd = -1f;
     public float swordSwingCost = 0.5f;
+    public float axeSwingCost = 0.12f;
+    public float pickaxeSwingCost = 0.15f;
+    public float staminaRechargeDelaySeconds = 0.35f;
+    public float minimumStaminaThreshold = 0.001f;
+
+    private float _staminaRechargeBlockedUntil;
+
     void Start()
     {
         if (valueadd < 0f)
@@ -16,10 +23,7 @@ public class StaminaScript : MonoBehaviour
             valueadd = valuereduce;
         }
 
-        if (image != null)
-        {
-            enoughstamina = image.fillAmount > 0f;
-        }
+        UpdateEnoughStaminaState();
     }
 // Handle Add Stamina.
     public void AddStamina()
@@ -30,9 +34,15 @@ public class StaminaScript : MonoBehaviour
             return;
         }
 
-        float delta = valueadd * Time.deltaTime;
+        if (Time.time < _staminaRechargeBlockedUntil)
+        {
+            UpdateEnoughStaminaState();
+            return;
+        }
+
+        float delta = Mathf.Abs(valueadd) * Time.deltaTime;
         image.fillAmount = Mathf.Clamp01(image.fillAmount + delta);
-        enoughstamina = image.fillAmount > 0f;
+        UpdateEnoughStaminaState();
         
     }
     // Handle Reduce Stamina.
@@ -44,33 +54,84 @@ public class StaminaScript : MonoBehaviour
             return;
         }
 
-        float delta = valuereduce * Time.deltaTime;
+        float delta = Mathf.Abs(valuereduce) * Time.deltaTime;
         image.fillAmount = Mathf.Clamp01(image.fillAmount - delta);
-        enoughstamina = image.fillAmount > 0f;
+        UpdateEnoughStaminaState();
 
     }
     // Handle Sword Swing.
     public bool SwordSwing()
     {
+        return TryConsumeStamina(swordSwingCost);
+    }
+
+    // Handle Axe Swing.
+    public bool AxeSwing()
+    {
+        return TryConsumeStamina(axeSwingCost);
+    }
+
+    // Handle Pickaxe Swing.
+    public bool PickaxeSwing()
+    {
+        return TryConsumeStamina(pickaxeSwingCost);
+    }
+
+    // Handle Try Consume Stamina.
+    public bool TryConsumeStamina(float amount)
+    {
+        return TryConsumeStamina(amount, staminaRechargeDelaySeconds);
+    }
+
+    // Handle Try Consume Stamina With Delay.
+    public bool TryConsumeStamina(float amount, float rechargeDelaySeconds)
+    {
         if (image == null)
         {
-            return false;
-        }
-
-        if (image.fillAmount >= swordSwingCost)
-        {
-            image.fillAmount -= swordSwingCost;
-            if (image.fillAmount < 0f)
-            {
-                image.fillAmount = 0f;
-            }
-
-            enoughstamina = image.fillAmount > 0f;
+            enoughstamina = true;
             return true;
         }
 
-        enoughstamina = image.fillAmount > 0f;
-        return false;
+        float clampedAmount = Mathf.Max(0f, amount);
+        if (clampedAmount <= 0f)
+        {
+            BlockStaminaRegeneration(rechargeDelaySeconds);
+            UpdateEnoughStaminaState();
+            return true;
+        }
+
+        if ((image.fillAmount + minimumStaminaThreshold) < clampedAmount)
+        {
+            UpdateEnoughStaminaState();
+            return false;
+        }
+
+        image.fillAmount = Mathf.Clamp01(image.fillAmount - clampedAmount);
+        BlockStaminaRegeneration(rechargeDelaySeconds);
+        UpdateEnoughStaminaState();
+        return true;
+    }
+
+    // Handle Block Stamina Regeneration.
+    public void BlockStaminaRegeneration(float delaySeconds)
+    {
+        if (image == null)
+        {
+            enoughstamina = true;
+            return;
+        }
+
+        float blockedUntil = Time.time + Mathf.Max(0f, delaySeconds);
+        if (blockedUntil > _staminaRechargeBlockedUntil)
+        {
+            _staminaRechargeBlockedUntil = blockedUntil;
+        }
+    }
+
+    // Handle Update Enough Stamina State.
+    private void UpdateEnoughStaminaState()
+    {
+        enoughstamina = image == null || image.fillAmount > minimumStaminaThreshold;
     }
 }
 
