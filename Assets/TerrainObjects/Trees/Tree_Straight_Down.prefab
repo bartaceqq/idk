@@ -241,8 +241,9 @@ GameObject:
   - component: {fileID: 6633343772117332101}
   - component: {fileID: 5673774115563543851}
   - component: {fileID: 3524265855952715807}
+  - component: {fileID: 107956372642189268}
   m_Layer: 0
-  m_Name: Tree_Straight_Down Variant
+  m_Name: Tree_Straight_Down
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -277,12 +278,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cbaf0801a2c758e40b6472e8affc6e1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TreeHandler
+  inventoryAddHandler: {fileID: 0}
+  inventoryItem: {fileID: 107956372642189268}
   placeinlist: 2
+  idk: 0
   materials:
   - {fileID: 2100000, guid: 72afdb26ea32c34449914c60a64dcfba, type: 2}
   - {fileID: 2100000, guid: 1fe53f3c2054429499cb25cef242c444, type: 2}
   - {fileID: 2100000, guid: e3b3bc8ea08fc5044b56ff164d45487e, type: 2}
   - {fileID: 2100000, guid: 8ab1231e7e283244084c8d3144aaa9ae, type: 2}
+  test: 0
   timetowaittodestroy: 8
   toppart: {fileID: 3288660907569935965}
   bottompart: {fileID: 5780181702741668628}
@@ -290,8 +295,8 @@ MonoBehaviour:
   chopsToFall: 4
   hitCooldownSeconds: 0.12
   chopImpactParticlePrefab: {fileID: 3042519775331041172, guid: 841004c4c6a39e244abe2257394de913, type: 3}
-  chopImpactBetweenFactor: 0.35
-  chopImpactOffset: {x: 0, y: 2, z: 0}
+  chopImpactBetweenFactor: 0
+  chopImpactOffset: {x: 0, y: 0.25, z: 0}
   flattenImpactFacingToHorizontal: 1
   destroyImpactParticleAfterSeconds: 3
 --- !u!205 &3524265855952715807
@@ -314,3 +319,24 @@ LODGroup:
     - renderer: {fileID: 4153731972953669588}
     - renderer: {fileID: 8913124880610557723}
   m_Enabled: 1
+--- !u!114 &107956372642189268
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6288590408837114431}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22bbd1596f53f98429a95c658beef0b7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InventoryItem
+  inventorysprite: {fileID: 21300000, guid: 8db6ad02e5572d740b423985cd9ac514, type: 3}
+  nameofitem: Wood
+  itemType: 0
+  itemPrefab: {fileID: 0}
+  buildRotationEuler: {x: 0, y: 0, z: 0}
+  buildScale: {x: 1, y: 1, z: 1}
+  mingain: 1
+  maxgain: 1
+  slotManager: {fileID: 0}

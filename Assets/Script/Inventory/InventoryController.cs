@@ -5,6 +5,8 @@ using UnityEngine.UI;
 // Controls Inventory Controller behavior.
 public class InventoryController : MonoBehaviour
 {
+    public Slider slider;
+
     public static bool IsInventoryOpen { get; private set; }
 
     public bool UIshown = false;
@@ -56,6 +58,7 @@ public class InventoryController : MonoBehaviour
     // Handle Apply UIState.
     private void ApplyUIState()
     {
+        slider.enabled = UIshown;
         IsInventoryOpen = UIshown;
         ApplyCursorState();
         if (inventoryobject == null)
@@ -75,6 +78,15 @@ public class InventoryController : MonoBehaviour
         for (int i = 0; i < tmpTexts.Length; i++)
         {
             tmpTexts[i].enabled = UIshown;
+        }
+
+        XPHandler[] xpHandlers = GetXPHandlersForInventoryUI();
+        for (int i = 0; i < xpHandlers.Length; i++)
+        {
+            if (xpHandlers[i] != null)
+            {
+                xpHandlers[i].SetVisible(UIshown);
+            }
         }
 
         // Re-apply per-slot visibility rules after global UI toggle.
@@ -103,5 +115,22 @@ public class InventoryController : MonoBehaviour
         bool uiOpen = IsInventoryOpen || InventoryManager.IsInventoryOpen || CraftingManager.IsCraftingOpen;
         Cursor.lockState = uiOpen ? CursorLockMode.None : CursorLockMode.Locked;
         Cursor.visible = uiOpen;
+    }
+
+    // Handle Get XPHandlers For Inventory UI.
+    private XPHandler[] GetXPHandlersForInventoryUI()
+    {
+        if (inventoryobject == null)
+        {
+            return System.Array.Empty<XPHandler>();
+        }
+
+        Canvas rootCanvas = inventoryobject.GetComponentInParent<Canvas>();
+        if (rootCanvas != null)
+        {
+            return rootCanvas.GetComponentsInChildren<XPHandler>(true);
+        }
+
+        return inventoryobject.GetComponentsInChildren<XPHandler>(true);
     }
 }

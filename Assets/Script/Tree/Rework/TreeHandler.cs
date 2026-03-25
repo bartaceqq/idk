@@ -55,18 +55,31 @@ public class TreeHandler : MonoBehaviour
 
     public void Chop(Transform attacker)
     {
-        if(counttochop >0){
-        SpawnChopImpact(attacker);
-        counttochop--;
+        if (hasFallen)
+        {
+            return;
+        }
+
+        if (Time.time < nextChopAllowedTime)
+        {
+            return;
+        }
+
+        nextChopAllowedTime = Time.time + Mathf.Max(0f, hitCooldownSeconds);
+
+        if (counttochop > 0)
+        {
+            chopCount++;
+            SpawnChopImpact(attacker);
+            counttochop--;
         }
         else
         {
+            hasFallen = true;
             inventoryAddHandler.AddItemToInventory(inventoryItem);
             TreeFall();
             StartCoroutine(destroyaftertime());
-            
         }
-       
     }
     public IEnumerator destroyaftertime()
     {
@@ -85,8 +98,9 @@ public void TreeFall()
             return;
         }
 
-        Vector3 treeImpactPoint = ResolveTreeImpactPoint();
-        Vector3 attackerPosition = ResolveAttackerPosition(attacker, treeImpactPoint);
+        Vector3 fallbackTreePoint = ResolveTreeFallbackPoint();
+        Vector3 attackerPosition = ResolveAttackerPosition(attacker, fallbackTreePoint);
+        Vector3 treeImpactPoint = ResolveTreeImpactPoint(attackerPosition);
         Vector3 spawnPosition = Vector3.Lerp(treeImpactPoint, attackerPosition, Mathf.Clamp01(chopImpactBetweenFactor)) + chopImpactOffset;
 
         Vector3 lookDirection = attackerPosition - spawnPosition;
@@ -111,6 +125,7 @@ public void TreeFall()
 
         Quaternion rotation = Quaternion.LookRotation(lookDirection.normalized, Vector3.up);
         GameObject impactInstance = Instantiate(chopImpactParticlePrefab, spawnPosition, rotation);
+        PlayImpactParticleSystems(impactInstance);
 
         float destroyDelay = Mathf.Max(0f, destroyImpactParticleAfterSeconds);
         if (impactInstance != null && destroyDelay > 0f)
@@ -119,14 +134,24 @@ public void TreeFall()
         }
     }
 
-    private Vector3 ResolveTreeImpactPoint()
+    private Vector3 ResolveTreeImpactPoint(Vector3 attackerPosition)
     {
+        if (bottompart != null && TryResolveClosestImpactPoint(bottompart.transform, attackerPosition, out Vector3 closestImpactPoint))
+        {
+            return closestImpactPoint;
+        }
+
         if (bottompart != null && TryGetBounds(bottompart.transform, out Bounds bottomBounds))
         {
             float impactY = Mathf.Lerp(bottomBounds.min.y, bottomBounds.max.y, 0.55f);
             return new Vector3(bottomBounds.center.x, impactY, bottomBounds.center.z);
         }
 
+        return ResolveTreeFallbackPoint();
+    }
+
+    private Vector3 ResolveTreeFallbackPoint()
+    {
         return transform.position + Vector3.up * 0.5f;
     }
 
@@ -200,6 +225,62 @@ public void TreeFall()
         }
 
         return hasBounds;
+    }
+
+    private static bool TryResolveClosestImpactPoint(Transform target, Vector3 attackerPosition, out Vector3 closestPoint)
+    {
+        closestPoint = default;
+        if (target == null)
+        {
+            return false;
+        }
+
+        Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
+        float bestDistanceSqr = float.MaxValue;
+        bool foundPoint = false;
+
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider currentCollider = colliders[i];
+            if (currentCollider == null || !currentCollider.enabled)
+            {
+                continue;
+            }
+
+            Vector3 currentClosestPoint = currentCollider.ClosestPoint(attackerPosition);
+            float distanceSqr = (currentClosestPoint - attackerPosition).sqrMagnitude;
+            if (distanceSqr >= bestDistanceSqr)
+            {
+                continue;
+            }
+
+            bestDistanceSqr = distanceSqr;
+            closestPoint = currentClosestPoint;
+            foundPoint = true;
+        }
+
+        return foundPoint;
+    }
+
+    private static void PlayImpactParticleSystems(GameObject impactInstance)
+    {
+        if (impactInstance == null)
+        {
+            return;
+        }
+
+        ParticleSystem[] particleSystems = impactInstance.GetComponentsInChildren<ParticleSystem>(true);
+        for (int i = 0; i < particleSystems.Length; i++)
+        {
+            ParticleSystem currentParticleSystem = particleSystems[i];
+            if (currentParticleSystem == null)
+            {
+                continue;
+            }
+
+            currentParticleSystem.Clear(true);
+            currentParticleSystem.Play(true);
+        }
     }
 
 }

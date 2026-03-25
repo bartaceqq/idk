@@ -345,8 +345,8 @@ MonoBehaviour:
   chopsToFall: 4
   hitCooldownSeconds: 0.12
   chopImpactParticlePrefab: {fileID: 3042519775331041172, guid: 841004c4c6a39e244abe2257394de913, type: 3}
-  chopImpactBetweenFactor: 0.35
-  chopImpactOffset: {x: 0, y: 2, z: 0}
+  chopImpactBetweenFactor: 0
+  chopImpactOffset: {x: 0, y: 0.25, z: 0}
   flattenImpactFacingToHorizontal: 1
   destroyImpactParticleAfterSeconds: 3
   fallForce: 7

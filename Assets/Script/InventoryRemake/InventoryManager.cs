@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -7,6 +7,10 @@ public class InventoryManager : MonoBehaviour
 {
     public static bool IsInventoryOpen { get; private set; }
 
+    public Image backgroundslider;
+    public Image fill;
+    public TMP_Text text1;
+    public TMP_Text text2;
     public Image backgroundofwholeinventory;
     public List<SlotInsideUI> slotlist = new List<SlotInsideUI>();
     public bool UIShown = false;
@@ -114,6 +118,10 @@ public class InventoryManager : MonoBehaviour
         ApplyCursorState();
 
         EnsureSlotList();
+        backgroundslider.enabled = status;
+        fill.enabled = status;
+        text1.enabled = status;
+        text2.enabled = status;
         if (backgroundofwholeinventory != null)
         {
             backgroundofwholeinventory.enabled = status;
@@ -148,6 +156,15 @@ public class InventoryManager : MonoBehaviour
             if (!status && weaponSlot.iconImage != null)
             {
                 weaponSlot.iconImage.enabled = false;
+            }
+        }
+
+        XPHandler[] xpHandlers = GetXPHandlersForInventoryUI();
+        for (int i = 0; i < xpHandlers.Length; i++)
+        {
+            if (xpHandlers[i] != null)
+            {
+                xpHandlers[i].SetVisible(status);
             }
         }
     }
@@ -208,5 +225,17 @@ public class InventoryManager : MonoBehaviour
         }
 
         return string.Equals(slotName.Trim(), itemName.Trim(), System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Handle Get XPHandlers For Inventory UI.
+    private XPHandler[] GetXPHandlersForInventoryUI()
+    {
+        Canvas rootCanvas = GetComponentInParent<Canvas>();
+        if (rootCanvas != null)
+        {
+            return rootCanvas.GetComponentsInChildren<XPHandler>(true);
+        }
+
+        return GetComponentsInChildren<XPHandler>(true);
     }
 }
