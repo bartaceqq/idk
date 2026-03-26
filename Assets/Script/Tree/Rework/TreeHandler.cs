@@ -17,6 +17,11 @@ public class TreeHandler : MonoBehaviour
     public GameObject toppart;
     public GameObject bottompart;
     public int counttochop = 3;
+    [Header("Fall Physics")]
+    [SerializeField, Min(0f)] private float fallTiltDegrees = 1f;
+    [SerializeField, Min(0f)] private float fallLinearDamping = 0.2f;
+    [SerializeField, Min(0f)] private float fallAngularDamping = 6f;
+    [SerializeField, Min(0.1f)] private float fallMaxAngularVelocity = 2f;
     [Header("Chop")]
     [SerializeField] private int chopsToFall = 4;
     [SerializeField] private float hitCooldownSeconds = 0.12f;
@@ -88,8 +93,26 @@ public class TreeHandler : MonoBehaviour
     }
 public void TreeFall()
     {
-        toppart.transform.rotation = Quaternion.Euler(-91f,0f,0f);
-        toppart.AddComponent<Rigidbody>();
+        if (toppart == null)
+        {
+            return;
+        }
+
+        Transform topTransform = toppart.transform;
+        if (fallTiltDegrees > 0f)
+        {
+            topTransform.Rotate(Vector3.right, -fallTiltDegrees, Space.Self);
+        }
+
+        PrepareTopPartCollidersForFall(topTransform);
+
+        Rigidbody topRigidbody = toppart.GetComponent<Rigidbody>();
+        if (topRigidbody == null)
+        {
+            topRigidbody = toppart.AddComponent<Rigidbody>();
+        }
+
+        ConfigureTopPartRigidbody(topRigidbody);
     }
     private void SpawnChopImpact(Transform attacker)
     {
@@ -260,6 +283,226 @@ public void TreeFall()
         }
 
         return foundPoint;
+    }
+
+    private void PrepareTopPartCollidersForFall(Transform topTransform)
+    {
+        if (topTransform == null)
+        {
+            return;
+        }
+
+        PhysicsMaterial noRollMaterial = ResolveNoRollMaterial();
+        CapsuleCollider[] capsuleColliders = topTransform.GetComponentsInChildren<CapsuleCollider>(true);
+        for (int i = 0; i < capsuleColliders.Length; i++)
+        {
+            ReplaceCapsuleColliderForFall(capsuleColliders[i], noRollMaterial);
+        }
+
+        Collider[] colliders = topTransform.GetComponentsInChildren<Collider>(true);
+        bool hasSolidCollider = false;
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider currentCollider = colliders[i];
+            if (currentCollider == null || !currentCollider.enabled || currentCollider.isTrigger)
+            {
+                continue;
+            }
+
+            if (currentCollider is MeshCollider meshCollider)
+            {
+                meshCollider.convex = true;
+                meshCollider.providesContacts = true;
+            }
+
+            currentCollider.material = noRollMaterial;
+            hasSolidCollider = true;
+        }
+
+        if (!hasSolidCollider)
+        {
+            TryEnsureFallbackBoxCollider(topTransform, noRollMaterial);
+        }
+    }
+
+    private static void ReplaceCapsuleColliderForFall(CapsuleCollider capsuleCollider, PhysicsMaterial noRollMaterial)
+    {
+        if (capsuleCollider == null || !capsuleCollider.enabled || capsuleCollider.isTrigger)
+        {
+            return;
+        }
+
+        bool replacementCreated = TryEnsureConvexMeshCollider(capsuleCollider.gameObject, noRollMaterial);
+        if (!replacementCreated)
+        {
+            replacementCreated = TryEnsureFallbackBoxCollider(capsuleCollider.transform, noRollMaterial);
+        }
+
+        if (replacementCreated)
+        {
+            capsuleCollider.enabled = false;
+            return;
+        }
+
+        capsuleCollider.material = noRollMaterial;
+    }
+
+    private static bool TryEnsureConvexMeshCollider(GameObject target, PhysicsMaterial noRollMaterial)
+    {
+        if (target == null)
+        {
+            return false;
+        }
+
+        MeshFilter meshFilter = target.GetComponent<MeshFilter>();
+        if (meshFilter == null || meshFilter.sharedMesh == null)
+        {
+            return false;
+        }
+
+        MeshCollider meshCollider = target.GetComponent<MeshCollider>();
+        if (meshCollider == null)
+        {
+            meshCollider = target.AddComponent<MeshCollider>();
+        }
+
+        meshCollider.sharedMesh = meshFilter.sharedMesh;
+        meshCollider.convex = true;
+        meshCollider.providesContacts = true;
+        meshCollider.material = noRollMaterial;
+        meshCollider.enabled = true;
+        return true;
+    }
+
+    private static bool TryEnsureFallbackBoxCollider(Transform target, PhysicsMaterial noRollMaterial)
+    {
+        if (target == null || !TryGetLocalBounds(target, out Bounds localBounds))
+        {
+            return false;
+        }
+
+        Vector3 size = localBounds.size;
+        size.x = Mathf.Max(size.x, 0.05f);
+        size.y = Mathf.Max(size.y, 0.05f);
+        size.z = Mathf.Max(size.z, 0.05f);
+
+        BoxCollider boxCollider = target.GetComponent<BoxCollider>();
+        if (boxCollider == null)
+        {
+            boxCollider = target.gameObject.AddComponent<BoxCollider>();
+        }
+
+        boxCollider.center = localBounds.center;
+        boxCollider.size = size;
+        boxCollider.material = noRollMaterial;
+        boxCollider.enabled = true;
+        return true;
+    }
+
+    private void ConfigureTopPartRigidbody(Rigidbody topRigidbody)
+    {
+        if (topRigidbody == null)
+        {
+            return;
+        }
+
+        topRigidbody.linearVelocity = Vector3.zero;
+        topRigidbody.angularVelocity = Vector3.zero;
+        topRigidbody.useGravity = true;
+        topRigidbody.isKinematic = false;
+        topRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
+        topRigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        topRigidbody.linearDamping = Mathf.Max(0f, fallLinearDamping);
+        topRigidbody.angularDamping = Mathf.Max(0f, fallAngularDamping);
+        topRigidbody.maxAngularVelocity = Mathf.Max(0.1f, fallMaxAngularVelocity);
+        topRigidbody.ResetCenterOfMass();
+        topRigidbody.ResetInertiaTensor();
+    }
+
+    private static PhysicsMaterial ResolveNoRollMaterial()
+    {
+        if (fallbackNoRollMaterial != null)
+        {
+            return fallbackNoRollMaterial;
+        }
+
+        fallbackNoRollMaterial = new PhysicsMaterial("TreeHandler_NoRoll")
+        {
+            dynamicFriction = 1f,
+            staticFriction = 1f,
+            bounciness = 0f,
+            frictionCombine = PhysicsMaterialCombine.Maximum,
+            bounceCombine = PhysicsMaterialCombine.Minimum
+        };
+        fallbackNoRollMaterial.hideFlags = HideFlags.HideAndDontSave;
+        return fallbackNoRollMaterial;
+    }
+
+    private static bool TryGetLocalBounds(Transform target, out Bounds localBounds)
+    {
+        localBounds = default;
+        if (target == null)
+        {
+            return false;
+        }
+
+        bool hasBounds = false;
+        Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer currentRenderer = renderers[i];
+            if (currentRenderer == null)
+            {
+                continue;
+            }
+
+            EncapsulateWorldBoundsInLocalSpace(target, currentRenderer.bounds, ref localBounds, ref hasBounds);
+        }
+
+        if (hasBounds)
+        {
+            return true;
+        }
+
+        Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider currentCollider = colliders[i];
+            if (currentCollider == null || !currentCollider.enabled)
+            {
+                continue;
+            }
+
+            EncapsulateWorldBoundsInLocalSpace(target, currentCollider.bounds, ref localBounds, ref hasBounds);
+        }
+
+        return hasBounds;
+    }
+
+    private static void EncapsulateWorldBoundsInLocalSpace(Transform target, Bounds worldBounds, ref Bounds localBounds, ref bool hasBounds)
+    {
+        Vector3 center = worldBounds.center;
+        Vector3 extents = worldBounds.extents;
+
+        for (int x = -1; x <= 1; x += 2)
+        {
+            for (int y = -1; y <= 1; y += 2)
+            {
+                for (int z = -1; z <= 1; z += 2)
+                {
+                    Vector3 localPoint = target.InverseTransformPoint(center + Vector3.Scale(extents, new Vector3(x, y, z)));
+                    if (!hasBounds)
+                    {
+                        localBounds = new Bounds(localPoint, Vector3.zero);
+                        hasBounds = true;
+                    }
+                    else
+                    {
+                        localBounds.Encapsulate(localPoint);
+                    }
+                }
+            }
+        }
     }
 
     private static void PlayImpactParticleSystems(GameObject impactInstance)

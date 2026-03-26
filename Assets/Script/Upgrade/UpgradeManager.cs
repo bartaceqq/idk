@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 public class UpgradeManager : MonoBehaviour
 {
@@ -14,6 +15,13 @@ public class UpgradeManager : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        RefreshUpgradeSlots();
+        StartCoroutine(WaitABit());
+    }
+
+    public IEnumerator WaitABit()
+    {
+        yield return null;
         ApplyUIState();
     }
 
@@ -42,14 +50,15 @@ public class UpgradeManager : MonoBehaviour
     }
     public void ApplyUIState()
     {
+        RefreshUpgradeSlots();
         IsUpgradeOpen = UpgradeUIShown;
         GameplayUiState.ApplyCursorState();
 
-        foreach(UpgradeSlot slot in upgradeSlots)
+        foreach (UpgradeSlot slot in upgradeSlots)
         {
-            if (slot != null && slot.image != null)
+            if (slot != null)
             {
-                slot.image.enabled = UpgradeUIShown;
+                slot.SetVisible(UpgradeUIShown);
             }
         }
 
@@ -61,6 +70,33 @@ public class UpgradeManager : MonoBehaviour
         if (schemeimage != null)
         {
             schemeimage.enabled = UpgradeUIShown;
+        }
+    }
+
+    private void RefreshUpgradeSlots()
+    {
+        if (upgradeSlots == null)
+        {
+            upgradeSlots = new List<UpgradeSlot>();
+        }
+
+        UpgradeSlot[] discoveredSlots = GetComponentsInChildren<UpgradeSlot>(true);
+        upgradeSlots.Clear();
+
+        for (int i = 0; i < discoveredSlots.Length; i++)
+        {
+            UpgradeSlot slot = discoveredSlots[i];
+            if (slot == null)
+            {
+                continue;
+            }
+
+            if (slot.upgradeManager == null)
+            {
+                slot.upgradeManager = this;
+            }
+
+            upgradeSlots.Add(slot);
         }
     }
 }

@@ -11,12 +11,30 @@ public class UpgradeSlot : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        upgradeManager.upgradeSlots.Add(this);
+        if (upgradeManager != null && !upgradeManager.upgradeSlots.Contains(this))
+        {
+            upgradeManager.upgradeSlots.Add(this);
+        }
     }
 
     // Update is called once per frame
     void Update()
     {
         
+    }
+
+    public void SetVisible(bool visible)
+    {
+        Graphic[] graphics = GetComponentsInChildren<Graphic>(true);
+        for (int i = 0; i < graphics.Length; i++)
+        {
+            Graphic graphic = graphics[i];
+            if (graphic == null)
+            {
+                continue;
+            }
+
+            graphic.enabled = visible;
+        }
     }
 }
