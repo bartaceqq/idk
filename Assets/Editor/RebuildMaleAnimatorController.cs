@@ -5,11 +5,13 @@ using UnityEngine;
 public static class RebuildMaleAnimatorController
 {
     private const string ControllerPath = "Assets/Animations/Male/MaleAnim.controller";
-    private const string IdlePath = "Assets/Animations/Male/Idle.anim";
-    private const string ForwardPath = "Assets/Animations/Male/ForeWard.anim";
-    private const string SprintPath = "Assets/Animations/Male/SprintForeWard.anim";
-    private const string BackwardPath = "Assets/Animations/Male/WalkBackWards.anim";
-    private const string JumpPath = "Assets/Animations/Male/Jump.anim";
+    private const string PrepReworkFolder = "Assets/Animations/PrepReWork/AnimsOnly";
+    private const string IdlePath = PrepReworkFolder + "/Idle.anim";
+    private const string ForwardPath = PrepReworkFolder + "/Walking.anim";
+    private const string SprintPath = PrepReworkFolder + "/Run.anim";
+    private const string BackwardPath = PrepReworkFolder + "/WalkBackward.anim";
+    private const string JumpPath = PrepReworkFolder + "/Jump.anim";
+    private const string RunningJumpPath = PrepReworkFolder + "/RunningJump.anim";
     private const string AttackLightPath = "Assets/Characters_StarterPack_Blink/Art/Animations/Animations_Starter_Pack/Combat/MeleeAttack_OneHanded.fbx";
     private const string AttackHeavyPath = "Assets/Characters_StarterPack_Blink/Art/Animations/Animations_Starter_Pack/Combat/MeleeAttack_TwoHanded.fbx";
     private const string PunchLeftPath = "Assets/Characters_StarterPack_Blink/Art/Animations/Animations_Starter_Pack/Combat/PunchLeft.fbx";
@@ -21,12 +23,12 @@ public static class RebuildMaleAnimatorController
     private const string ReloadPath = "Assets/Animations/Male/ARReload.anim";
     private const string DefaultUpperBodyMaskPath = "Assets/ExplosiveLLC/Warrior Pack Bundle 3 FREE/Crossbow Warrior Mecanim Animation Pack/Avatar Mask/Crossbow UpperBody AvatarMask.mask";
     private const string GeneratedUpperBodyMaskPath = "Assets/Animations/Male/GeneratedUpperBody.mask";
-    private const string WalkLeftPath = "Assets/Kevin Iglesias/Human Animations/Animations/Male/Movement/Walk/HumanM@Walk01_Left.fbx";
-    private const string WalkRightPath = "Assets/Kevin Iglesias/Human Animations/Animations/Male/Movement/Walk/HumanM@Walk01_Right.fbx";
-    private const string WalkForwardLeftPath = "Assets/Kevin Iglesias/Human Animations/Animations/Male/Movement/Walk/HumanM@Walk01_ForwardLeft.fbx";
-    private const string WalkForwardRightPath = "Assets/Kevin Iglesias/Human Animations/Animations/Male/Movement/Walk/HumanM@Walk01_ForwardRight.fbx";
-    private const string SprintForwardLeftPath = "Assets/Kevin Iglesias/Human Animations/Animations/Male/Movement/Sprint/HumanM@Sprint01_ForwardLeft.fbx";
-    private const string SprintForwardRightPath = "Assets/Kevin Iglesias/Human Animations/Animations/Male/Movement/Sprint/HumanM@Sprint01_ForwardRight.fbx";
+    private const string WalkLeftPath = PrepReworkFolder + "/LEFTSTRAFE.anim";
+    private const string WalkRightPath = PrepReworkFolder + "/RightStrafe.anim";
+    private const string WalkForwardLeftPath = PrepReworkFolder + "/LEFTSTRAFE.anim";
+    private const string WalkForwardRightPath = PrepReworkFolder + "/RightStrafe.anim";
+    private const string SprintForwardLeftPath = PrepReworkFolder + "/Run.anim";
+    private const string SprintForwardRightPath = PrepReworkFolder + "/Run.anim";
 
     [MenuItem("Tools/Animation/Rebuild MaleAnim Controller")]
     public static void Rebuild()
@@ -36,6 +38,7 @@ public static class RebuildMaleAnimatorController
         AnimationClip sprint = LoadClip(SprintPath);
         AnimationClip backward = LoadClip(BackwardPath);
         AnimationClip jump = LoadClip(JumpPath);
+        AnimationClip runningJump = LoadClip(RunningJumpPath);
         AnimationClip attackLight = LoadClip(AttackLightPath);
         AnimationClip attackHeavy = LoadClip(AttackHeavyPath);
         AnimationClip punchLeft = LoadClip(PunchLeftPath);
@@ -53,7 +56,7 @@ public static class RebuildMaleAnimatorController
         AnimationClip sprintForwardRight = LoadClip(SprintForwardRightPath);
 
         if (idle == null || forward == null || sprint == null || backward == null ||
-            jump == null || attackLight == null || attackHeavy == null || punchLeft == null || punchRight == null ||
+            jump == null || runningJump == null || attackLight == null || attackHeavy == null || punchLeft == null || punchRight == null ||
             mine == null || chop == null || aim == null || shoot == null || reload == null ||
             walkLeft == null || walkRight == null || walkForwardLeft == null || walkForwardRight == null ||
             sprintForwardLeft == null || sprintForwardRight == null)
@@ -79,27 +82,36 @@ public static class RebuildMaleAnimatorController
             controller.RemoveParameter(controller.parameters[i]);
         }
 
-        controller.AddParameter("Swing", AnimatorControllerParameterType.Trigger);
-        controller.AddParameter("Foreward", AnimatorControllerParameterType.Bool);
-        controller.AddParameter("Idle", AnimatorControllerParameterType.Bool);
-        controller.AddParameter("Sprinting", AnimatorControllerParameterType.Bool);
-        controller.AddParameter("Mine", AnimatorControllerParameterType.Trigger);
-        controller.AddParameter("Attack", AnimatorControllerParameterType.Trigger);
-        controller.AddParameter("AttackHeavy", AnimatorControllerParameterType.Trigger);
-        controller.AddParameter("PunchLeft", AnimatorControllerParameterType.Trigger);
-        controller.AddParameter("PunchRight", AnimatorControllerParameterType.Trigger);
-        controller.AddParameter("Jump", AnimatorControllerParameterType.Trigger);
-        controller.AddParameter("WalkingBackWards", AnimatorControllerParameterType.Bool);
-        controller.AddParameter("WalkingLeft", AnimatorControllerParameterType.Bool);
-        controller.AddParameter("WalkingRight", AnimatorControllerParameterType.Bool);
-        controller.AddParameter("WalkingForwardLeft", AnimatorControllerParameterType.Bool);
-        controller.AddParameter("WalkingForwardRight", AnimatorControllerParameterType.Bool);
-        controller.AddParameter("SprintingForwardLeft", AnimatorControllerParameterType.Bool);
-        controller.AddParameter("SprintingForwardRight", AnimatorControllerParameterType.Bool);
-        controller.AddParameter("GunEquipped", AnimatorControllerParameterType.Bool);
-        controller.AddParameter("GunUnequipped", AnimatorControllerParameterType.Bool);
-        controller.AddParameter("GunShoot", AnimatorControllerParameterType.Trigger);
-        controller.AddParameter("GunReload", AnimatorControllerParameterType.Trigger);
+        AddTriggerParameter(controller, "Swing");
+        AddBoolParameter(controller, "Foreward");
+        AddBoolParameter(controller, "Idle");
+        AddBoolParameter(controller, "Sprinting");
+        AddTriggerParameter(controller, "Mine");
+        AddTriggerParameter(controller, "Attack");
+        AddTriggerParameter(controller, "AttackHeavy");
+        AddTriggerParameter(controller, "PunchLeft");
+        AddTriggerParameter(controller, "PunchRight");
+        AddTriggerParameter(controller, "Jump");
+        AddBoolParameter(controller, "WalkingBackWards");
+        AddBoolParameter(controller, "WalkingLeft");
+        AddBoolParameter(controller, "WalkingRight");
+        AddBoolParameter(controller, "WalkingForwardLeft");
+        AddBoolParameter(controller, "WalkingForwardRight");
+        AddBoolParameter(controller, "SprintingForwardLeft");
+        AddBoolParameter(controller, "SprintingForwardRight");
+        AddBoolParameter(controller, "GunEquipped");
+        AddBoolParameter(controller, "GunUnequipped");
+        AddTriggerParameter(controller, "GunShoot");
+        AddTriggerParameter(controller, "GunReload");
+        AddFloatParameter(controller, "IdleSpeed", 1f);
+        AddFloatParameter(controller, "WalkSpeed", 1f);
+        AddFloatParameter(controller, "RunSpeed", 1f);
+        AddFloatParameter(controller, "WalkBackwardSpeed", 1f);
+        AddFloatParameter(controller, "LeftStrafeSpeed", 1f);
+        AddFloatParameter(controller, "RightStrafeSpeed", 1f);
+        AddFloatParameter(controller, "JumpSpeed", 1f);
+        AddFloatParameter(controller, "RunningJumpSpeed", 1f);
+        AddFloatParameter(controller, "UpperChopSpeed", 1f);
 
         AnimatorControllerLayer[] layers = controller.layers;
         if (layers == null || layers.Length == 0)
@@ -133,6 +145,7 @@ public static class RebuildMaleAnimatorController
         AnimatorState sprintState = sm.AddState("SprintForeWard", new Vector3(700f, 150f, 0f));
         AnimatorState backwardState = sm.AddState("WalkBackWards", new Vector3(700f, 480f, 0f));
         AnimatorState jumpState = sm.AddState("Jump", new Vector3(420f, 540f, 0f));
+        AnimatorState runningJumpState = sm.AddState("RunningJump", new Vector3(640f, 540f, 0f));
         AnimatorState attackLightState = sm.AddState("AttackWeapon", new Vector3(180f, 220f, 0f));
         AnimatorState attackHeavyState = sm.AddState("AttackTwoHanded", new Vector3(180f, 320f, 0f));
         AnimatorState punchLeftState = sm.AddState("PunchLeft", new Vector3(180f, 120f, 0f));
@@ -151,19 +164,34 @@ public static class RebuildMaleAnimatorController
         sprintState.motion = sprint;
         backwardState.motion = backward;
         jumpState.motion = jump;
+        runningJumpState.motion = runningJump;
         attackLightState.motion = attackLight;
         attackHeavyState.motion = attackHeavy;
         punchLeftState.motion = punchLeft;
         punchRightState.motion = punchRight;
         mineState.motion = mine;
         // Reuse sword light attack animation for axe chop.
-        chopState.motion = attackLight;
+        chopState.motion = chop;
         walkLeftState.motion = walkLeft;
         walkRightState.motion = walkRight;
         walkForwardLeftState.motion = walkForwardLeft;
         walkForwardRightState.motion = walkForwardRight;
         sprintForwardLeftState.motion = sprintForwardLeft;
         sprintForwardRightState.motion = sprintForwardRight;
+
+        ConfigureStateSpeedParameter(idleState, "IdleSpeed");
+        ConfigureStateSpeedParameter(forwardState, "WalkSpeed");
+        ConfigureStateSpeedParameter(sprintState, "RunSpeed");
+        ConfigureStateSpeedParameter(backwardState, "WalkBackwardSpeed");
+        ConfigureStateSpeedParameter(jumpState, "JumpSpeed");
+        ConfigureStateSpeedParameter(runningJumpState, "RunningJumpSpeed");
+        ConfigureStateSpeedParameter(walkLeftState, "LeftStrafeSpeed");
+        ConfigureStateSpeedParameter(walkRightState, "RightStrafeSpeed");
+        ConfigureStateSpeedParameter(walkForwardLeftState, "LeftStrafeSpeed");
+        ConfigureStateSpeedParameter(walkForwardRightState, "RightStrafeSpeed");
+        ConfigureStateSpeedParameter(sprintForwardLeftState, "RunSpeed");
+        ConfigureStateSpeedParameter(sprintForwardRightState, "RunSpeed");
+        ConfigureStateSpeedParameter(chopState, "UpperChopSpeed");
 
         attackLightState.tag = "Action";
         attackHeavyState.tag = "Action";
@@ -172,6 +200,7 @@ public static class RebuildMaleAnimatorController
         mineState.tag = "Action";
         chopState.tag = "Action";
         jumpState.tag = "Action";
+        runningJumpState.tag = "Action";
 
         sm.defaultState = idleState;
 
@@ -187,7 +216,16 @@ public static class RebuildMaleAnimatorController
         AddAnyBoolTransition(sm, sprintForwardRightState, "SprintingForwardRight", true, 0.05f);
 
         // AnyState action transitions.
-        AddAnyTriggerTransition(sm, jumpState, "Jump", 0.02f);
+        AddAnyTriggerTransition(
+            sm,
+            jumpState,
+            "Jump",
+            0.02f,
+            new[] { "Sprinting", "SprintingForwardLeft", "SprintingForwardRight" },
+            new[] { false, false, false });
+        AddAnyTriggerTransition(sm, runningJumpState, "Jump", 0.02f, "Sprinting", true);
+        AddAnyTriggerTransition(sm, runningJumpState, "Jump", 0.02f, "SprintingForwardLeft", true);
+        AddAnyTriggerTransition(sm, runningJumpState, "Jump", 0.02f, "SprintingForwardRight", true);
         AddAnyTriggerTransition(sm, attackLightState, "Attack", 0.02f);
         AddAnyTriggerTransition(sm, attackHeavyState, "AttackHeavy", 0.02f);
         AddAnyTriggerTransition(sm, punchLeftState, "PunchLeft", 0.02f);
@@ -208,6 +246,7 @@ public static class RebuildMaleAnimatorController
 
         // Action states return to idle after finishing.
         AddExitTimeTransition(jumpState, idleState, 1f, 0.05f);
+        AddExitTimeTransition(runningJumpState, idleState, 1f, 0.05f);
         AddExitTimeTransition(attackLightState, idleState, 1f, 0.05f);
         AddExitTimeTransition(attackHeavyState, idleState, 1f, 0.05f);
         AddExitTimeTransition(punchLeftState, idleState, 1f, 0.05f);
@@ -215,7 +254,7 @@ public static class RebuildMaleAnimatorController
         AddExitTimeTransition(mineState, idleState, 1f, 0.05f);
         AddExitTimeTransition(chopState, idleState, 1f, 0.05f);
 
-        RebuildUpperBodyLayer(controller, idle, attackLight, attackHeavy, punchLeft, punchRight, mine, attackLight, aim, shoot, reload);
+        RebuildUpperBodyLayer(controller, idle, attackLight, attackHeavy, punchLeft, punchRight, mine, chop, aim, shoot, reload);
 
         EditorUtility.SetDirty(controller);
         AssetDatabase.SaveAssets();
@@ -235,6 +274,31 @@ public static class RebuildMaleAnimatorController
         return clip;
     }
 
+    private static void AddTriggerParameter(AnimatorController controller, string name)
+    {
+        controller.AddParameter(name, AnimatorControllerParameterType.Trigger);
+    }
+
+    private static void AddBoolParameter(AnimatorController controller, string name, bool defaultValue = false)
+    {
+        controller.AddParameter(new AnimatorControllerParameter
+        {
+            name = name,
+            type = AnimatorControllerParameterType.Bool,
+            defaultBool = defaultValue
+        });
+    }
+
+    private static void AddFloatParameter(AnimatorController controller, string name, float defaultValue)
+    {
+        controller.AddParameter(new AnimatorControllerParameter
+        {
+            name = name,
+            type = AnimatorControllerParameterType.Float,
+            defaultFloat = defaultValue
+        });
+    }
+
     private static void AddAnyTriggerTransition(AnimatorStateMachine sm, AnimatorState to, string triggerName, float duration)
     {
         AnimatorStateTransition transition = sm.AddAnyStateTransition(to);
@@ -242,6 +306,69 @@ public static class RebuildMaleAnimatorController
         transition.duration = duration;
         transition.canTransitionToSelf = false;
         transition.AddCondition(AnimatorConditionMode.If, 0f, triggerName);
+    }
+
+    private static void AddAnyTriggerTransition(
+        AnimatorStateMachine sm,
+        AnimatorState to,
+        string triggerName,
+        float duration,
+        string extraConditionName,
+        bool extraConditionValue)
+    {
+        AnimatorStateTransition transition = sm.AddAnyStateTransition(to);
+        transition.hasExitTime = false;
+        transition.duration = duration;
+        transition.canTransitionToSelf = false;
+        transition.AddCondition(AnimatorConditionMode.If, 0f, triggerName);
+        transition.AddCondition(
+            extraConditionValue ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot,
+            0f,
+            extraConditionName);
+    }
+
+    private static void AddAnyTriggerTransition(
+        AnimatorStateMachine sm,
+        AnimatorState to,
+        string triggerName,
+        float duration,
+        string[] extraConditionNames,
+        bool[] extraConditionValues)
+    {
+        AnimatorStateTransition transition = sm.AddAnyStateTransition(to);
+        transition.hasExitTime = false;
+        transition.duration = duration;
+        transition.canTransitionToSelf = false;
+        transition.AddCondition(AnimatorConditionMode.If, 0f, triggerName);
+
+        int conditionCount = Mathf.Min(
+            extraConditionNames != null ? extraConditionNames.Length : 0,
+            extraConditionValues != null ? extraConditionValues.Length : 0);
+
+        for (int i = 0; i < conditionCount; i++)
+        {
+            if (string.IsNullOrWhiteSpace(extraConditionNames[i]))
+            {
+                continue;
+            }
+
+            transition.AddCondition(
+                extraConditionValues[i] ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot,
+                0f,
+                extraConditionNames[i]);
+        }
+    }
+
+    private static void ConfigureStateSpeedParameter(AnimatorState state, string parameterName)
+    {
+        if (state == null || string.IsNullOrWhiteSpace(parameterName))
+        {
+            return;
+        }
+
+        state.speed = 1f;
+        state.speedParameter = parameterName;
+        state.speedParameterActive = true;
     }
 
     private static void RebuildUpperBodyLayer(
@@ -305,6 +432,8 @@ public static class RebuildMaleAnimatorController
         upperAimState.motion = aim;
         upperShootState.motion = shoot;
         upperReloadState.motion = reload;
+
+        ConfigureStateSpeedParameter(upperChopState, "UpperChopSpeed");
 
         upperAttackLightState.tag = "Action";
         upperAttackHeavyState.tag = "Action";
