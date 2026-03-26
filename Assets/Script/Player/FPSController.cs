@@ -801,23 +801,12 @@ public class FPSController : MonoBehaviour
     // Handle Is UIBlocking Gameplay.
     private static bool IsUiBlockingGameplay()
     {
-        return InventoryController.IsInventoryOpen || InventoryManager.IsInventoryOpen || CraftingManager.IsCraftingOpen || DialogueState.IsConversationRunning;
+        return GameplayUiState.IsGameplayInputBlocked;
     }
 
     // Handle Set Cursor State For UIBlock.
     private static void SetCursorStateForUiBlock(bool uiBlocking)
     {
-        CursorLockMode targetLockMode = uiBlocking ? CursorLockMode.None : CursorLockMode.Locked;
-        bool targetVisible = uiBlocking;
-
-        if (Cursor.lockState != targetLockMode)
-        {
-            Cursor.lockState = targetLockMode;
-        }
-
-        if (Cursor.visible != targetVisible)
-        {
-            Cursor.visible = targetVisible;
-        }
+        GameplayUiState.ApplyCursorState();
     }
 }

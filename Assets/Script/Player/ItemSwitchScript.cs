@@ -28,6 +28,11 @@ public class ItemSwitchScript : MonoBehaviour
 
     private void Update()
     {
+        if (GameplayUiState.IsGameplayInputBlocked)
+        {
+            return;
+        }
+
         EnsureCurrentSelectionIsAllowed();
 
         if (requireWeaponSlotAssignment)

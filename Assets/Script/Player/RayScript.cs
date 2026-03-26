@@ -1117,7 +1117,7 @@ public class RayScript : MonoBehaviour
     // Handle Is UIBlocking Gameplay.
     private static bool IsUiBlockingGameplay()
     {
-        return InventoryController.IsInventoryOpen || InventoryManager.IsInventoryOpen || CraftingManager.IsCraftingOpen || DialogueState.IsConversationRunning;
+        return GameplayUiState.IsGameplayInputBlocked;
     }
 
     // Handle To Display Name.

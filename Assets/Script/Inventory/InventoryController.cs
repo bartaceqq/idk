@@ -112,9 +112,7 @@ public class InventoryController : MonoBehaviour
     // Handle Apply Cursor State.
     private static void ApplyCursorState()
     {
-        bool uiOpen = IsInventoryOpen || InventoryManager.IsInventoryOpen || CraftingManager.IsCraftingOpen;
-        Cursor.lockState = uiOpen ? CursorLockMode.None : CursorLockMode.Locked;
-        Cursor.visible = uiOpen;
+        GameplayUiState.ApplyCursorState();
     }
 
     // Handle Get XPHandlers For Inventory UI.

@@ -172,9 +172,7 @@ public class InventoryManager : MonoBehaviour
     // Handle Apply Cursor State.
     private static void ApplyCursorState()
     {
-        bool uiOpen = IsInventoryOpen || InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen;
-        Cursor.lockState = uiOpen ? CursorLockMode.None : CursorLockMode.Locked;
-        Cursor.visible = uiOpen;
+        GameplayUiState.ApplyCursorState();
     }
 
     // Handle Ensure Slot List.
