@@ -26,6 +26,20 @@ public class ActionScript : MonoBehaviour
     public string upperBodyPunchRightStateName = "UpperPunchRight";
     public string upperBodyMiningStateName = "UpperMining";
     public string upperBodyChopStateName = "UpperChop";
+
+    [Header("Action Animation Speeds")]
+    public float lightAttackAnimationSpeed = 1f;
+    public float heavyAttackAnimationSpeed = 1f;
+    public float punchLeftAnimationSpeed = 1f;
+    public float punchRightAnimationSpeed = 1f;
+    public float mineAnimationSpeed = 1f;
+    public float gunAimAnimationSpeed = 1f;
+    public float gunShootAnimationSpeed = 1f;
+    public float gunReloadAnimationSpeed = 1f;
+
+    [Header("Axe Combo")]
+    [Range(0f, 0.99f)] public float axeComboHoldNormalizedTime = 0.79f;
+
     public MovementAnimationScript movementAnimationScript;
     public AxeAnimationScript axeAnimationScript;
     public PickaxeAnimationScript pickaxeAnimationScript;
@@ -36,6 +50,8 @@ public class ActionScript : MonoBehaviour
     private float _nextChopAllowedTime;
     private int unarmedPunchStep;
     private bool upperBodyExternalHold;
+    private bool axeComboContinueRequested;
+    private bool axeComboHoldActive;
 
     private static readonly int AttackWeaponStateHash = Animator.StringToHash("AttackWeapon");
     private static readonly int AttackTwoHandedStateHash = Animator.StringToHash("AttackTwoHanded");
@@ -44,9 +60,33 @@ public class ActionScript : MonoBehaviour
     private static readonly int MiningStateHash = Animator.StringToHash("Mining");
     private static readonly int ChopStateHash = Animator.StringToHash("Chop");
     private static readonly int JumpStateHash = Animator.StringToHash("Jump");
+    private const string AttackLightSpeedParameterName = "AttackLightSpeed";
+    private const string AttackHeavySpeedParameterName = "AttackHeavySpeed";
+    private const string PunchLeftSpeedParameterName = "PunchLeftSpeed";
+    private const string PunchRightSpeedParameterName = "PunchRightSpeed";
+    private const string MineSpeedParameterName = "MineSpeed";
+    private const string GunAimSpeedParameterName = "GunAimSpeed";
+    private const string GunShootSpeedParameterName = "GunShootSpeed";
+    private const string GunReloadSpeedParameterName = "GunReloadSpeed";
+
+    private void Awake()
+    {
+        ApplyConfiguredActionAnimationSpeeds();
+    }
+
+    private void OnEnable()
+    {
+        ApplyConfiguredActionAnimationSpeeds();
+    }
+
+    private void OnValidate()
+    {
+        ApplyConfiguredActionAnimationSpeeds();
+    }
 
     private void Update()
     {
+        UpdateAxeComboHoldState();
         UpdateUpperBodyLayerWeight();
     }
 
@@ -59,6 +99,12 @@ public class ActionScript : MonoBehaviour
     // Handle Try Chop.
     public bool TryChop()
     {
+        if (TryContinueActiveChopCombo())
+        {
+            _nextChopAllowedTime = Time.time + GetChopRepeatDelaySeconds();
+            return true;
+        }
+
         if (Time.time < _nextChopAllowedTime)
         {
             return false;
@@ -66,7 +112,9 @@ public class ActionScript : MonoBehaviour
 
         float repeatDelay = GetChopRepeatDelaySeconds();
         ActivateUpperBodyLayer(repeatDelay);
+        ResetAxeComboState();
         SetUpperBodyChopAnimationSpeed();
+        ApplyConfiguredActionAnimationSpeeds();
 
         bool played = TryPlayUpperBodyState(upperBodyChopStateName);
         if (!played)
@@ -131,6 +179,7 @@ public class ActionScript : MonoBehaviour
     public void Mine()
     {
         ActivateUpperBodyLayer(mineUpperBodySeconds);
+        ApplyConfiguredActionAnimationSpeeds();
         if (!TryPlayUpperBodyState(upperBodyMiningStateName) && pickaxeAnimationScript != null)
         {
             pickaxeAnimationScript.Mine();
@@ -146,6 +195,7 @@ public class ActionScript : MonoBehaviour
     public void AttackLight()
     {
         ActivateUpperBodyLayer(swordMovementAnimationLockSeconds);
+        ApplyConfiguredActionAnimationSpeeds();
         if (!TryPlayUpperBodyState(upperBodyLightAttackStateName) && swordAnimationScript != null)
         {
             swordAnimationScript.AttackLight();
@@ -156,6 +206,7 @@ public class ActionScript : MonoBehaviour
     public void AttackHeavy()
     {
         ActivateUpperBodyLayer(swordHeavyMovementAnimationLockSeconds);
+        ApplyConfiguredActionAnimationSpeeds();
         if (!TryPlayUpperBodyState(upperBodyHeavyAttackStateName) && swordAnimationScript != null)
         {
             swordAnimationScript.AttackHeavy();
@@ -167,6 +218,7 @@ public class ActionScript : MonoBehaviour
     {
         bool punchLeft = (unarmedPunchStep % 2) == 0;
         ActivateUpperBodyLayer(unarmedPunchMovementAnimationLockSeconds);
+        ApplyConfiguredActionAnimationSpeeds();
 
         string targetUpperBodyState = punchLeft
             ? upperBodyPunchLeftStateName
@@ -391,6 +443,7 @@ public class ActionScript : MonoBehaviour
     {
         upperBodyExternalHold = false;
         upperBodyLayerActiveUntil = 0f;
+        ResetAxeComboState();
 
         Animator animator = ResolveCharacterAnimator();
         if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex))
@@ -511,6 +564,7 @@ public class ActionScript : MonoBehaviour
     private void TryForceCompletedUpperBodyActionToIdle(Animator animator, int layerIndex)
     {
         if (animator == null ||
+            axeComboHoldActive ||
             upperBodyExternalHold ||
             Time.time < upperBodyLayerActiveUntil ||
             animator.IsInTransition(layerIndex))
@@ -577,17 +631,189 @@ public class ActionScript : MonoBehaviour
     // Handle Set Upper Body Chop Animation Speed.
     private void SetUpperBodyChopAnimationSpeed()
     {
+        SetUpperBodyChopAnimationSpeed(null);
+    }
+
+    // Handle Set Upper Body Chop Animation Speed Override.
+    private void SetUpperBodyChopAnimationSpeed(float? overrideSpeed)
+    {
         Animator animator = ResolveCharacterAnimator();
         if (animator == null)
         {
             return;
         }
 
-        float chopSpeed = axeAnimationScript != null
-            ? axeAnimationScript.GetResolvedSwingAnimationSpeed()
-            : 1f;
+        float chopSpeed = overrideSpeed ?? ResolveChopAnimationSpeed();
 
         TrySetAnimatorFloatParameter(animator, upperBodyChopSpeedParameterName, chopSpeed);
+    }
+
+    // Handle Apply Configured Action Animation Speeds.
+    private void ApplyConfiguredActionAnimationSpeeds()
+    {
+        Animator animator = ResolveCharacterAnimator();
+        if (animator == null)
+        {
+            return;
+        }
+
+        TrySetAnimatorFloatParameter(animator, AttackLightSpeedParameterName, ResolveConfiguredSpeed(lightAttackAnimationSpeed));
+        TrySetAnimatorFloatParameter(animator, AttackHeavySpeedParameterName, ResolveConfiguredSpeed(heavyAttackAnimationSpeed));
+        TrySetAnimatorFloatParameter(animator, PunchLeftSpeedParameterName, ResolveConfiguredSpeed(punchLeftAnimationSpeed));
+        TrySetAnimatorFloatParameter(animator, PunchRightSpeedParameterName, ResolveConfiguredSpeed(punchRightAnimationSpeed));
+        TrySetAnimatorFloatParameter(animator, MineSpeedParameterName, ResolveConfiguredSpeed(mineAnimationSpeed));
+        TrySetAnimatorFloatParameter(animator, GunAimSpeedParameterName, ResolveConfiguredSpeed(gunAimAnimationSpeed));
+        TrySetAnimatorFloatParameter(animator, GunShootSpeedParameterName, ResolveConfiguredSpeed(gunShootAnimationSpeed));
+        TrySetAnimatorFloatParameter(animator, GunReloadSpeedParameterName, ResolveConfiguredSpeed(gunReloadAnimationSpeed));
+        SetUpperBodyChopAnimationSpeed(axeComboHoldActive ? 0f : (float?)null);
+    }
+
+    // Handle Try Continue Active Chop Combo.
+    private bool TryContinueActiveChopCombo()
+    {
+        Animator animator = ResolveCharacterAnimator();
+        if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex) ||
+            !TryGetAnimatorStateInfo(animator, layerIndex, upperBodyChopStateName, out _))
+        {
+            return false;
+        }
+
+        axeComboContinueRequested = true;
+        upperBodyLayerActiveUntil = Mathf.Max(
+            upperBodyLayerActiveUntil,
+            Time.time + Mathf.Max(upperBodyMinimumActiveSeconds, upperBodyStateBlendTime + 0.02f));
+
+        if (axeComboHoldActive)
+        {
+            axeComboHoldActive = false;
+            SetUpperBodyChopAnimationSpeed();
+        }
+
+        return true;
+    }
+
+    // Handle Update Axe Combo Hold State.
+    private void UpdateAxeComboHoldState()
+    {
+        Animator animator = ResolveCharacterAnimator();
+        if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex) ||
+            !TryGetAnimatorStateInfo(animator, layerIndex, upperBodyChopStateName, out AnimatorStateInfo chopState))
+        {
+            ResetAxeComboState();
+            return;
+        }
+
+        if (axeComboContinueRequested)
+        {
+            if (axeComboHoldActive)
+            {
+                axeComboHoldActive = false;
+            }
+
+            SetUpperBodyChopAnimationSpeed();
+            return;
+        }
+
+        if (chopState.normalizedTime >= 1f)
+        {
+            ResetAxeComboState();
+            return;
+        }
+
+        float completionThreshold = Mathf.Clamp01(upperBodyActionCompletionThreshold);
+        float holdThreshold = Mathf.Clamp(
+            axeComboHoldNormalizedTime,
+            0f,
+            Mathf.Max(0f, completionThreshold - 0.01f));
+
+        if (chopState.normalizedTime < holdThreshold)
+        {
+            if (!axeComboHoldActive)
+            {
+                SetUpperBodyChopAnimationSpeed();
+            }
+
+            return;
+        }
+
+        axeComboHoldActive = true;
+        SetUpperBodyChopAnimationSpeed(0f);
+    }
+
+    // Handle Reset Axe Combo State.
+    private void ResetAxeComboState()
+    {
+        if (!axeComboContinueRequested && !axeComboHoldActive)
+        {
+            return;
+        }
+
+        axeComboContinueRequested = false;
+        axeComboHoldActive = false;
+        SetUpperBodyChopAnimationSpeed();
+    }
+
+    // Handle Try Get Animator State Info.
+    private bool TryGetAnimatorStateInfo(
+        Animator animator,
+        int layerIndex,
+        string stateName,
+        out AnimatorStateInfo stateInfo)
+    {
+        stateInfo = default;
+        if (animator == null || string.IsNullOrWhiteSpace(stateName))
+        {
+            return false;
+        }
+
+        AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
+        if (MatchesStateName(current, stateName))
+        {
+            stateInfo = current;
+            return true;
+        }
+
+        if (!animator.IsInTransition(layerIndex))
+        {
+            return false;
+        }
+
+        AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
+        if (!MatchesStateName(next, stateName))
+        {
+            return false;
+        }
+
+        stateInfo = next;
+        return true;
+    }
+
+    // Handle Matches State Name.
+    private bool MatchesStateName(AnimatorStateInfo state, string stateName)
+    {
+        if (string.IsNullOrWhiteSpace(stateName))
+        {
+            return false;
+        }
+
+        return state.IsName(stateName) || state.IsName($"{upperBodyLayerName}.{stateName}");
+    }
+
+    // Handle Resolve Chop Animation Speed.
+    private float ResolveChopAnimationSpeed()
+    {
+        if (axeAnimationScript != null)
+        {
+            return axeAnimationScript.GetResolvedSwingAnimationSpeed();
+        }
+
+        return 1f;
+    }
+
+    // Handle Resolve Configured Speed.
+    private static float ResolveConfiguredSpeed(float value)
+    {
+        return value > 0f ? value : 1f;
     }
 
     // Handle Try Set Animator Float Parameter.

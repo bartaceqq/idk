@@ -8,7 +8,7 @@ public class AxeAnimationScript : MonoBehaviour
     public float swingAnimationSpeed = 1f;
     public float minimumSwingAnimationSpeed = 0.5f;
     public float swingRepeatDelaySeconds = 0.35f;
-    public string swingSpeedParameterName = "SwingSpeed";
+    public string swingSpeedParameterName = "UpperChopSpeed";
 
     private static readonly int SwingTriggerHash = Animator.StringToHash("Swing");
     private float _nextSwingAllowedTime;
