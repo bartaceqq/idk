@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -13,6 +14,8 @@ public class ItemSwitchScript : MonoBehaviour
 
     private readonly HashSet<string> equippedItemNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
     private ActionScript _actionScript;
+    private Coroutine _pendingSwordTransition;
+    private bool _isSwordTransitioning;
     private static readonly KeyCode[] WeaponSlotHotkeys =
     {
         KeyCode.Alpha1,
@@ -28,7 +31,21 @@ public class ItemSwitchScript : MonoBehaviour
 
     private void Update()
     {
+        EnsureCurrentSwordTrailEffect();
+
+        if (_isSwordTransitioning)
+        {
+            return;
+        }
+
         if (GameplayUiState.IsGameplayInputBlocked)
+        {
+            return;
+        }
+
+        ActionScript resolvedActionScript = ResolveActionScript();
+        if (resolvedActionScript != null &&
+            (resolvedActionScript.IsGameplayInputLocked() || resolvedActionScript.IsSwordBlockActive()))
         {
             return;
         }
@@ -55,6 +72,11 @@ public class ItemSwitchScript : MonoBehaviour
         int slotCount = Mathf.Min(orderedSlots.Count, WeaponSlotHotkeys.Length);
         for (int i = 0; i < slotCount; i++)
         {
+            if (ShouldReserveSwordSpecialHotkey(WeaponSlotHotkeys[i]))
+            {
+                continue;
+            }
+
             if (!Input.GetKeyDown(WeaponSlotHotkeys[i]))
             {
                 continue;
@@ -205,35 +227,64 @@ public class ItemSwitchScript : MonoBehaviour
     // Handle Switch To Item.
     private void SwitchToItem(Item targetItem)
     {
-        if (targetItem == null)
+        if (targetItem == null || _isSwordTransitioning || targetItem == item)
         {
             return;
         }
 
-        if (item != null && item != targetItem)
+        Item previousItem = item;
+        bool previousIsSword = IsSwordItem(previousItem);
+        bool targetIsSword = IsSwordItem(targetItem);
+
+        if (previousItem != null && previousItem != targetItem && previousIsSword)
         {
-            ResolveActionScript()?.CancelUpperBodyAction();
-            SetItemObjectVisible(item, false);
+            StartSwordTransition(previousItem, targetItem);
+            return;
         }
 
-        currentitemid = targetItem.ID;
-        currentitemname = targetItem.name;
-        item = targetItem;
-        SetItemObjectVisible(targetItem, true);
+        CancelPendingSwordTransition();
+
+        if (previousItem != null && previousItem != targetItem)
+        {
+            ActionScript resolvedActionScript = ResolveActionScript();
+            resolvedActionScript?.CancelUpperBodyAction();
+            resolvedActionScript?.CancelSwordBlock();
+            SetItemObjectVisible(previousItem, false);
+        }
+
+        ActivateItemImmediate(targetItem);
+        if (targetIsSword)
+        {
+            EnsureSwordTrailEffect(targetItem);
+            ResolveActionScript()?.TryEquipSword();
+        }
     }
 
     // Handle Unequip Current Item.
     private void UnequipCurrentItem()
     {
+        if (_isSwordTransitioning)
+        {
+            return;
+        }
+
+        if (item != null && IsSwordItem(item))
+        {
+            StartSwordTransition(item, null);
+            return;
+        }
+
+        CancelPendingSwordTransition();
+
         if (item != null)
         {
-            ResolveActionScript()?.CancelUpperBodyAction();
+            ActionScript resolvedActionScript = ResolveActionScript();
+            resolvedActionScript?.CancelUpperBodyAction();
+            resolvedActionScript?.CancelSwordBlock();
             SetItemObjectVisible(item, false);
         }
 
-        item = null;
-        currentitemid = 0;
-        currentitemname = string.Empty;
+        ClearCurrentSelection();
     }
 
     // Handle Set Item Object Visible.
@@ -254,6 +305,129 @@ public class ItemSwitchScript : MonoBehaviour
         }
     }
 
+    // Handle Ensure Current Sword Trail Effect.
+    private void EnsureCurrentSwordTrailEffect()
+    {
+        EnsureSwordTrailEffect(item);
+    }
+
+    // Handle Ensure Sword Trail Effect.
+    private void EnsureSwordTrailEffect(Item targetItem)
+    {
+        if (targetItem == null || targetItem.itemobject == null)
+        {
+            return;
+        }
+
+        string mappedName = MapCommonWeaponName(targetItem.name);
+        if (!string.Equals(mappedName, "Sword", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (targetItem.itemobject.GetComponent<SwordTrailEffect>() == null)
+        {
+            targetItem.itemobject.AddComponent<SwordTrailEffect>();
+        }
+    }
+
+    // Handle Start Sword Transition.
+    private void StartSwordTransition(Item swordItem, Item nextItem)
+    {
+        if (swordItem == null)
+        {
+            return;
+        }
+
+        CancelPendingSwordTransition();
+        _pendingSwordTransition = StartCoroutine(PlaySwordHideTransition(swordItem, nextItem));
+    }
+
+    // Handle Cancel Pending Sword Transition.
+    private void CancelPendingSwordTransition()
+    {
+        if (_pendingSwordTransition == null)
+        {
+            return;
+        }
+
+        StopCoroutine(_pendingSwordTransition);
+        _pendingSwordTransition = null;
+        _isSwordTransitioning = false;
+    }
+
+    // Handle Play Sword Hide Transition.
+    private IEnumerator PlaySwordHideTransition(Item swordItem, Item nextItem)
+    {
+        _isSwordTransitioning = true;
+
+        ActionScript resolvedActionScript = ResolveActionScript();
+        resolvedActionScript?.CancelUpperBodyAction();
+        resolvedActionScript?.CancelSwordBlock();
+
+        bool playedHide = resolvedActionScript != null && resolvedActionScript.TryUnequipSword();
+        if (playedHide && resolvedActionScript != null)
+        {
+            float timeoutAt = Time.time + Mathf.Max(0.2f, resolvedActionScript.GetRemainingGameplayInputLockSeconds() + 0.25f);
+            while (resolvedActionScript.IsGameplayInputLocked() && Time.time < timeoutAt)
+            {
+                yield return null;
+            }
+        }
+
+        SetItemObjectVisible(swordItem, false);
+        ClearCurrentSelection();
+
+        if (nextItem != null)
+        {
+            ActivateItemImmediate(nextItem);
+            if (IsSwordItem(nextItem))
+            {
+                EnsureSwordTrailEffect(nextItem);
+                ResolveActionScript()?.TryEquipSword();
+            }
+        }
+
+        _isSwordTransitioning = false;
+        _pendingSwordTransition = null;
+    }
+
+    // Handle Activate Item Immediate.
+    private void ActivateItemImmediate(Item targetItem)
+    {
+        if (targetItem == null)
+        {
+            return;
+        }
+
+        currentitemid = targetItem.ID;
+        currentitemname = targetItem.name;
+        item = targetItem;
+        SetItemObjectVisible(targetItem, true);
+    }
+
+    // Handle Clear Current Selection.
+    private void ClearCurrentSelection()
+    {
+        item = null;
+        currentitemid = 0;
+        currentitemname = string.Empty;
+    }
+
+    // Handle Is Sword Item.
+    private bool IsSwordItem(Item candidate)
+    {
+        if (candidate == null)
+        {
+            return false;
+        }
+
+        return string.Equals(
+            MapCommonWeaponName(candidate.name),
+            "Sword",
+            System.StringComparison.OrdinalIgnoreCase);
+    }
+
     // Handle Normalize Item Name.
     private static string NormalizeItemName(string rawName)
     {
@@ -262,7 +436,13 @@ public class ItemSwitchScript : MonoBehaviour
             return string.Empty;
         }
 
-        return rawName.Trim();
+        string normalized = rawName.Trim();
+        if (normalized.EndsWith("(Clone)", System.StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized.Substring(0, normalized.Length - "(Clone)".Length).Trim();
+        }
+
+        return normalized;
     }
 
     // Handle Try Resolve Item By Name.
@@ -322,5 +502,69 @@ public class ItemSwitchScript : MonoBehaviour
 #endif
 
         return _actionScript;
+    }
+
+    // Handle Should Reserve Sword Special Hotkey.
+    private bool ShouldReserveSwordSpecialHotkey(KeyCode key)
+    {
+        if (key != KeyCode.Alpha3 &&
+            key != KeyCode.Alpha4 &&
+            key != KeyCode.Alpha5)
+        {
+            return false;
+        }
+
+        return IsSwordEquipped();
+    }
+
+    // Handle Is Sword Equipped.
+    private bool IsSwordEquipped()
+    {
+        string equippedName = NormalizeItemName(currentitemname);
+        if (string.IsNullOrEmpty(equippedName) && item != null)
+        {
+            equippedName = NormalizeItemName(item.name);
+        }
+
+        if (!string.IsNullOrEmpty(equippedName))
+        {
+            string mappedName = MapCommonWeaponName(equippedName);
+            if (!string.IsNullOrEmpty(mappedName))
+            {
+                return string.Equals(mappedName, "Sword", System.StringComparison.OrdinalIgnoreCase);
+            }
+
+            return string.Equals(equippedName, "Sword", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        return currentitemid == 3;
+    }
+
+    // Handle Map Common Weapon Name.
+    private static string MapCommonWeaponName(string rawName)
+    {
+        string normalized = NormalizeItemName(rawName);
+        if (string.IsNullOrEmpty(normalized))
+        {
+            return string.Empty;
+        }
+
+        string token = normalized.Replace(" ", string.Empty).ToLowerInvariant();
+        if (token.Contains("sword"))
+        {
+            return "Sword";
+        }
+
+        if (token.Contains("pickaxe") || token.Contains("pick"))
+        {
+            return "Pickaxe";
+        }
+
+        if (token.Contains("axe"))
+        {
+            return "Axe";
+        }
+
+        return string.Empty;
     }
 }

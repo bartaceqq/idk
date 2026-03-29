@@ -203,6 +203,36 @@ public class ResHandler : MonoBehaviour
         CollectLights();
     }
 
+    public void RegisterManagedRoot(Transform root)
+    {
+        if (root == null)
+        {
+            return;
+        }
+
+        if (managedRoots == null)
+        {
+            managedRoots = new Transform[0];
+        }
+
+        for (int i = 0; i < managedRoots.Length; i++)
+        {
+            if (managedRoots[i] == root)
+            {
+                return;
+            }
+        }
+
+        Transform[] expandedRoots = new Transform[managedRoots.Length + 1];
+        for (int i = 0; i < managedRoots.Length; i++)
+        {
+            expandedRoots[i] = managedRoots[i];
+        }
+
+        expandedRoots[managedRoots.Length] = root;
+        managedRoots = expandedRoots;
+    }
+
     private void ClampRuntimeTuning()
     {
         if (!enforceDistanceCaps)

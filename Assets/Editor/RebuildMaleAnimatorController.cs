@@ -11,7 +11,19 @@ public static class RebuildMaleAnimatorController
     private const string WalkPath = PrepReworkFolder + "/Walking.anim";
     private const string RunPath = PrepReworkFolder + "/Run.anim";
     private const string JumpPath = PrepReworkFolder + "/Jump.anim";
-    private const string AxeComboPath = PrepReworkFolder + "/AxeCombo.anim";
+    private const string MinePath = PrepReworkFolder + "/Mine.anim";
+    private const string AxeFirstPath = PrepReworkFolder + "/AxeFirst.anim";
+    private const string AxeSecondPath = PrepReworkFolder + "/AxeSecond.anim";
+    private const string SwordAttackPath = PrepReworkFolder + "/SwordAttack.anim";
+    private const string SwordAttack2Path = PrepReworkFolder + "/SwordAttack2.anim";
+    private const string SpecialAttack1Path = PrepReworkFolder + "/SpecialAttack1.anim";
+    private const string SpecialAttack2Path = PrepReworkFolder + "/SpecialAttack2.anim";
+    private const string SpecialAttack3Path = PrepReworkFolder + "/SpecialAttack3.anim";
+    private const string PullOutSwordPath = PrepReworkFolder + "/PullOutSword.anim";
+    private const string HideSwordPath = PrepReworkFolder + "/HideSword.anim";
+    private const string BlockEnterPath = PrepReworkFolder + "/BlokEnter.anim";
+    private const string BlockLoopPath = PrepReworkFolder + "/BlockLoop.anim";
+    private const string BlockExitPath = PrepReworkFolder + "/BlockExit.anim";
     private const string DefaultUpperBodyMaskPath = "Assets/ExplosiveLLC/Warrior Pack Bundle 3 FREE/Crossbow Warrior Mecanim Animation Pack/Avatar Mask/Crossbow UpperBody AvatarMask.mask";
     private const string GeneratedUpperBodyMaskPath = "Assets/Animations/Male/GeneratedUpperBody.mask";
     private const string PendingRebuildFlagRelativePath = "Temp/Codex_RebuildRemadeController.flag";
@@ -64,7 +76,19 @@ public static class RebuildMaleAnimatorController
         AnimationClip walk = LoadClip(WalkPath);
         AnimationClip run = LoadClip(RunPath);
         AnimationClip jump = LoadClip(JumpPath);
-        AnimationClip axeCombo = LoadClip(AxeComboPath);
+        AnimationClip mine = LoadClip(MinePath);
+        AnimationClip axeFirst = LoadClip(AxeFirstPath);
+        AnimationClip axeSecond = LoadClip(AxeSecondPath);
+        AnimationClip swordAttack = LoadClip(SwordAttackPath);
+        AnimationClip swordAttack2 = LoadClip(SwordAttack2Path);
+        AnimationClip specialAttack1 = LoadClip(SpecialAttack1Path);
+        AnimationClip specialAttack2 = LoadClip(SpecialAttack2Path);
+        AnimationClip specialAttack3 = LoadClip(SpecialAttack3Path);
+        AnimationClip pullOutSword = LoadClip(PullOutSwordPath);
+        AnimationClip hideSword = LoadClip(HideSwordPath);
+        AnimationClip blockEnter = LoadClip(BlockEnterPath);
+        AnimationClip blockLoop = LoadClip(BlockLoopPath);
+        AnimationClip blockExit = LoadClip(BlockExitPath);
 
         AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
         if (controller == null)
@@ -89,14 +113,29 @@ public static class RebuildMaleAnimatorController
         AnimatorControllerLayer baseLayer = layers[0];
         AnimatorStateMachine baseStateMachine = baseLayer.stateMachine;
         ClearStateMachine(baseStateMachine);
-        RebuildBaseLayer(baseStateMachine, idle, walk, run, jump, axeCombo);
-        RebuildUpperBodyLayer(controller, idle, axeCombo);
+        RebuildBaseLayer(
+            baseStateMachine,
+            idle,
+            walk,
+            run,
+            jump,
+            swordAttack,
+            swordAttack2,
+            specialAttack1,
+            specialAttack2,
+            specialAttack3,
+            pullOutSword,
+            hideSword,
+            blockEnter,
+            blockLoop,
+            blockExit);
+        RebuildUpperBodyLayer(controller, idle, axeFirst, axeSecond, mine);
 
         EditorUtility.SetDirty(controller);
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
-        Debug.Log("RemadeController rebuilt from PrepReWork clips. Missing future states remain parameterized but inactive.");
+        Debug.Log("RemadeController rebuilt from PrepReWork clips.");
     }
 
     [MenuItem("Tools/Animation/Rebuild MaleAnim Controller", false, 1001)]
@@ -133,6 +172,7 @@ public static class RebuildMaleAnimatorController
         AddBoolParameter(controller, "GunUnequipped");
         AddTriggerParameter(controller, "GunShoot");
         AddTriggerParameter(controller, "GunReload");
+        AddBoolParameter(controller, "SwordBlocking");
         AddFloatParameter(controller, "IdleSpeed", 1f);
         AddFloatParameter(controller, "WalkSpeed", 1f);
         AddFloatParameter(controller, "RunSpeed", 1f);
@@ -158,55 +198,121 @@ public static class RebuildMaleAnimatorController
         AnimationClip walk,
         AnimationClip run,
         AnimationClip jump,
-        AnimationClip axeCombo)
+        AnimationClip swordAttack,
+        AnimationClip swordAttack2,
+        AnimationClip specialAttack1,
+        AnimationClip specialAttack2,
+        AnimationClip specialAttack3,
+        AnimationClip pullOutSword,
+        AnimationClip hideSword,
+        AnimationClip blockEnter,
+        AnimationClip blockLoop,
+        AnimationClip blockExit)
     {
         AnimatorState idleState = AddState(stateMachine, "Idle", new Vector3(420f, 220f, 0f), idle, "IdleSpeed");
-        AnimatorState forwardState = AddOptionalState(stateMachine, "ForeWard", new Vector3(700f, 320f, 0f), walk, "WalkSpeed");
-        AnimatorState sprintState = AddOptionalState(stateMachine, "SprintForeWard", new Vector3(700f, 150f, 0f), run, "RunSpeed");
-        AnimatorState jumpState = AddOptionalState(stateMachine, "Jump", new Vector3(420f, 540f, 0f), jump, "JumpSpeed");
-        AnimatorState chopState = AddOptionalState(stateMachine, "Chop", new Vector3(180f, 700f, 0f), axeCombo, "UpperChopSpeed");
-
-        if (jumpState != null)
-        {
-            jumpState.tag = "Action";
-        }
-
-        if (chopState != null)
-        {
-            chopState.tag = "Action";
-        }
+        AnimatorState forwardState = AddOptionalState(stateMachine, "ForeWard", new Vector3(700f, 220f, 0f), walk, "WalkSpeed");
+        AnimatorState sprintState = AddOptionalState(stateMachine, "SprintForeWard", new Vector3(700f, 100f, 0f), run, "RunSpeed");
+        AnimatorState backwardState = AddOptionalState(stateMachine, "WalkingBackWards", new Vector3(700f, 340f, 0f), walk, "WalkBackwardSpeed");
+        AnimatorState leftState = AddOptionalState(stateMachine, "WalkingLeft", new Vector3(920f, 220f, 0f), walk, "LeftStrafeSpeed");
+        AnimatorState rightState = AddOptionalState(stateMachine, "WalkingRight", new Vector3(920f, 340f, 0f), walk, "RightStrafeSpeed");
+        AnimatorState forwardLeftState = AddOptionalState(stateMachine, "WalkingForwardLeft", new Vector3(920f, 100f, 0f), walk, "LeftStrafeSpeed");
+        AnimatorState forwardRightState = AddOptionalState(stateMachine, "WalkingForwardRight", new Vector3(920f, 460f, 0f), walk, "RightStrafeSpeed");
+        AnimatorState sprintForwardLeftState = AddOptionalState(stateMachine, "SprintingForwardLeft", new Vector3(1120f, 100f, 0f), run, "RunSpeed");
+        AnimatorState sprintForwardRightState = AddOptionalState(stateMachine, "SprintingForwardRight", new Vector3(1120f, 460f, 0f), run, "RunSpeed");
+        AnimatorState jumpState = AddOptionalState(stateMachine, "Jump", new Vector3(420f, 520f, 0f), jump, "JumpSpeed");
+        AnimatorState swordAttackState = AddOptionalState(stateMachine, "SwordAttack", new Vector3(180f, 680f, 0f), swordAttack, "AttackLightSpeed");
+        AnimatorState swordAttack2State = AddOptionalState(stateMachine, "SwordAttack2", new Vector3(180f, 840f, 0f), swordAttack2, "AttackLightSpeed");
+        AnimatorState specialAttack1State = AddOptionalState(stateMachine, "SpecialAttack1", new Vector3(420f, 700f, 0f), specialAttack1, "AttackHeavySpeed");
+        AnimatorState specialAttack2State = AddOptionalState(stateMachine, "SpecialAttack2", new Vector3(420f, 860f, 0f), specialAttack2, "AttackHeavySpeed");
+        AnimatorState specialAttack3State = AddOptionalState(stateMachine, "SpecialAttack3", new Vector3(420f, 1020f, 0f), specialAttack3, "AttackHeavySpeed");
+        AnimatorState pullOutSwordState = AddOptionalState(stateMachine, "PullOutSword", new Vector3(660f, 700f, 0f), pullOutSword, "AttackLightSpeed");
+        AnimatorState hideSwordState = AddOptionalState(stateMachine, "HideSword", new Vector3(660f, 860f, 0f), hideSword, "AttackLightSpeed");
+        AnimatorState blockEnterState = AddOptionalState(stateMachine, "BlokEnter", new Vector3(900f, 700f, 0f), blockEnter, "AttackHeavySpeed");
+        AnimatorState blockLoopState = AddOptionalState(stateMachine, "BlockLoop", new Vector3(900f, 860f, 0f), blockLoop, "AttackHeavySpeed");
+        AnimatorState blockExitState = AddOptionalState(stateMachine, "BlockExit", new Vector3(900f, 1020f, 0f), blockExit, "AttackHeavySpeed");
 
         stateMachine.defaultState = idleState;
 
-        if (forwardState != null)
-        {
-            AddAnyBoolTransition(stateMachine, forwardState, "Foreward", true, 0.05f);
-            AddBoolTransition(forwardState, idleState, "Idle", true, false, 0.05f);
-        }
+        AddMovementStateTransitions(stateMachine, forwardState, idleState, "Foreward", useIdleExit: true);
+        AddMovementStateTransitions(stateMachine, sprintState, idleState, "Sprinting", useIdleExit: true);
+        AddMovementStateTransitions(stateMachine, backwardState, idleState, "WalkingBackWards");
+        AddMovementStateTransitions(stateMachine, leftState, idleState, "WalkingLeft");
+        AddMovementStateTransitions(stateMachine, rightState, idleState, "WalkingRight");
+        AddMovementStateTransitions(stateMachine, forwardLeftState, idleState, "WalkingForwardLeft");
+        AddMovementStateTransitions(stateMachine, forwardRightState, idleState, "WalkingForwardRight");
+        AddMovementStateTransitions(stateMachine, sprintForwardLeftState, idleState, "SprintingForwardLeft");
+        AddMovementStateTransitions(stateMachine, sprintForwardRightState, idleState, "SprintingForwardRight");
 
-        if (sprintState != null)
-        {
-            AddAnyBoolTransition(stateMachine, sprintState, "Sprinting", true, 0.05f);
-            AddBoolTransition(sprintState, idleState, "Idle", true, false, 0.05f);
-        }
+        ConfigureActionState(jumpState, idleState);
+        ConfigureActionState(swordAttackState, idleState);
+        ConfigureActionState(swordAttack2State, idleState);
+        ConfigureActionState(specialAttack1State, idleState);
+        ConfigureActionState(specialAttack2State, idleState);
+        ConfigureActionState(specialAttack3State, idleState);
+        ConfigureActionState(pullOutSwordState, idleState);
+        ConfigureActionState(hideSwordState, idleState);
 
         if (jumpState != null)
         {
             AddAnyTriggerTransition(stateMachine, jumpState, "Jump", 0.02f);
-            AddExitTimeTransition(jumpState, idleState, 1f, 0.05f);
         }
 
-        if (chopState != null)
+        if (swordAttackState != null)
         {
-            AddAnyTriggerTransition(stateMachine, chopState, "Swing", 0.02f);
-            AddExitTimeTransition(chopState, idleState, 1f, 0.05f);
+            AddAnyTriggerTransition(stateMachine, swordAttackState, "Attack", 0.02f);
+        }
+
+        if (specialAttack1State != null)
+        {
+            AddAnyTriggerTransition(stateMachine, specialAttack1State, "AttackHeavy", 0.02f);
+        }
+
+        if (blockEnterState != null)
+        {
+            blockEnterState.tag = "Action";
+            if (blockLoopState != null)
+            {
+                blockLoopState.tag = "Action";
+                AddExitTimeTransition(blockEnterState, blockLoopState, 1f, 0.03f);
+            }
+            else
+            {
+                AddExitTimeTransition(blockEnterState, idleState, 1f, 0.05f);
+            }
+
+            if (blockExitState != null)
+            {
+                AddBoolTransition(blockEnterState, blockExitState, "SwordBlocking", false, false, 0.03f);
+            }
+        }
+
+        if (blockLoopState != null)
+        {
+            blockLoopState.tag = "Action";
+            if (blockExitState != null)
+            {
+                blockExitState.tag = "Action";
+                AddBoolTransition(blockLoopState, blockExitState, "SwordBlocking", false, false, 0.03f);
+            }
+            else
+            {
+                AddBoolTransition(blockLoopState, idleState, "SwordBlocking", false, false, 0.05f);
+            }
+        }
+
+        if (blockExitState != null)
+        {
+            blockExitState.tag = "Action";
+            AddExitTimeTransition(blockExitState, idleState, 1f, 0.05f);
         }
     }
 
     private static void RebuildUpperBodyLayer(
         AnimatorController controller,
         AnimationClip idle,
-        AnimationClip axeCombo)
+        AnimationClip axeFirst,
+        AnimationClip axeSecond,
+        AnimationClip mine)
     {
         int upperLayerIndex = GetOrCreateLayerIndex(controller, "UpperBody");
         if (upperLayerIndex < 0)
@@ -238,13 +344,62 @@ public static class RebuildMaleAnimatorController
         AnimatorState upperIdleState = AddState(upperStateMachine, "UpperBodyIdle", new Vector3(420f, 220f, 0f), idle, "IdleSpeed");
         upperStateMachine.defaultState = upperIdleState;
 
-        if (axeCombo != null)
+        if (axeFirst != null)
         {
-            AnimatorState upperChopState = AddState(upperStateMachine, "UpperChop", new Vector3(560f, 160f, 0f), axeCombo, "UpperChopSpeed");
+            AnimatorState upperChopState = AddState(upperStateMachine, "UpperChop", new Vector3(620f, 140f, 0f), axeFirst, "UpperChopSpeed");
             upperChopState.tag = "Action";
             AddAnyTriggerTransition(upperStateMachine, upperChopState, "Swing", 0.02f);
             AddExitTimeTransition(upperChopState, upperIdleState, 1f, 0.05f);
         }
+
+        if (axeSecond != null)
+        {
+            AnimatorState upperChopSecondState = AddState(upperStateMachine, "UpperChopSecond", new Vector3(820f, 140f, 0f), axeSecond, "UpperChopSpeed");
+            upperChopSecondState.tag = "Action";
+            AddExitTimeTransition(upperChopSecondState, upperIdleState, 1f, 0.05f);
+        }
+
+        if (mine != null)
+        {
+            AnimatorState upperMineState = AddState(upperStateMachine, "UpperMining", new Vector3(620f, 320f, 0f), mine, "MineSpeed");
+            upperMineState.tag = "Action";
+            AddAnyTriggerTransition(upperStateMachine, upperMineState, "Mine", 0.02f);
+            AddExitTimeTransition(upperMineState, upperIdleState, 1f, 0.05f);
+        }
+    }
+
+    private static void AddMovementStateTransitions(
+        AnimatorStateMachine stateMachine,
+        AnimatorState movementState,
+        AnimatorState idleState,
+        string parameterName,
+        bool useIdleExit = false)
+    {
+        if (movementState == null || idleState == null || string.IsNullOrWhiteSpace(parameterName))
+        {
+            return;
+        }
+
+        AddAnyBoolTransition(stateMachine, movementState, parameterName, true, 0.05f);
+        if (useIdleExit)
+        {
+            AddBoolTransition(movementState, idleState, "Idle", true, false, 0.05f);
+        }
+        else
+        {
+            AddBoolTransition(movementState, idleState, parameterName, false, false, 0.05f);
+        }
+    }
+
+    private static void ConfigureActionState(AnimatorState actionState, AnimatorState idleState)
+    {
+        if (actionState == null || idleState == null)
+        {
+            return;
+        }
+
+        actionState.tag = "Action";
+        AddExitTimeTransition(actionState, idleState, 1f, 0.05f);
     }
 
     private static AnimationClip LoadClip(string path, bool required = false)

@@ -38,6 +38,11 @@ public class RayScript : MonoBehaviour
     public float swordHeavyHitDelaySeconds = 1.45f;
     public float unarmedAttackCooldownSeconds = 0.55f;
     public float unarmedHitDelaySeconds = 0.25f;
+    [Header("Stone Impact VFX")]
+    [SerializeField, Range(0f, 1f)] private float stoneImpactBetweenFactor = 0.35f;
+    [SerializeField] private Vector3 stoneImpactOffset = new Vector3(0f, 0.15f, 0f);
+    [SerializeField] private bool flattenStoneImpactFacingToHorizontal = true;
+    [SerializeField] private float destroyStoneImpactAfterSeconds = 3f;
 
     [Header("Proximity Interaction")]
     public Transform interactionOrigin;
@@ -46,6 +51,7 @@ public class RayScript : MonoBehaviour
     public LayerMask proximityMask = ~0;
     public QueryTriggerInteraction triggerInteraction = QueryTriggerInteraction.Ignore;
     public bool allowTreeHandlerWithoutColliderFallback = true;
+    public bool allowStoneWithoutColliderFallback = true;
 
     [Header("Weapon Sounds")]
     public AudioSource axeaudiosource;
@@ -98,64 +104,100 @@ public class RayScript : MonoBehaviour
     private void Update()
     {
         UpdateNearestPickable();
+        bool swordEquipped = IsSwordEquipped();
+        bool rightMouseHeld = Input.GetMouseButton(1);
 
         if (IsUiBlockingGameplay())
         {
+            UpdateSwordBlockState(false, false);
             return;
         }
 
         if (blockAttackInput)
+        {
+            UpdateSwordBlockState(false, false);
+            return;
+        }
+
+        UpdateSwordBlockState(swordEquipped, rightMouseHeld);
+
+        if (actionScript != null && actionScript.IsSwordBlockActive())
+        {
+            return;
+        }
+
+        if (actionScript != null && actionScript.IsGameplayInputLocked())
         {
             return;
         }
 
         bool leftClick = Input.GetMouseButtonDown(0);
         bool rightClick = Input.GetMouseButtonDown(1);
+        int swordSpecialIndex = GetSwordSpecialHotkeyIndex();
 
-        if ((!leftClick && !rightClick) || Time.time < _nextSwingTime)
+        if ((!leftClick && !rightClick && swordSpecialIndex < 0) || Time.time < _nextSwingTime)
         {
             return;
         }
 
-        float cooldown = HandleCurrentItemAction(leftClick, rightClick);
+        float cooldown = HandleCurrentItemAction(leftClick, rightClick, swordSpecialIndex);
         if (cooldown > 0f)
         {
             _nextSwingTime = Time.time + cooldown;
         }
     }
 
-    // Handle Current Item Action.
-    private float HandleCurrentItemAction(bool leftClick, bool rightClick)
+    // Handle Update Sword Block State.
+    private void UpdateSwordBlockState(bool swordEquipped, bool rightMouseHeld)
     {
-        int currentItemId = itemSwitchScript != null ? itemSwitchScript.currentitemid : 0;
-        switch (currentItemId)
+        if (actionScript == null)
         {
-            case 1:
-                if (!leftClick)
-                {
-                    return 0f;
-                }
-                actionScript?.ResetUnarmedPunchCombo();
-                return HandleAxeAction();
-            case 2:
-                if (!leftClick)
-                {
-                    return 0f;
-                }
-                actionScript?.ResetUnarmedPunchCombo();
-                return HandlePickaxeAction();
-            case 3:
-                actionScript?.ResetUnarmedPunchCombo();
-                if (!IsSwordEquipped())
-                {
-                    return 0f;
-                }
-                return HandleSwordAction(leftClick, rightClick);
-            default:
-                return currentItemId == 0
-                    ? HandleUnarmedAction(leftClick, rightClick)
-                    : 0f;
+            return;
         }
+
+        if (!swordEquipped || !rightMouseHeld)
+        {
+            actionScript.StopSwordBlock();
+            return;
+        }
+
+        actionScript.TryBeginSwordBlock();
+    }
+
+    // Handle Current Item Action.
+    private float HandleCurrentItemAction(bool leftClick, bool rightClick, int swordSpecialIndex)
+    {
+        if (IsAxeEquipped())
+        {
+            if (!leftClick)
+            {
+                return 0f;
+            }
+
+            actionScript?.ResetUnarmedPunchCombo();
+            return HandleAxeAction();
+        }
+
+        if (IsPickaxeEquipped())
+        {
+            if (!leftClick)
+            {
+                return 0f;
+            }
+
+            actionScript?.ResetUnarmedPunchCombo();
+            return HandlePickaxeAction();
+        }
+
+        if (IsSwordEquipped())
+        {
+            actionScript?.ResetUnarmedPunchCombo();
+            return HandleSwordAction(leftClick, rightClick, swordSpecialIndex);
+        }
+
+        return HasEquippedItem()
+            ? 0f
+            : HandleUnarmedAction(leftClick, rightClick);
     }
 
     // Handle Axe Action.
@@ -164,10 +206,11 @@ public class RayScript : MonoBehaviour
         float swingCooldown = ResolveToolSwingCooldown(axeSwingCooldownSeconds);
         if (actionScript != null)
         {
-            float remainingChopCooldown = actionScript.GetRemainingChopCooldown();
-            if (remainingChopCooldown > 0f)
+            if (!actionScript.CanTryChop())
             {
-                return remainingChopCooldown;
+                return Mathf.Max(
+                    actionScript.GetRemainingChopCooldown(),
+                    actionScript.GetRemainingUpperBodyActionLockSeconds());
             }
         }
 
@@ -187,7 +230,9 @@ public class RayScript : MonoBehaviour
         {
             if (!actionScript.TryChop())
             {
-                return actionScript.GetRemainingChopCooldown();
+                return Mathf.Max(
+                    actionScript.GetRemainingChopCooldown(),
+                    actionScript.GetRemainingUpperBodyActionLockSeconds());
             }
 
             swingCooldown = Mathf.Max(swingCooldown, actionScript.GetChopRepeatDelaySeconds());
@@ -364,6 +409,11 @@ public class RayScript : MonoBehaviour
             return _nextPickaxeSwingTime - Time.time;
         }
 
+        if (actionScript != null && actionScript.IsUpperBodyActionLocked())
+        {
+            return actionScript.GetRemainingUpperBodyActionLockSeconds();
+        }
+
         if (actionScript != null &&
             actionScript.staminaScript != null &&
             !actionScript.staminaScript.PickaxeSwing())
@@ -371,24 +421,29 @@ public class RayScript : MonoBehaviour
             return 0f;
         }
 
-        _nextPickaxeSwingTime = Time.time + swingCooldown;
-
         if (actionScript != null)
         {
-            actionScript.Mine();
+            if (!actionScript.TryMine())
+            {
+                return actionScript.GetRemainingUpperBodyActionLockSeconds();
+            }
+
             TryPlayWeaponSound(pickaxeAudioSource, pickaxeSoundDelaySeconds, ref _nextPickaxeSoundAllowedTime, swingCooldown);
         }
+
+        _nextPickaxeSwingTime = Time.time + swingCooldown;
 
         if (TryGetClosestStoneTarget(out MineStone stoneTarget))
         {
             float mineDelay = pickaxeHitDelaySeconds > 0f ? pickaxeHitDelaySeconds : cutDelaySeconds;
             if (!useDelayedPickaxeHit || mineDelay <= 0f)
             {
+                SpawnStoneImpact(stoneTarget, interactionOrigin);
                 stoneTarget.Mine();
             }
             else
             {
-                StartCoroutine(TriggerAfterDelayPickaxe(stoneTarget, mineDelay));
+                StartCoroutine(TriggerAfterDelayPickaxe(stoneTarget, interactionOrigin, mineDelay));
             }
         }
 
@@ -396,11 +451,18 @@ public class RayScript : MonoBehaviour
     }
 
     // Handle Sword Action.
-    private float HandleSwordAction(bool leftClick, bool rightClick)
+    private float HandleSwordAction(bool leftClick, bool rightClick, int specialAttackIndex)
     {
-        if (!leftClick && !rightClick)
+        bool specialAttackRequested = specialAttackIndex >= 0;
+        bool lightAttackRequested = leftClick && !specialAttackRequested;
+        if (!lightAttackRequested && !specialAttackRequested)
         {
             return 0f;
+        }
+
+        if (actionScript != null && actionScript.IsUpperBodyActionLocked())
+        {
+            return actionScript.GetRemainingUpperBodyActionLockSeconds();
         }
 
         bool canSwing = true;
@@ -414,29 +476,29 @@ public class RayScript : MonoBehaviour
             return 0f;
         }
 
-        bool heavyAttack = rightClick;
         if (actionScript != null)
         {
-            if (heavyAttack)
+            bool startedAction = specialAttackRequested
+                ? actionScript.TryAttackSpecial(specialAttackIndex)
+                : actionScript.TryAttackLight();
+            if (!startedAction)
             {
-                actionScript.AttackHeavy();
-            }
-            else
-            {
-                actionScript.AttackLight();
+                return Mathf.Max(
+                    actionScript.GetRemainingGameplayInputLockSeconds(),
+                    actionScript.GetRemainingUpperBodyActionLockSeconds());
             }
         }
 
-        if (heavyAttack)
+        if (specialAttackRequested)
         {
-            StartCoroutine(TriggerMeleeAttackAfterDelay(swordHeavyHitDelaySeconds));
-            TryPlayWeaponSound(swordAudioSource, swordSoundDelaySeconds, ref _nextSwordSoundAllowedTime, swordHeavyAttackCooldownSeconds);
-            return swordHeavyAttackCooldownSeconds;
+            float cooldown = ResolveSwordActionCooldown(swordHeavyAttackCooldownSeconds);
+            TryPlayWeaponSound(swordAudioSource, swordSoundDelaySeconds, ref _nextSwordSoundAllowedTime, cooldown);
+            return cooldown;
         }
 
-        StartCoroutine(TriggerMeleeAttackAfterDelay(swordHitDelaySeconds));
-        TryPlayWeaponSound(swordAudioSource, swordSoundDelaySeconds, ref _nextSwordSoundAllowedTime, swordAttackCooldownSeconds);
-        return swordAttackCooldownSeconds;
+        float lightCooldown = ResolveSwordActionCooldown(swordAttackCooldownSeconds);
+        TryPlayWeaponSound(swordAudioSource, swordSoundDelaySeconds, ref _nextSwordSoundAllowedTime, lightCooldown);
+        return lightCooldown;
     }
 
     // Handle Unarmed Action.
@@ -447,9 +509,14 @@ public class RayScript : MonoBehaviour
             return 0f;
         }
 
-        if (actionScript != null)
+        if (actionScript != null && actionScript.IsUpperBodyActionLocked())
         {
-            actionScript.UnarmedPunchCombo();
+            return actionScript.GetRemainingUpperBodyActionLockSeconds();
+        }
+
+        if (actionScript != null && !actionScript.TryUnarmedPunchCombo())
+        {
+            return actionScript.GetRemainingUpperBodyActionLockSeconds();
         }
 
         StartCoroutine(TriggerMeleeAttackAfterDelay(unarmedHitDelaySeconds));
@@ -467,21 +534,163 @@ public class RayScript : MonoBehaviour
         return Mathf.Max(0.01f, swingCooldownSeconds);
     }
 
+    // Handle Resolve Sword Action Cooldown.
+    private float ResolveSwordActionCooldown(float fallbackCooldown)
+    {
+        if (actionScript == null)
+        {
+            return Mathf.Max(0.01f, fallbackCooldown);
+        }
+
+        float lockSeconds = actionScript.GetRemainingGameplayInputLockSeconds();
+        if (lockSeconds > 0f)
+        {
+            return Mathf.Max(0.01f, lockSeconds);
+        }
+
+        return Mathf.Max(0.01f, fallbackCooldown);
+    }
+
+    // Handle Get Sword Special Hotkey Index.
+    private static int GetSwordSpecialHotkeyIndex()
+    {
+        if (Input.GetKeyDown(KeyCode.Alpha3))
+        {
+            return 0;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Alpha4))
+        {
+            return 1;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Alpha5))
+        {
+            return 2;
+        }
+
+        return -1;
+    }
+
     // Handle Is Sword Equipped.
     private bool IsSwordEquipped()
+    {
+        return IsEquippedWeaponType("Sword", 3);
+    }
+
+    // Handle Is Axe Equipped.
+    private bool IsAxeEquipped()
+    {
+        return IsEquippedWeaponType("Axe", 1);
+    }
+
+    // Handle Is Pickaxe Equipped.
+    private bool IsPickaxeEquipped()
+    {
+        return IsEquippedWeaponType("Pickaxe", 2);
+    }
+
+    // Handle Is Equipped Weapon Type.
+    private bool IsEquippedWeaponType(string expectedWeaponName, int legacyItemId)
     {
         if (itemSwitchScript == null)
         {
             return false;
         }
 
-        string equippedName = itemSwitchScript.currentitemname;
-        if (!string.IsNullOrWhiteSpace(equippedName))
+        string equippedName = ResolveEquippedItemName();
+        if (!string.IsNullOrEmpty(equippedName))
         {
-            return string.Equals(equippedName.Trim(), "Sword", System.StringComparison.OrdinalIgnoreCase);
+            string mappedName = MapCommonWeaponName(equippedName);
+            if (!string.IsNullOrEmpty(mappedName))
+            {
+                return string.Equals(mappedName, expectedWeaponName, System.StringComparison.OrdinalIgnoreCase);
+            }
+
+            return string.Equals(equippedName, expectedWeaponName, System.StringComparison.OrdinalIgnoreCase);
         }
 
-        return itemSwitchScript.currentitemid == 3;
+        return itemSwitchScript.currentitemid == legacyItemId;
+    }
+
+    // Handle Resolve Equipped Item Name.
+    private string ResolveEquippedItemName()
+    {
+        if (itemSwitchScript == null)
+        {
+            return string.Empty;
+        }
+
+        string currentName = NormalizeItemName(itemSwitchScript.currentitemname);
+        if (!string.IsNullOrEmpty(currentName))
+        {
+            return currentName;
+        }
+
+        if (itemSwitchScript.item != null)
+        {
+            return NormalizeItemName(itemSwitchScript.item.name);
+        }
+
+        return string.Empty;
+    }
+
+    // Handle Has Equipped Item.
+    private bool HasEquippedItem()
+    {
+        if (itemSwitchScript == null)
+        {
+            return false;
+        }
+
+        return itemSwitchScript.item != null ||
+               itemSwitchScript.currentitemid != 0 ||
+               !string.IsNullOrEmpty(ResolveEquippedItemName());
+    }
+
+    // Handle Normalize Item Name.
+    private static string NormalizeItemName(string rawName)
+    {
+        if (string.IsNullOrWhiteSpace(rawName))
+        {
+            return string.Empty;
+        }
+
+        string normalized = rawName.Trim();
+        if (normalized.EndsWith("(Clone)", System.StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized.Substring(0, normalized.Length - "(Clone)".Length).Trim();
+        }
+
+        return normalized;
+    }
+
+    // Handle Map Common Weapon Name.
+    private static string MapCommonWeaponName(string rawName)
+    {
+        string normalized = NormalizeItemName(rawName);
+        if (string.IsNullOrEmpty(normalized))
+        {
+            return string.Empty;
+        }
+
+        string token = normalized.Replace(" ", string.Empty).ToLowerInvariant();
+        if (token.Contains("pickaxe") || token.Contains("pick"))
+        {
+            return "Pickaxe";
+        }
+
+        if (token.Contains("sword"))
+        {
+            return "Sword";
+        }
+
+        if (token.Contains("axe"))
+        {
+            return "Axe";
+        }
+
+        return string.Empty;
     }
 
     // Handle Cache Pickable Layer.
@@ -535,6 +744,11 @@ public class RayScript : MonoBehaviour
                 case "Stick":
                 case "LittleStone":
                 case "Bamboo":
+                case "MushRoom":
+                case "Mushroom":
+                case "MushRoomRed":
+                case "RedFlower":
+                case "BlueFlower":
                     TryPickupInventoryItem(objectik, 1);
                     break;
 
@@ -690,7 +904,8 @@ public class RayScript : MonoBehaviour
             }
 
             bestDistanceSqr = distanceSqr;
-            bestObject = hit.attachedRigidbody != null ? hit.attachedRigidbody.gameObject : hit.gameObject;
+            GameObject hitObject = hit.attachedRigidbody != null ? hit.attachedRigidbody.gameObject : hit.gameObject;
+            bestObject = ResolvePickableRoot(hitObject);
         }
 
         if (bestObject != null || !allowPickableWithoutColliderFallback)
@@ -730,6 +945,28 @@ public class RayScript : MonoBehaviour
         }
 
         return inventoryItem.gameObject;
+    }
+
+    // Handle Resolve Pickable Root.
+    private static GameObject ResolvePickableRoot(GameObject candidate)
+    {
+        if (candidate == null)
+        {
+            return null;
+        }
+
+        InventoryItem inventoryItem = candidate.GetComponent<InventoryItem>();
+        if (inventoryItem == null)
+        {
+            inventoryItem = candidate.GetComponentInParent<InventoryItem>();
+        }
+
+        if (inventoryItem == null)
+        {
+            inventoryItem = candidate.GetComponentInChildren<InventoryItem>(true);
+        }
+
+        return inventoryItem != null ? inventoryItem.gameObject : candidate;
     }
 
     // Handle Find Nearest Pickable Without Collider.
@@ -963,7 +1200,15 @@ public class RayScript : MonoBehaviour
         // Fallback: some stone colliders may be marked as trigger colliders.
         if (triggerInteraction == QueryTriggerInteraction.Ignore)
         {
-            return TryGetClosestStoneTargetInternal(QueryTriggerInteraction.Collide, out closestStone);
+            if (TryGetClosestStoneTargetInternal(QueryTriggerInteraction.Collide, out closestStone))
+            {
+                return true;
+            }
+        }
+
+        if (allowStoneWithoutColliderFallback)
+        {
+            return TryGetClosestStoneTargetWithoutCollider(out closestStone);
         }
 
         return false;
@@ -1004,13 +1249,8 @@ public class RayScript : MonoBehaviour
                 continue;
             }
 
-            StoneColliderScript stoneCollider = hit.GetComponent<StoneColliderScript>();
-            if (stoneCollider == null)
-            {
-                stoneCollider = hit.GetComponentInParent<StoneColliderScript>();
-            }
-
-            if (stoneCollider == null || stoneCollider.mineStone == null)
+            MineStone mineStone = ResolveMineStoneFromCollider(hit);
+            if (mineStone == null)
             {
                 continue;
             }
@@ -1023,10 +1263,86 @@ public class RayScript : MonoBehaviour
             }
 
             bestDistanceSqr = distanceSqr;
-            closestStone = stoneCollider.mineStone;
+            closestStone = mineStone;
         }
 
         return closestStone != null;
+    }
+
+    // Handle Try Get Closest Stone Target Without Collider.
+    private bool TryGetClosestStoneTargetWithoutCollider(out MineStone closestStone)
+    {
+        closestStone = null;
+        ResolveInteractionOrigin();
+        if (interactionOrigin == null)
+        {
+            return false;
+        }
+
+        float radiusSqr = Mathf.Max(0.01f, pickaxeInteractionRadius);
+        radiusSqr *= radiusSqr;
+        Vector3 origin = interactionOrigin.position;
+        Transform playerRoot = interactionOrigin.root;
+        float bestDistanceSqr = float.MaxValue;
+
+#if UNITY_2023_1_OR_NEWER
+        MineStone[] allMineStones = FindObjectsByType<MineStone>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+#else
+        MineStone[] allMineStones = FindObjectsOfType<MineStone>(false);
+#endif
+
+        for (int i = 0; i < allMineStones.Length; i++)
+        {
+            MineStone candidate = allMineStones[i];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (playerRoot != null && candidate.transform.IsChildOf(playerRoot))
+            {
+                continue;
+            }
+
+            float distanceSqr = (candidate.transform.position - origin).sqrMagnitude;
+            if (distanceSqr > radiusSqr || distanceSqr >= bestDistanceSqr)
+            {
+                continue;
+            }
+
+            bestDistanceSqr = distanceSqr;
+            closestStone = candidate;
+        }
+
+        return closestStone != null;
+    }
+
+    // Handle Resolve Mine Stone From Collider.
+    private static MineStone ResolveMineStoneFromCollider(Collider hit)
+    {
+        if (hit == null)
+        {
+            return null;
+        }
+
+        StoneColliderScript stoneCollider = hit.GetComponent<StoneColliderScript>();
+        if (stoneCollider == null)
+        {
+            stoneCollider = hit.GetComponentInParent<StoneColliderScript>();
+        }
+
+        if (stoneCollider != null && stoneCollider.mineStone != null)
+        {
+            return stoneCollider.mineStone;
+        }
+
+        MineStone mineStone = hit.GetComponent<MineStone>();
+        if (mineStone == null)
+        {
+            mineStone = hit.GetComponentInParent<MineStone>();
+        }
+
+        return mineStone;
     }
 
     // Handle Trigger After Delay Axe.
@@ -1050,12 +1366,223 @@ public class RayScript : MonoBehaviour
     }
 
     // Handle Trigger After Delay Pickaxe.
-    private IEnumerator TriggerAfterDelayPickaxe(MineStone mineStone, float delaySeconds)
+    private IEnumerator TriggerAfterDelayPickaxe(MineStone mineStone, Transform attacker, float delaySeconds)
     {
         yield return new WaitForSeconds(delaySeconds);
         if (mineStone != null)
         {
+            SpawnStoneImpact(mineStone, attacker);
             mineStone.Mine();
+        }
+    }
+
+    // Handle Spawn Stone Impact.
+    private void SpawnStoneImpact(MineStone mineStone, Transform attacker)
+    {
+        if (stoneparticle == null || mineStone == null)
+        {
+            return;
+        }
+
+        Transform stoneTransform = mineStone.fullstone != null
+            ? mineStone.fullstone.transform
+            : mineStone.transform;
+        Vector3 fallbackStonePoint = ResolveStoneFallbackPoint(stoneTransform);
+        Vector3 attackerPosition = ResolveAttackerPosition(attacker, fallbackStonePoint);
+        Vector3 stoneImpactPoint = ResolveStoneImpactPoint(stoneTransform, attackerPosition);
+        Vector3 spawnPosition = Vector3.Lerp(
+            stoneImpactPoint,
+            attackerPosition,
+            Mathf.Clamp01(stoneImpactBetweenFactor)) + stoneImpactOffset;
+
+        Vector3 lookDirection = attackerPosition - spawnPosition;
+        if (flattenStoneImpactFacingToHorizontal)
+        {
+            lookDirection.y = 0f;
+        }
+
+        if (lookDirection.sqrMagnitude <= 0.0001f)
+        {
+            lookDirection = attackerPosition - stoneImpactPoint;
+            if (flattenStoneImpactFacingToHorizontal)
+            {
+                lookDirection.y = 0f;
+            }
+        }
+
+        if (lookDirection.sqrMagnitude <= 0.0001f)
+        {
+            lookDirection = transform.forward;
+        }
+
+        Quaternion rotation = Quaternion.LookRotation(lookDirection.normalized, Vector3.up);
+        ParticleSystem impactInstance = Instantiate(stoneparticle, spawnPosition, rotation);
+        PlayImpactParticleSystems(impactInstance.gameObject);
+
+        float destroyDelay = Mathf.Max(0f, destroyStoneImpactAfterSeconds);
+        if (impactInstance != null && destroyDelay > 0f)
+        {
+            Destroy(impactInstance.gameObject, destroyDelay);
+        }
+    }
+
+    // Handle Resolve Stone Impact Point.
+    private Vector3 ResolveStoneImpactPoint(Transform stoneTransform, Vector3 attackerPosition)
+    {
+        if (TryResolveClosestImpactPoint(stoneTransform, attackerPosition, out Vector3 closestImpactPoint))
+        {
+            return closestImpactPoint;
+        }
+
+        if (TryGetBounds(stoneTransform, out Bounds stoneBounds))
+        {
+            float impactY = Mathf.Lerp(stoneBounds.min.y, stoneBounds.max.y, 0.5f);
+            return new Vector3(stoneBounds.center.x, impactY, stoneBounds.center.z);
+        }
+
+        return ResolveStoneFallbackPoint(stoneTransform);
+    }
+
+    // Handle Resolve Stone Fallback Point.
+    private static Vector3 ResolveStoneFallbackPoint(Transform stoneTransform)
+    {
+        if (stoneTransform != null)
+        {
+            return stoneTransform.position + Vector3.up * 0.35f;
+        }
+
+        return Vector3.zero;
+    }
+
+    // Handle Resolve Attacker Position.
+    private static Vector3 ResolveAttackerPosition(Transform attacker, Vector3 fallbackTargetPoint)
+    {
+        if (attacker != null)
+        {
+            return attacker.position;
+        }
+
+        if (Camera.main != null)
+        {
+            return Camera.main.transform.position;
+        }
+
+        return fallbackTargetPoint + Vector3.forward;
+    }
+
+    // Handle Try Get Bounds.
+    private static bool TryGetBounds(Transform target, out Bounds bounds)
+    {
+        bounds = default;
+        if (target == null)
+        {
+            return false;
+        }
+
+        bool hasBounds = false;
+        Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer currentRenderer = renderers[i];
+            if (currentRenderer == null)
+            {
+                continue;
+            }
+
+            if (!hasBounds)
+            {
+                bounds = currentRenderer.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                bounds.Encapsulate(currentRenderer.bounds);
+            }
+        }
+
+        if (hasBounds)
+        {
+            return true;
+        }
+
+        Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider currentCollider = colliders[i];
+            if (currentCollider == null)
+            {
+                continue;
+            }
+
+            if (!hasBounds)
+            {
+                bounds = currentCollider.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                bounds.Encapsulate(currentCollider.bounds);
+            }
+        }
+
+        return hasBounds;
+    }
+
+    // Handle Try Resolve Closest Impact Point.
+    private static bool TryResolveClosestImpactPoint(Transform target, Vector3 attackerPosition, out Vector3 closestPoint)
+    {
+        closestPoint = default;
+        if (target == null)
+        {
+            return false;
+        }
+
+        Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
+        float bestDistanceSqr = float.MaxValue;
+        bool foundPoint = false;
+
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            Collider currentCollider = colliders[i];
+            if (currentCollider == null || !currentCollider.enabled)
+            {
+                continue;
+            }
+
+            Vector3 currentClosestPoint = currentCollider.ClosestPoint(attackerPosition);
+            float distanceSqr = (currentClosestPoint - attackerPosition).sqrMagnitude;
+            if (distanceSqr >= bestDistanceSqr)
+            {
+                continue;
+            }
+
+            bestDistanceSqr = distanceSqr;
+            closestPoint = currentClosestPoint;
+            foundPoint = true;
+        }
+
+        return foundPoint;
+    }
+
+    // Handle Play Impact Particle Systems.
+    private static void PlayImpactParticleSystems(GameObject impactInstance)
+    {
+        if (impactInstance == null)
+        {
+            return;
+        }
+
+        ParticleSystem[] particleSystems = impactInstance.GetComponentsInChildren<ParticleSystem>(true);
+        for (int i = 0; i < particleSystems.Length; i++)
+        {
+            ParticleSystem currentParticleSystem = particleSystems[i];
+            if (currentParticleSystem == null)
+            {
+                continue;
+            }
+
+            currentParticleSystem.Clear(true);
+            currentParticleSystem.Play(true);
         }
     }
 

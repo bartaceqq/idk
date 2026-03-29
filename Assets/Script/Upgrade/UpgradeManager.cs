@@ -11,6 +11,7 @@ public class UpgradeManager : MonoBehaviour
     public Image backgroundimage;
     public Image schemeimage;
     public bool UpgradeUIShown = false;
+    public Image topbar;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -71,6 +72,7 @@ public class UpgradeManager : MonoBehaviour
         {
             schemeimage.enabled = UpgradeUIShown;
         }
+        topbar.enabled = UpgradeUIShown;
     }
 
     private void RefreshUpgradeSlots()
@@ -132,4 +134,5 @@ public static class GameplayUiState
         Cursor.lockState = uiBlocking ? CursorLockMode.None : CursorLockMode.Locked;
         Cursor.visible = uiBlocking;
     }
+    
 }

@@ -18,6 +18,7 @@ public class CutTree : MonoBehaviour
     public GameObject topofthetree;
     [SerializeField] private float destroyDelaySeconds = 1f;
     [SerializeField] private float rebuildDelaySeconds = 30f;
+    [SerializeField, Min(0f)] private float fallTiltDegrees = 15f;
     [SerializeField] private GameObject destructionVfxPrefab;
     [SerializeField] private Vector3 destructionVfxOffset = new Vector3(0f, 0.15f, 0f);
     public InventoryItem inventoryItem;
@@ -31,6 +32,7 @@ public class CutTree : MonoBehaviour
     private bool topInitialConvex;
     private bool topInitialProvidesContacts;
     private bool isRebuilding;
+    private bool topHadInitialRigidbody;
 
     
     private struct TransformSnapshot
@@ -213,6 +215,7 @@ public class CutTree : MonoBehaviour
             CacheTransform(topofthetree.transform);
             topRigidbody = topofthetree.GetComponent<Rigidbody>();
             topMeshCollider = topofthetree.GetComponent<MeshCollider>();
+            topHadInitialRigidbody = topRigidbody != null;
 
             if (topRigidbody != null)
             {
@@ -326,8 +329,16 @@ public class CutTree : MonoBehaviour
         {
             topRigidbody.linearVelocity = Vector3.zero;
             topRigidbody.angularVelocity = Vector3.zero;
-            topRigidbody.useGravity = topInitialUseGravity;
-            topRigidbody.isKinematic = topInitialIsKinematic;
+            if (topHadInitialRigidbody)
+            {
+                topRigidbody.useGravity = topInitialUseGravity;
+                topRigidbody.isKinematic = topInitialIsKinematic;
+            }
+            else
+            {
+                Destroy(topRigidbody);
+                topRigidbody = null;
+            }
         }
 
         if (topMeshCollider != null)
@@ -351,16 +362,36 @@ public class CutTree : MonoBehaviour
         {
             SpawnDestructionVfx();
 
+            if (topofthetree != null)
+            {
+                float tiltDegrees = Mathf.Max(15f, fallTiltDegrees);
+                if (tiltDegrees > 0f)
+                {
+                    topofthetree.transform.Rotate(Vector3.right, tiltDegrees, Space.Self);
+                }
+            }
+
             if (topMeshCollider != null)
             {
                 topMeshCollider.convex = true;
                 topMeshCollider.providesContacts = true;
             }
 
+            if (topRigidbody == null && topofthetree != null)
+            {
+                topRigidbody = topofthetree.GetComponent<Rigidbody>();
+                if (topRigidbody == null)
+                {
+                    topRigidbody = topofthetree.AddComponent<Rigidbody>();
+                }
+            }
+
             if (topRigidbody != null)
             {
                 topRigidbody.useGravity = true;
                 topRigidbody.isKinematic = false;
+                topRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
+                topRigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             }
 
             StartCoroutine(SetActiveAfterSeconds(topofthetree, destroyDelaySeconds, false));

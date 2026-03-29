@@ -19,6 +19,10 @@ public class FPSController : MonoBehaviour
     public float groundedStickForce = 2f;
     public float coyoteTimeSeconds = 0.12f;
     public float jumpBufferSeconds = 0.12f;
+    public bool syncJumpAnimationToAirTime = true;
+    public float jumpAnimationAirTimePaddingSeconds = 0.04f;
+    public float jumpGroundProbeDistance = 32f;
+    public float jumpGroundProbeRadiusScale = 0.9f;
     public bool disableExtraCapsuleCollider = true;
 
     [Header("Look")]
@@ -67,6 +71,7 @@ public class FPSController : MonoBehaviour
     private CharacterController _cc;
     private CapsuleCollider _extraCapsuleCollider;
     private readonly RaycastHit[] _cameraHits = new RaycastHit[8];
+    private readonly RaycastHit[] _groundHits = new RaycastHit[8];
     private Camera _playerCameraComponent;
 
     private float _pitch;
@@ -106,11 +111,12 @@ public class FPSController : MonoBehaviour
     private bool _isForwardRightWalk;
     private bool _isForwardRightRun;
     private bool _sprintLocked;
-    private bool _jumpTriggeredThisFrame;
     private float _nextJumpAllowedTime;
     private float _lastGroundedTime = -100f;
     private float _lastJumpPressedTime = -100f;
     private float _jumpAnimationLockUntil;
+    private bool _wasGameplayInputLocked;
+    private float _lastGameplayLockBodyYaw;
 
     void Awake()
     {
@@ -209,7 +215,6 @@ public class FPSController : MonoBehaviour
                 _velocity.y -= gravity * Time.deltaTime;
             }
 
-            _jumpTriggeredThisFrame = false;
             _isJumping = !_cc.isGrounded;
             _isIdle = true;
             _isForwardWalk = false;
@@ -230,7 +235,12 @@ public class FPSController : MonoBehaviour
             return;
         }
 
-        if (!InventoryController.IsInventoryOpen && !InventoryManager.IsInventoryOpen)
+        bool gameplayInputLocked = actionScript != null && actionScript.IsGameplayInputLocked();
+        bool swordBlockActive = actionScript != null && actionScript.IsSwordBlockActive();
+        bool movementInputLocked = gameplayInputLocked || swordBlockActive;
+
+        if (!InventoryController.IsInventoryOpen &&
+            !InventoryManager.IsInventoryOpen)
         {
             Vector2 look = _lookAction.ReadValue<Vector2>();
             _yaw += look.x * mouseSensitivity;
@@ -238,12 +248,21 @@ public class FPSController : MonoBehaviour
         }
 
         Quaternion yawRotation = Quaternion.Euler(0f, _yaw, 0f);
-        transform.rotation = yawRotation;
+        if (!gameplayInputLocked)
+        {
+            transform.rotation = yawRotation;
+        }
+        else
+        {
+            yawRotation = transform.rotation;
+        }
 
-        Vector2 moveInput = _moveAction.ReadValue<Vector2>();
-        bool runPressed = _runAction != null
+        Vector2 moveInput = movementInputLocked
+            ? Vector2.zero
+            : _moveAction.ReadValue<Vector2>();
+        bool runPressed = !movementInputLocked && (_runAction != null
             ? _runAction.IsPressed()
-            : (Keyboard.current?.leftShiftKey?.isPressed ?? false);
+            : (Keyboard.current?.leftShiftKey?.isPressed ?? false));
         bool canSprint = actionScript != null && actionScript.staminaScript != null
             ? actionScript.staminaScript.enoughstamina
             : true;
@@ -265,11 +284,14 @@ public class FPSController : MonoBehaviour
 
         UpdateMovementFlags(moveInput, isRunning);
 
-        _jumpTriggeredThisFrame = false;
-        bool jumpPressedThisFrame = _jumpAction != null && _jumpAction.triggered;
+        bool jumpPressedThisFrame = !movementInputLocked && _jumpAction != null && _jumpAction.triggered;
         if (jumpPressedThisFrame)
         {
             _lastJumpPressedTime = Time.time;
+        }
+        else if (movementInputLocked)
+        {
+            _lastJumpPressedTime = -100f;
         }
 
         bool isGroundedBeforeMove = _cc.isGrounded;
@@ -285,11 +307,11 @@ public class FPSController : MonoBehaviour
         if (canStartJump)
         {
             _velocity.y = jumpSpeed;
-            _jumpTriggeredThisFrame = true;
             _nextJumpAllowedTime = Time.time + Mathf.Max(0f, jumpInputCooldownSeconds);
             _lastJumpPressedTime = -100f;
             _lastGroundedTime = -100f;
             _jumpAnimationLockUntil = Time.time + Mathf.Max(0f, jumpAnimationLockSeconds);
+            TriggerJumpAnimation(isRunning);
         }
         else if (isGroundedBeforeMove)
         {
@@ -318,11 +340,13 @@ public class FPSController : MonoBehaviour
         bool animationGrounded = _cc.isGrounded ||
             (Time.time - _lastGroundedTime) <= Mathf.Max(0f, groundedAnimationGraceSeconds);
         _isJumping = !animationGrounded;
+        SyncJumpAnimationToAirTime();
         RunCallbacks();
     }
 
     void LateUpdate()
     {
+        UpdateCameraYawFromGameplayLock();
         UpdateThirdPersonCamera(Time.deltaTime);
     }
 
@@ -465,12 +489,36 @@ public class FPSController : MonoBehaviour
         }
 
         transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
+        _wasGameplayInputLocked = false;
+        _lastGameplayLockBodyYaw = transform.eulerAngles.y;
         _cameraDistanceInitialized = false;
         _cameraOffsetInitialized = false;
         _currentCameraDistance = Mathf.Max(minCameraDistance, cameraDistance);
         _currentRequestedCameraDistance = _currentCameraDistance;
         _currentCameraPivotOffset = cameraPivotOffset;
         _cameraVelocity = Vector3.zero;
+    }
+
+    // Keep camera yaw traveling with root-motion turns while allowing free look.
+    private void UpdateCameraYawFromGameplayLock()
+    {
+        bool gameplayInputLocked = actionScript != null && actionScript.IsGameplayInputLocked();
+        float bodyYaw = transform.eulerAngles.y;
+
+        if (gameplayInputLocked)
+        {
+            if (_wasGameplayInputLocked)
+            {
+                _yaw += Mathf.DeltaAngle(_lastGameplayLockBodyYaw, bodyYaw);
+            }
+
+            _lastGameplayLockBodyYaw = bodyYaw;
+            _wasGameplayInputLocked = true;
+            return;
+        }
+
+        _wasGameplayInputLocked = false;
+        _lastGameplayLockBodyYaw = bodyYaw;
     }
 
     // Handle Trigger Shot Shoulder Camera.
@@ -628,11 +676,6 @@ public class FPSController : MonoBehaviour
             return;
         }
 
-        if (_jumpTriggeredThisFrame)
-        {
-            actionScript.Jump();
-        }
-
         bool jumpLocked = Time.time < _jumpAnimationLockUntil;
         if (jumpLocked)
         {
@@ -720,6 +763,100 @@ public class FPSController : MonoBehaviour
     // Handle On Sprint.
     public void OnSprint(InputValue value)
     {
+    }
+
+    // Handle Trigger Jump Animation.
+    private void TriggerJumpAnimation(bool isRunning)
+    {
+        if (actionScript == null)
+        {
+            return;
+        }
+
+        float expectedAirTime = syncJumpAnimationToAirTime
+            ? EstimateRemainingAirTimeSeconds(_velocity.y)
+            : -1f;
+
+        actionScript.Jump(expectedAirTime, isRunning);
+    }
+
+    // Handle Sync Jump Animation To Air Time.
+    private void SyncJumpAnimationToAirTime()
+    {
+        if (!syncJumpAnimationToAirTime || actionScript == null || !_isJumping)
+        {
+            return;
+        }
+
+        actionScript.SyncJumpAnimationToAirTime(EstimateRemainingAirTimeSeconds(_velocity.y));
+    }
+
+    // Handle Estimate Remaining Air Time Seconds.
+    private float EstimateRemainingAirTimeSeconds(float verticalSpeed)
+    {
+        float gravityMagnitude = Mathf.Max(0.01f, gravity);
+        float distanceToGround = TryGetDistanceToGround(out float detectedDistance)
+            ? detectedDistance
+            : Mathf.Max(0.5f, jumpGroundProbeDistance);
+        float discriminant = Mathf.Max(0f, (verticalSpeed * verticalSpeed) + (2f * gravityMagnitude * distanceToGround));
+        float remainingAirTime = (verticalSpeed + Mathf.Sqrt(discriminant)) / gravityMagnitude;
+        remainingAirTime += Mathf.Max(0f, jumpAnimationAirTimePaddingSeconds);
+        return Mathf.Max(0.01f, remainingAirTime);
+    }
+
+    // Handle Try Get Distance To Ground.
+    private bool TryGetDistanceToGround(out float distanceToGround)
+    {
+        distanceToGround = 0f;
+        if (_cc == null)
+        {
+            return false;
+        }
+
+        Bounds bounds = _cc.bounds;
+        if (bounds.size.sqrMagnitude <= Mathf.Epsilon)
+        {
+            return false;
+        }
+
+        float radiusScale = Mathf.Clamp(jumpGroundProbeRadiusScale, 0.1f, 1f);
+        float sphereCastRadius = Mathf.Max(0.05f, Mathf.Min(bounds.extents.x, bounds.extents.z) * radiusScale);
+        Vector3 origin = new Vector3(bounds.center.x, bounds.min.y + sphereCastRadius + 0.05f, bounds.center.z);
+        float maxDistance = Mathf.Max(0.5f, jumpGroundProbeDistance);
+        int hitCount = Physics.SphereCastNonAlloc(
+            origin,
+            sphereCastRadius,
+            Vector3.down,
+            _groundHits,
+            maxDistance,
+            Physics.AllLayers,
+            QueryTriggerInteraction.Ignore);
+
+        bool foundGround = false;
+        float closestGroundY = float.NegativeInfinity;
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hitCollider = _groundHits[i].collider;
+            if (hitCollider == null || hitCollider.transform.IsChildOf(transform))
+            {
+                continue;
+            }
+
+            float groundY = _groundHits[i].point.y;
+            if (!foundGround || groundY > closestGroundY)
+            {
+                closestGroundY = groundY;
+                foundGround = true;
+            }
+        }
+
+        if (!foundGround)
+        {
+            return false;
+        }
+
+        distanceToGround = Mathf.Max(0f, bounds.min.y - closestGroundY);
+        return true;
     }
 
     // Handle On Idle.

@@ -87,7 +87,7 @@ QualitySettings:
     realtimeGICPUUsage: 100
     adaptiveVsyncExtraA: 0
     adaptiveVsyncExtraB: 0
-    lodBias: 2
+    lodBias: 1.2
     meshLodThreshold: 1
     maximumLODLevel: 0
     enableLODCrossFade: 1
@@ -104,14 +104,14 @@ QualitySettings:
     resolutionScalingFixedDPIFactor: 1
     customRenderPipeline: {fileID: 11400000, guid: 4b83569d67af61e458304325a23e5dfd, type: 2}
     terrainQualityOverrides: 8
-    terrainPixelError: 120.9
-    terrainDetailDensityScale: 0.055
+    terrainPixelError: 180
+    terrainDetailDensityScale: 0.035
     terrainBasemapDistance: 1000
-    terrainDetailDistance: 156
-    terrainTreeDistance: 5000
-    terrainBillboardStart: 50
-    terrainFadeLength: 5
-    terrainMaxTrees: 50
+    terrainDetailDistance: 35
+    terrainTreeDistance: 1200
+    terrainBillboardStart: 60
+    terrainFadeLength: 10
+    terrainMaxTrees: 40
     excludedTargetPlatforms:
     - Android
     - iPhone

@@ -1,0 +1,149 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &8798948160008732729
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -2523.6228
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 535.3081
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 287.16446
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      propertyPath: m_Name
+      value: Stone2
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5149957640361945195}
+  m_SourcePrefab: {fileID: 100100000, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+--- !u!1 &1378111292573448255 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -1640387438592477178, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+  m_PrefabInstance: {fileID: 8798948160008732729}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &3970368626563367877 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -3673334752102874116, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+  m_PrefabInstance: {fileID: 8798948160008732729}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &4089783441815647805 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -4405099995303774716, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+  m_PrefabInstance: {fileID: 8798948160008732729}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &4619330643157874293 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -5042048040192068020, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+  m_PrefabInstance: {fileID: 8798948160008732729}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &4700075614461519930 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -4961241221372467197, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+  m_PrefabInstance: {fileID: 8798948160008732729}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &8565087185977015656 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 6ea90e0eaf1c2f34faaad33e6c9a138e, type: 3}
+  m_PrefabInstance: {fileID: 8798948160008732729}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &5149957640361945195
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8565087185977015656}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cb86eca5cfeb4a745ab8567e2fa02b23, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MineStone
+  type: 
+  greymat: {fileID: 2100000, guid: 2d9ca1e6643899049886f8be80ede788, type: 2}
+  texttoshow: Gained Stone
+  sprite: {fileID: 21300000, guid: 1f9c759acd482ac47929c115ff1bfbb8, type: 3}
+  infoHandler: {fileID: 0}
+  parts: []
+  fullstone: {fileID: 8565087185977015656}
+  chosen: 
+  blackmaterial: {fileID: 2100000, guid: e334cb82c225d2c4099a7597883815aa, type: 2}
+  counter: 4
+  mainstoneparts: []
+  destroyDelaySeconds: 0.12
+  rebuildDelaySeconds: 10
+  inventoryItem: {fileID: 0}
+  orelist:
+  - {fileID: 3970368626563367877}
+  - {fileID: 4619330643157874293}
+  - {fileID: 4089783441815647805}
+  - {fileID: 1378111292573448255}
+  - {fileID: 4700075614461519930}
+  getRandomOreType: {fileID: 0}
+  currentore: 
+  autoPopulateFromChildren: 1
+  includeInactiveChildrenForAutoPopulate: 1
+  oreChildNameContains: Icosphere
+  stonePartNameContains: ST_Stone1_cell
+  breakExplosionForce: 2.5
+  breakExplosionRadius: 2
+  breakUpwardModifier: 0.25
+  breakFragmentMass: 0.2
+  breakLinearDamping: 0.2
+  breakAngularDamping: 0.9
+  breakRandomTorque: 1.2

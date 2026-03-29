@@ -10,6 +10,9 @@ public class MovementAnimationScript : MonoBehaviour
     [Header("Jump")]
     public float jumpInterruptBlendSeconds = 0.04f;
     public float jumpInterruptIgnoreActionSeconds = 0.12f;
+    public bool syncJumpAnimationToAirTime = true;
+    public float minimumSyncedJumpAnimationSpeed = 0.05f;
+    public float maximumSyncedJumpAnimationSpeed = 6f;
 
     [Header("Animation Speeds")]
     public float idleAnimationSpeed = 1f;
@@ -54,6 +57,10 @@ public class MovementAnimationScript : MonoBehaviour
     private static readonly int RunningJumpSpeedHash = Animator.StringToHash("RunningJumpSpeed");
 
     private float _jumpInterruptedUntil;
+    private RuntimeAnimatorController _cachedAnimatorController;
+    private AnimationClip _jumpClip;
+    private AnimationClip _runningJumpClip;
+    private bool _rootMotionEnabled;
 
     private void Awake()
     {
@@ -100,14 +107,44 @@ public class MovementAnimationScript : MonoBehaviour
     // Handle Jump Animation.
     public void JumpAnimation()
     {
+        JumpAnimation(-1f);
+    }
+
+    // Handle Jump Animation With Expected Air Time.
+    public void JumpAnimation(float expectedAirTimeSeconds, bool preferRunningJumpSpeed = false)
+    {
         if (!EnsureAnimator())
         {
             return;
         }
 
         ApplyConfiguredAnimationSpeeds();
+        ApplySyncedJumpAnimationSpeed(preferRunningJumpSpeed, expectedAirTimeSeconds, 0f);
         animator.ResetTrigger(JumpTriggerHash);
         animator.SetTrigger(JumpTriggerHash);
+    }
+
+    // Handle Sync Jump Animation To Air Time.
+    public void SyncJumpAnimationToAirTime(float remainingAirTimeSeconds)
+    {
+        if (!syncJumpAnimationToAirTime || !EnsureAnimator() || !animator.isActiveAndEnabled)
+        {
+            return;
+        }
+
+        if (remainingAirTimeSeconds <= 0f)
+        {
+            return;
+        }
+
+        if (TryGetJumpStateProgress(out bool preferRunningJumpSpeed, out float normalizedProgress))
+        {
+            ApplySyncedJumpAnimationSpeed(preferRunningJumpSpeed, remainingAirTimeSeconds, normalizedProgress);
+        }
+        else
+        {
+            ApplySyncedJumpAnimationSpeed(false, remainingAirTimeSeconds, 0f);
+        }
     }
 
     // Handle Walk Backwards.
@@ -187,6 +224,7 @@ public class MovementAnimationScript : MonoBehaviour
         }
 
         animator.ResetTrigger(JumpTriggerHash);
+        ResetJumpAnimationSpeedParameters();
 
         float blendDuration = Mathf.Max(0f, jumpInterruptBlendSeconds);
         if (animator.HasState(0, IdleFullPathHash))
@@ -228,7 +266,7 @@ public class MovementAnimationScript : MonoBehaviour
     {
         if (animator != null)
         {
-            animator.applyRootMotion = false;
+            ApplyAnimatorRootMotionSetting();
             return true;
         }
 
@@ -247,12 +285,16 @@ public class MovementAnimationScript : MonoBehaviour
             animator = GetComponentInChildren<Animator>(true);
         }
 
-        if (animator != null)
-        {
-            animator.applyRootMotion = false;
-        }
+        ApplyAnimatorRootMotionSetting();
 
         return animator != null;
+    }
+
+    // Handle Set Animator Root Motion Enabled.
+    public void SetAnimatorRootMotionEnabled(bool enabled)
+    {
+        _rootMotionEnabled = enabled;
+        ApplyAnimatorRootMotionSetting();
     }
 
     // Handle Apply Configured Animation Speeds.
@@ -297,6 +339,194 @@ public class MovementAnimationScript : MonoBehaviour
     private static float ResolveConfiguredSpeed(float value)
     {
         return value > 0f ? value : 1f;
+    }
+
+    // Handle Apply Animator Root Motion Setting.
+    private void ApplyAnimatorRootMotionSetting()
+    {
+        if (animator == null)
+        {
+            return;
+        }
+
+        animator.applyRootMotion = _rootMotionEnabled;
+
+        if (!Application.isPlaying)
+        {
+            return;
+        }
+
+        if (animator.gameObject.GetComponent<PlayerRootMotionDriver>() == null)
+        {
+            animator.gameObject.AddComponent<PlayerRootMotionDriver>();
+        }
+    }
+
+    // Handle Apply Synced Jump Animation Speed.
+    private void ApplySyncedJumpAnimationSpeed(bool preferRunningJumpSpeed, float remainingAirTimeSeconds, float normalizedProgress)
+    {
+        CacheJumpClipsIfNeeded();
+
+        int speedHash = ResolveJumpSpeedHash(preferRunningJumpSpeed);
+        float configuredSpeed = ResolveConfiguredSpeed(
+            speedHash == RunningJumpSpeedHash
+                ? runningJumpAnimationSpeed
+                : jumpAnimationSpeed);
+        if (!syncJumpAnimationToAirTime || remainingAirTimeSeconds <= 0f)
+        {
+            SetFloatIfExists(speedHash, configuredSpeed);
+            return;
+        }
+
+        float clipLength = GetJumpClipLength(preferRunningJumpSpeed);
+        if (clipLength <= 0f)
+        {
+            SetFloatIfExists(speedHash, configuredSpeed);
+            return;
+        }
+
+        float clampedProgress = Mathf.Clamp01(normalizedProgress);
+        float remainingClipSeconds = clipLength * Mathf.Max(0.01f, 1f - clampedProgress);
+        float targetAirTimeSeconds = Mathf.Max(0.01f, remainingAirTimeSeconds);
+        float syncedSpeed = configuredSpeed * (remainingClipSeconds / targetAirTimeSeconds);
+        syncedSpeed = Mathf.Clamp(
+            syncedSpeed,
+            Mathf.Max(0.01f, minimumSyncedJumpAnimationSpeed),
+            Mathf.Max(minimumSyncedJumpAnimationSpeed, maximumSyncedJumpAnimationSpeed));
+
+        SetFloatIfExists(speedHash, syncedSpeed);
+    }
+
+    // Handle Reset Jump Animation Speed Parameters.
+    private void ResetJumpAnimationSpeedParameters()
+    {
+        SetFloatIfExists(JumpSpeedHash, ResolveConfiguredSpeed(jumpAnimationSpeed));
+        SetFloatIfExists(RunningJumpSpeedHash, ResolveConfiguredSpeed(runningJumpAnimationSpeed));
+    }
+
+    // Handle Try Get Jump State Progress.
+    private bool TryGetJumpStateProgress(out bool preferRunningJumpSpeed, out float normalizedProgress)
+    {
+        preferRunningJumpSpeed = false;
+        normalizedProgress = 0f;
+
+        if (animator == null)
+        {
+            return false;
+        }
+
+        AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(0);
+        if (IsJumpState(current, out preferRunningJumpSpeed))
+        {
+            normalizedProgress = NormalizeStateProgress(current);
+            return true;
+        }
+
+        if (!animator.IsInTransition(0))
+        {
+            return false;
+        }
+
+        AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(0);
+        if (!IsJumpState(next, out preferRunningJumpSpeed))
+        {
+            return false;
+        }
+
+        normalizedProgress = NormalizeStateProgress(next);
+        return true;
+    }
+
+    // Handle Get Jump Clip Length.
+    private float GetJumpClipLength(bool preferRunningJumpSpeed)
+    {
+        if (!EnsureAnimator())
+        {
+            return 0f;
+        }
+
+        CacheJumpClipsIfNeeded();
+
+        AnimationClip clip = preferRunningJumpSpeed && _runningJumpClip != null
+            ? _runningJumpClip
+            : _jumpClip != null
+                ? _jumpClip
+                : _runningJumpClip;
+
+        return clip != null ? clip.length : 0f;
+    }
+
+    // Handle Resolve Jump Speed Hash.
+    private int ResolveJumpSpeedHash(bool preferRunningJumpSpeed)
+    {
+        return preferRunningJumpSpeed && _runningJumpClip != null
+            ? RunningJumpSpeedHash
+            : JumpSpeedHash;
+    }
+
+    // Handle Cache Jump Clips If Needed.
+    private void CacheJumpClipsIfNeeded()
+    {
+        if (animator == null)
+        {
+            _cachedAnimatorController = null;
+            _jumpClip = null;
+            _runningJumpClip = null;
+            return;
+        }
+
+        RuntimeAnimatorController controller = animator.runtimeAnimatorController;
+        if (controller == _cachedAnimatorController && (_jumpClip != null || _runningJumpClip != null))
+        {
+            return;
+        }
+
+        _cachedAnimatorController = controller;
+        _jumpClip = null;
+        _runningJumpClip = null;
+        if (controller == null)
+        {
+            return;
+        }
+
+        AnimationClip[] clips = controller.animationClips;
+        for (int i = 0; i < clips.Length; i++)
+        {
+            AnimationClip clip = clips[i];
+            if (clip == null)
+            {
+                continue;
+            }
+
+            if (_jumpClip == null && clip.name == "Jump")
+            {
+                _jumpClip = clip;
+            }
+
+            if (_runningJumpClip == null && clip.name == "RunningJump")
+            {
+                _runningJumpClip = clip;
+            }
+        }
+    }
+
+    // Handle Is Jump State.
+    private static bool IsJumpState(AnimatorStateInfo state, out bool preferRunningJumpSpeed)
+    {
+        preferRunningJumpSpeed = state.shortNameHash == RunningJumpStateHash;
+        return state.shortNameHash == JumpStateHash || preferRunningJumpSpeed;
+    }
+
+    // Handle Normalize State Progress.
+    private static float NormalizeStateProgress(AnimatorStateInfo state)
+    {
+        float normalizedTime = state.normalizedTime;
+        if (normalizedTime > 1f)
+        {
+            normalizedTime %= 1f;
+        }
+
+        return Mathf.Clamp01(normalizedTime);
     }
 
     // Handle Is Blocking Action State For State.

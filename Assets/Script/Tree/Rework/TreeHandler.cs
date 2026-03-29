@@ -4,11 +4,14 @@ using UnityEngine;
 
 public class TreeHandler : MonoBehaviour
 {   
+    private const float InitialFallRotationX = 3f;
+
     public InventoryAddHandler inventoryAddHandler;
     public InventoryItem inventoryItem;
     public int placeinlist = 0;
     public int idk;
     private static PhysicsMaterial fallbackNoRollMaterial;
+    private static InventoryAddHandler cachedInventoryAddHandler;
     public List<Material> materials = new List<Material>();
 
 	public int test;    
@@ -18,7 +21,7 @@ public class TreeHandler : MonoBehaviour
     public GameObject bottompart;
     public int counttochop = 3;
     [Header("Fall Physics")]
-    [SerializeField, Min(0f)] private float fallTiltDegrees = 1f;
+    [SerializeField, Min(0f)] private float fallTiltDegrees = 3f;
     [SerializeField, Min(0f)] private float fallLinearDamping = 0.2f;
     [SerializeField, Min(0f)] private float fallAngularDamping = 6f;
     [SerializeField, Min(0.1f)] private float fallMaxAngularVelocity = 2f;
@@ -38,11 +41,15 @@ public class TreeHandler : MonoBehaviour
 
     public void Start()
     {
+         ResolveReferences();
          GenerateMaterial();
     }
     private void OnValidate()
     {
-       
+       if (fallTiltDegrees <= 0f)
+       {
+           fallTiltDegrees = InitialFallRotationX;
+       }
     }
     public void GenerateMaterial()
     {
@@ -60,6 +67,8 @@ public class TreeHandler : MonoBehaviour
 
     public void Chop(Transform attacker)
     {
+        ResolveReferences();
+
         if (hasFallen)
         {
             return;
@@ -81,10 +90,53 @@ public class TreeHandler : MonoBehaviour
         else
         {
             hasFallen = true;
-            inventoryAddHandler.AddItemToInventory(inventoryItem);
+            if (inventoryAddHandler != null && inventoryItem != null)
+            {
+                inventoryAddHandler.AddItemToInventory(inventoryItem);
+            }
+            else
+            {
+                Debug.LogWarning($"{name}: Missing InventoryAddHandler or InventoryItem reference.", this);
+            }
+
             TreeFall();
             StartCoroutine(destroyaftertime());
         }
+    }
+
+    private void ResolveReferences()
+    {
+        if (inventoryItem == null)
+        {
+            inventoryItem = GetComponent<InventoryItem>();
+        }
+
+        if (inventoryItem == null)
+        {
+            inventoryItem = GetComponentInChildren<InventoryItem>(true);
+        }
+
+        if (inventoryItem != null)
+        {
+            inventoryItem.ResolveReferences();
+        }
+
+        if (inventoryAddHandler != null)
+        {
+            cachedInventoryAddHandler = inventoryAddHandler;
+            return;
+        }
+
+        if (cachedInventoryAddHandler == null)
+        {
+#if UNITY_2023_1_OR_NEWER
+            cachedInventoryAddHandler = FindFirstObjectByType<InventoryAddHandler>(FindObjectsInactive.Include);
+#else
+            cachedInventoryAddHandler = FindObjectOfType<InventoryAddHandler>(true);
+#endif
+        }
+
+        inventoryAddHandler = cachedInventoryAddHandler;
     }
     public IEnumerator destroyaftertime()
     {
@@ -98,21 +150,19 @@ public void TreeFall()
             return;
         }
 
-        Transform topTransform = toppart.transform;
-        if (fallTiltDegrees > 0f)
-        {
-            topTransform.Rotate(Vector3.right, -fallTiltDegrees, Space.Self);
-        }
-
-        PrepareTopPartCollidersForFall(topTransform);
+        Vector3 localEulerAngles = toppart.transform.localEulerAngles;
+        localEulerAngles.x = InitialFallRotationX;
+        toppart.transform.localEulerAngles = localEulerAngles;
 
         Rigidbody topRigidbody = toppart.GetComponent<Rigidbody>();
+        
         if (topRigidbody == null)
         {
+            
             topRigidbody = toppart.AddComponent<Rigidbody>();
         }
 
-        ConfigureTopPartRigidbody(topRigidbody);
+    
     }
     private void SpawnChopImpact(Transform attacker)
     {

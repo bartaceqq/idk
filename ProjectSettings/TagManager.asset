@@ -10,6 +10,10 @@ TagManager:
   - Stick
   - LittleStone
   - Bamboo
+  - MushRoom
+  - MushRoomRed
+  - RedFlower
+  - BlueFlower
   layers:
   - Default
   - TransparentFX

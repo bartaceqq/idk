@@ -7,12 +7,16 @@ using UnityEditor;
 // Controls Terrain Tree To Prefab Converter behavior.
 public class TerrainTreeToPrefabConverter : MonoBehaviour
 {
+    [Header("Converted Resource References")]
+    public InventoryAddHandler inventoryAddHandler;
+   
     [SerializeField] private Terrain targetTerrain;
     [SerializeField] private Transform parentForSpawnedTrees;
     [Header("Placement")]
     [SerializeField] private bool snapConvertedObjectsToTerrain = true;
     [SerializeField] private bool alignConvertedObjectsToTerrainNormal = false;
     [SerializeField] private float terrainSurfaceOffset = 0f;
+    [SerializeField, Min(0f)] private float mineStoneEmbedDepth = 0.2f;
     [Header("Auto Conversion")]
     [SerializeField] private bool convertPaintedTreesOnStart = true;
     [Tooltip("If enabled, converter will only convert resource prefabs (CutTree/MineStone).")]
@@ -39,6 +43,8 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
     [SerializeField] private int detailPlacementSeed = 1337;
     [SerializeField] private bool deterministicDetailPlacement = true;
     [SerializeField, Range(0f, 1f)] private float detailCellJitter = 0.6f;
+
+    private static InventoryAddHandler cachedInventoryAddHandler;
 
     private void Start()
     {
@@ -124,6 +130,7 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
             Quaternion worldRotation = Quaternion.Euler(0f, instance.rotation * Mathf.Rad2Deg, 0f);
 
             GameObject spawnedTree = Instantiate(prototypePrefab, worldPosition, worldRotation, parentForSpawnedTrees);
+            AssignConvertedObjectReferences(spawnedTree);
 
             Vector3 baseScale = spawnedTree.transform.localScale;
             spawnedTree.transform.localScale = new Vector3(
@@ -438,6 +445,7 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
 
                         Quaternion worldRot = Quaternion.Euler(0f, rotY, 0f);
                         GameObject spawned = Instantiate(protoPrefab, worldPos, worldRot, detailRoot.transform);
+                        AssignConvertedObjectReferences(spawned);
 
                         Vector3 baseScale = spawned.transform.localScale;
                         spawned.transform.localScale = new Vector3(baseScale.x * widthScale, baseScale.y * heightScale, baseScale.z * widthScale);
@@ -723,6 +731,91 @@ Done:
         return true;
     }
 
+    private void AssignConvertedObjectReferences(GameObject convertedObject)
+    {
+        if (convertedObject == null)
+        {
+            return;
+        }
+
+        TreeHandler[] treeHandlers = convertedObject.GetComponentsInChildren<TreeHandler>(true);
+        if (treeHandlers == null || treeHandlers.Length == 0)
+        {
+            return;
+        }
+
+        InventoryAddHandler resolvedAddHandler = ResolveInventoryAddHandler();
+        for (int i = 0; i < treeHandlers.Length; i++)
+        {
+            TreeHandler treeHandler = treeHandlers[i];
+            if (treeHandler == null)
+            {
+                continue;
+            }
+
+            if (resolvedAddHandler != null)
+            {
+                treeHandler.inventoryAddHandler = resolvedAddHandler;
+            }
+
+            InventoryItem resolvedItem = ResolveInventoryItem(treeHandler, convertedObject);
+            if (resolvedItem != null)
+            {
+                treeHandler.inventoryItem = resolvedItem;
+            }
+        }
+    }
+
+    private InventoryAddHandler ResolveInventoryAddHandler()
+    {
+        if (inventoryAddHandler != null)
+        {
+            cachedInventoryAddHandler = inventoryAddHandler;
+            return inventoryAddHandler;
+        }
+
+        if (cachedInventoryAddHandler == null)
+        {
+#if UNITY_2023_1_OR_NEWER
+            cachedInventoryAddHandler = FindFirstObjectByType<InventoryAddHandler>(FindObjectsInactive.Include);
+#else
+            cachedInventoryAddHandler = FindObjectOfType<InventoryAddHandler>(true);
+#endif
+        }
+
+        return cachedInventoryAddHandler;
+    }
+
+    private InventoryItem ResolveInventoryItem(TreeHandler treeHandler, GameObject convertedObject)
+    {
+        
+
+        if (treeHandler.inventoryItem != null)
+        {
+            return treeHandler.inventoryItem;
+        }
+
+        InventoryItem resolvedItem = treeHandler.GetComponent<InventoryItem>();
+        if (resolvedItem == null)
+        {
+            resolvedItem = treeHandler.GetComponentInChildren<InventoryItem>(true);
+        }
+
+        if (resolvedItem == null && convertedObject != null)
+        {
+            resolvedItem = convertedObject.GetComponentInChildren<InventoryItem>(true);
+        }
+
+     
+
+        if (resolvedItem != null)
+        {
+            resolvedItem.ResolveReferences();
+        }
+
+        return resolvedItem;
+    }
+
     private void ApplyTerrainPlacement(Transform target, Terrain terrain)
     {
         if (target == null || terrain == null || terrain.terrainData == null)
@@ -745,34 +838,128 @@ Done:
     {
         Vector3 position = target.position;
         float terrainHeight = terrain.SampleHeight(position) + terrain.transform.position.y + terrainSurfaceOffset;
+        float groundEmbedDepth = GetAdditionalGroundEmbedDepth(target);
 
-        if (TryGetObjectBounds(target, out Bounds bounds))
+        if (TryGetGroundingBounds(target, out Bounds bounds))
         {
-            position.y += terrainHeight - bounds.min.y;
+            position.y += terrainHeight - bounds.min.y - groundEmbedDepth;
         }
         else
         {
-            position.y = terrainHeight;
+            position.y = terrainHeight - groundEmbedDepth;
         }
 
         target.position = position;
     }
 
-    private static bool TryGetObjectBounds(Transform target, out Bounds bounds)
+    private float GetAdditionalGroundEmbedDepth(Transform target)
+    {
+        if (mineStoneEmbedDepth <= 0f || target == null)
+        {
+            return 0f;
+        }
+
+        return target.GetComponentInChildren<MineStone>(true) != null
+            ? mineStoneEmbedDepth
+            : 0f;
+    }
+
+    private static bool TryGetGroundingBounds(Transform target, out Bounds bounds)
+    {
+        if (TryGetMineStoneBounds(target, out bounds))
+        {
+            return true;
+        }
+
+        if (TryGetObjectBounds(target, includeInactive: false, out bounds))
+        {
+            return true;
+        }
+
+        return TryGetObjectBounds(target, includeInactive: true, out bounds);
+    }
+
+    private static bool TryGetMineStoneBounds(Transform target, out Bounds bounds)
     {
         bounds = default;
-        bool hasBounds = false;
-
         if (target == null)
         {
             return false;
         }
 
-        Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
+        MineStone mineStone = target.GetComponentInChildren<MineStone>(true);
+        if (mineStone == null)
+        {
+            return false;
+        }
+
+        bool hasBounds = false;
+
+        if (mineStone.mainstoneparts != null && mineStone.mainstoneparts.Length > 0)
+        {
+            for (int i = 0; i < mineStone.mainstoneparts.Length; i++)
+            {
+                GameObject part = mineStone.mainstoneparts[i];
+                if (part == null)
+                {
+                    continue;
+                }
+
+                if (TryEncapsulateRenderers(part.transform, includeInactive: false, ref bounds, ref hasBounds))
+                {
+                    continue;
+                }
+
+                TryEncapsulateColliders(part.transform, includeInactive: false, ref bounds, ref hasBounds);
+            }
+        }
+
+        if (hasBounds)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetObjectBounds(Transform target, bool includeInactive, out Bounds bounds)
+    {
+        bounds = default;
+        if (target == null)
+        {
+            return false;
+        }
+
+        bool hasBounds = false;
+        TryEncapsulateRenderers(target, includeInactive, ref bounds, ref hasBounds);
+
+        if (hasBounds)
+        {
+            return true;
+        }
+
+        TryEncapsulateColliders(target, includeInactive, ref bounds, ref hasBounds);
+
+        return hasBounds;
+    }
+
+    private static bool TryEncapsulateRenderers(Transform target, bool includeInactive, ref Bounds bounds, ref bool hasBounds)
+    {
+        if (target == null)
+        {
+            return hasBounds;
+        }
+
+        Renderer[] renderers = target.GetComponentsInChildren<Renderer>(includeInactive);
         for (int i = 0; i < renderers.Length; i++)
         {
             Renderer currentRenderer = renderers[i];
             if (currentRenderer == null)
+            {
+                continue;
+            }
+
+            if (!includeInactive && (!currentRenderer.enabled || !currentRenderer.gameObject.activeInHierarchy))
             {
                 continue;
             }
@@ -788,16 +975,26 @@ Done:
             }
         }
 
-        if (hasBounds)
+        return hasBounds;
+    }
+
+    private static bool TryEncapsulateColliders(Transform target, bool includeInactive, ref Bounds bounds, ref bool hasBounds)
+    {
+        if (target == null)
         {
-            return true;
+            return hasBounds;
         }
 
-        Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
+        Collider[] colliders = target.GetComponentsInChildren<Collider>(includeInactive);
         for (int i = 0; i < colliders.Length; i++)
         {
             Collider currentCollider = colliders[i];
             if (currentCollider == null)
+            {
+                continue;
+            }
+
+            if (!includeInactive && (!currentCollider.enabled || !currentCollider.gameObject.activeInHierarchy || currentCollider.isTrigger))
             {
                 continue;
             }
