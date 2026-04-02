@@ -29,6 +29,11 @@ public class ItemSwitchScript : MonoBehaviour
         KeyCode.Alpha9
     };
 
+    private void Awake()
+    {
+        RefreshItemPresentations();
+    }
+
     private void Update()
     {
         EnsureCurrentSwordTrailEffect();
@@ -163,6 +168,10 @@ public class ItemSwitchScript : MonoBehaviour
         }
 
         EnsureCurrentSelectionIsAllowed();
+        if (!_isSwordTransitioning)
+        {
+            RefreshItemPresentations();
+        }
     }
 
     // Handle Has Item Named.
@@ -249,15 +258,20 @@ public class ItemSwitchScript : MonoBehaviour
             ActionScript resolvedActionScript = ResolveActionScript();
             resolvedActionScript?.CancelUpperBodyAction();
             resolvedActionScript?.CancelSwordBlock();
-            SetItemObjectVisible(previousItem, false);
+            ApplyInactiveItemPresentation(previousItem);
+        }
+
+        if (targetIsSword)
+        {
+            ActivateItemImmediate(targetItem, false);
+            EnsureSwordTrailEffect(targetItem);
+            ApplyHolsteredItemPresentation(targetItem);
+            StartSwordEquipTransition(targetItem);
+            return;
         }
 
         ActivateItemImmediate(targetItem);
-        if (targetIsSword)
-        {
-            EnsureSwordTrailEffect(targetItem);
-            ResolveActionScript()?.TryEquipSword();
-        }
+        RefreshInactiveItemPresentations();
     }
 
     // Handle Unequip Current Item.
@@ -281,10 +295,11 @@ public class ItemSwitchScript : MonoBehaviour
             ActionScript resolvedActionScript = ResolveActionScript();
             resolvedActionScript?.CancelUpperBodyAction();
             resolvedActionScript?.CancelSwordBlock();
-            SetItemObjectVisible(item, false);
+            ApplyInactiveItemPresentation(item);
         }
 
         ClearCurrentSelection();
+        RefreshInactiveItemPresentations();
     }
 
     // Handle Set Item Object Visible.
@@ -343,6 +358,18 @@ public class ItemSwitchScript : MonoBehaviour
         _pendingSwordTransition = StartCoroutine(PlaySwordHideTransition(swordItem, nextItem));
     }
 
+    // Handle Start Sword Equip Transition.
+    private void StartSwordEquipTransition(Item swordItem)
+    {
+        if (swordItem == null)
+        {
+            return;
+        }
+
+        CancelPendingSwordTransition();
+        _pendingSwordTransition = StartCoroutine(PlaySwordEquipTransition(swordItem));
+    }
+
     // Handle Cancel Pending Sword Transition.
     private void CancelPendingSwordTransition()
     {
@@ -368,32 +395,237 @@ public class ItemSwitchScript : MonoBehaviour
         bool playedHide = resolvedActionScript != null && resolvedActionScript.TryUnequipSword();
         if (playedHide && resolvedActionScript != null)
         {
-            float timeoutAt = Time.time + Mathf.Max(0.2f, resolvedActionScript.GetRemainingGameplayInputLockSeconds() + 0.25f);
-            while (resolvedActionScript.IsGameplayInputLocked() && Time.time < timeoutAt)
-            {
-                yield return null;
-            }
+            yield return WaitForSwordStateToFinish(
+                resolvedActionScript,
+                resolvedActionScript.swordUnequipStateName);
         }
 
-        SetItemObjectVisible(swordItem, false);
+        ApplyInactiveItemPresentation(swordItem);
         ClearCurrentSelection();
 
         if (nextItem != null)
         {
-            ActivateItemImmediate(nextItem);
-            if (IsSwordItem(nextItem))
+            bool nextIsSword = IsSwordItem(nextItem);
+            if (nextIsSword)
             {
+                ActivateItemImmediate(nextItem, false);
                 EnsureSwordTrailEffect(nextItem);
-                ResolveActionScript()?.TryEquipSword();
+                ApplyHolsteredItemPresentation(nextItem);
+                _isSwordTransitioning = false;
+                _pendingSwordTransition = null;
+                StartSwordEquipTransition(nextItem);
+                yield break;
             }
+
+            ActivateItemImmediate(nextItem);
         }
 
         _isSwordTransitioning = false;
         _pendingSwordTransition = null;
+        RefreshInactiveItemPresentations();
+    }
+
+    // Handle Play Sword Equip Transition.
+    private IEnumerator PlaySwordEquipTransition(Item swordItem)
+    {
+        _isSwordTransitioning = true;
+        ApplyHolsteredItemPresentation(swordItem);
+
+        ActionScript resolvedActionScript = ResolveActionScript();
+        bool playedEquip = resolvedActionScript != null && resolvedActionScript.TryEquipSword();
+        if (playedEquip && resolvedActionScript != null)
+        {
+            yield return WaitForSwordStateToFinish(
+                resolvedActionScript,
+                resolvedActionScript.swordEquipStateName);
+        }
+
+        if (item == swordItem)
+        {
+            ApplyActiveItemPresentation(swordItem);
+        }
+        else
+        {
+            ApplyInactiveItemPresentation(swordItem);
+        }
+
+        _isSwordTransitioning = false;
+        _pendingSwordTransition = null;
+        RefreshInactiveItemPresentations();
+    }
+
+    // Handle Wait For Sword Animation Lock To Finish.
+    private static IEnumerator WaitForSwordAnimationLockToFinish(ActionScript actionScript)
+    {
+        if (actionScript == null)
+        {
+            yield break;
+        }
+
+        float timeoutAt = Time.time + Mathf.Max(0.2f, actionScript.GetRemainingGameplayInputLockSeconds() + 0.25f);
+        while (actionScript.IsGameplayInputLocked() && Time.time < timeoutAt)
+        {
+            yield return null;
+        }
+    }
+
+    // Handle Wait For Sword State To Finish.
+    private static IEnumerator WaitForSwordStateToFinish(ActionScript actionScript, string stateName)
+    {
+        if (actionScript == null || string.IsNullOrWhiteSpace(stateName))
+        {
+            yield break;
+        }
+
+        Animator animator = ResolveCharacterAnimator(actionScript);
+        if (!TryGetBaseLayerIndex(actionScript, animator, out int layerIndex))
+        {
+            yield return WaitForSwordAnimationLockToFinish(actionScript);
+            yield break;
+        }
+
+        float timeoutAt = Time.time + Mathf.Max(0.5f, actionScript.GetRemainingGameplayInputLockSeconds() + 1.5f);
+        bool enteredTargetState = false;
+
+        while (Time.time < timeoutAt)
+        {
+            if (TryGetAnimatorStateInfo(animator, layerIndex, actionScript.baseLayerName, stateName, out _))
+            {
+                enteredTargetState = true;
+                yield return null;
+                continue;
+            }
+
+            if (enteredTargetState)
+            {
+                yield break;
+            }
+
+            if (!actionScript.IsGameplayInputLocked())
+            {
+                break;
+            }
+
+            yield return null;
+        }
+
+        if (!enteredTargetState)
+        {
+            yield return WaitForSwordAnimationLockToFinish(actionScript);
+        }
+    }
+
+    // Handle Resolve Character Animator.
+    private static Animator ResolveCharacterAnimator(ActionScript actionScript)
+    {
+        if (actionScript == null)
+        {
+            return null;
+        }
+
+        if (actionScript.movementAnimationScript != null &&
+            actionScript.movementAnimationScript.animator != null)
+        {
+            return actionScript.movementAnimationScript.animator;
+        }
+
+        if (actionScript.swordAnimationScript != null &&
+            actionScript.swordAnimationScript.animator != null)
+        {
+            return actionScript.swordAnimationScript.animator;
+        }
+
+        if (actionScript.pickaxeAnimationScript != null &&
+            actionScript.pickaxeAnimationScript.animator != null)
+        {
+            return actionScript.pickaxeAnimationScript.animator;
+        }
+
+        return null;
+    }
+
+    // Handle Try Get Base Layer Index.
+    private static bool TryGetBaseLayerIndex(ActionScript actionScript, Animator animator, out int layerIndex)
+    {
+        layerIndex = -1;
+        if (animator == null || animator.layerCount <= 0)
+        {
+            return false;
+        }
+
+        if (actionScript != null && !string.IsNullOrWhiteSpace(actionScript.baseLayerName))
+        {
+            layerIndex = animator.GetLayerIndex(actionScript.baseLayerName);
+        }
+
+        if (layerIndex < 0)
+        {
+            layerIndex = 0;
+        }
+
+        return layerIndex >= 0 && layerIndex < animator.layerCount;
+    }
+
+    // Handle Try Get Animator State Info.
+    private static bool TryGetAnimatorStateInfo(
+        Animator animator,
+        int layerIndex,
+        string baseLayerName,
+        string stateName,
+        out AnimatorStateInfo stateInfo)
+    {
+        stateInfo = default;
+        if (animator == null || string.IsNullOrWhiteSpace(stateName))
+        {
+            return false;
+        }
+
+        AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
+        if (MatchesStateName(current, stateName, baseLayerName))
+        {
+            stateInfo = current;
+            return true;
+        }
+
+        if (!animator.IsInTransition(layerIndex))
+        {
+            return false;
+        }
+
+        AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
+        if (!MatchesStateName(next, stateName, baseLayerName))
+        {
+            return false;
+        }
+
+        stateInfo = next;
+        return true;
+    }
+
+    // Handle Matches State Name.
+    private static bool MatchesStateName(AnimatorStateInfo state, string stateName, string baseLayerName)
+    {
+        if (string.IsNullOrWhiteSpace(stateName))
+        {
+            return false;
+        }
+
+        if (state.IsName(stateName))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(baseLayerName) &&
+            state.IsName($"{baseLayerName}.{stateName}"))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     // Handle Activate Item Immediate.
-    private void ActivateItemImmediate(Item targetItem)
+    private void ActivateItemImmediate(Item targetItem, bool applyDrawnPresentation = true)
     {
         if (targetItem == null)
         {
@@ -403,6 +635,13 @@ public class ItemSwitchScript : MonoBehaviour
         currentitemid = targetItem.ID;
         currentitemname = targetItem.name;
         item = targetItem;
+
+        if (applyDrawnPresentation)
+        {
+            ApplyActiveItemPresentation(targetItem);
+            return;
+        }
+
         SetItemObjectVisible(targetItem, true);
     }
 
@@ -412,6 +651,85 @@ public class ItemSwitchScript : MonoBehaviour
         item = null;
         currentitemid = 0;
         currentitemname = string.Empty;
+    }
+
+    // Handle Refresh Item Presentations.
+    private void RefreshItemPresentations()
+    {
+        if (item != null && !_isSwordTransitioning)
+        {
+            ApplyActiveItemPresentation(item);
+        }
+
+        RefreshInactiveItemPresentations();
+    }
+
+    // Handle Refresh Inactive Item Presentations.
+    private void RefreshInactiveItemPresentations()
+    {
+        for (int i = 0; i < items.Count; i++)
+        {
+            Item candidate = items[i];
+            if (candidate == null || candidate == item)
+            {
+                continue;
+            }
+
+            ApplyInactiveItemPresentation(candidate);
+        }
+    }
+
+    // Handle Apply Active Item Presentation.
+    private void ApplyActiveItemPresentation(Item targetItem)
+    {
+        if (targetItem == null)
+        {
+            return;
+        }
+
+        targetItem.ApplyDrawnPresentation();
+        SetItemObjectVisible(targetItem, true);
+    }
+
+    // Handle Apply Holstered Item Presentation.
+    private void ApplyHolsteredItemPresentation(Item targetItem)
+    {
+        if (targetItem == null)
+        {
+            return;
+        }
+
+        targetItem.ApplyHolsteredPresentation();
+        SetItemObjectVisible(targetItem, true);
+    }
+
+    // Handle Apply Inactive Item Presentation.
+    private void ApplyInactiveItemPresentation(Item targetItem)
+    {
+        if (ShouldShowItemHolstered(targetItem))
+        {
+            ApplyHolsteredItemPresentation(targetItem);
+            return;
+        }
+
+        SetItemObjectVisible(targetItem, false);
+    }
+
+    // Handle Should Show Item Holstered.
+    private bool ShouldShowItemHolstered(Item targetItem)
+    {
+        if (targetItem == null || !targetItem.ShouldRemainVisibleWhenHolstered())
+        {
+            return false;
+        }
+
+        if (!requireWeaponSlotAssignment)
+        {
+            return true;
+        }
+
+        string normalized = NormalizeItemName(targetItem.name);
+        return !string.IsNullOrEmpty(normalized) && equippedItemNames.Contains(normalized);
     }
 
     // Handle Is Sword Item.
