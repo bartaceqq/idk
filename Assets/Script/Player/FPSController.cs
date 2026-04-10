@@ -69,6 +69,7 @@ public class FPSController : MonoBehaviour
     private InputAction _runAction;
 
     private CharacterController _cc;
+    private ItemSwitchScript _itemSwitchScript;
     private CapsuleCollider _extraCapsuleCollider;
     private readonly RaycastHit[] _cameraHits = new RaycastHit[8];
     private readonly RaycastHit[] _groundHits = new RaycastHit[8];
@@ -278,7 +279,8 @@ public class FPSController : MonoBehaviour
         }
 
         bool isRunning = runPressed && canSprint && !_sprintLocked;
-        float currentSpeed = isRunning ? runSpeed : moveSpeed;
+        float swordMovementSpeedMultiplier = ResolveEquippedSwordMovementSpeedMultiplier();
+        float currentSpeed = (isRunning ? runSpeed : moveSpeed) * swordMovementSpeedMultiplier;
         Vector3 moveDirection = yawRotation * new Vector3(moveInput.x, 0f, moveInput.y);
         Vector3 move = moveDirection * currentSpeed;
 
@@ -933,6 +935,47 @@ public class FPSController : MonoBehaviour
     // Handle On Right Run.
     public void OnRightRun(bool active)
     {
+    }
+
+    // Handle Resolve Equipped Sword Movement Speed Multiplier.
+    private float ResolveEquippedSwordMovementSpeedMultiplier()
+    {
+        ItemSwitchScript itemSwitchScript = ResolveItemSwitchScript();
+        if (itemSwitchScript == null || !itemSwitchScript.TryGetEquippedSword(out Sword equippedSword))
+        {
+            return 1f;
+        }
+
+        return equippedSword.GetResolvedSpeed();
+    }
+
+    // Handle Resolve Item Switch Script.
+    private ItemSwitchScript ResolveItemSwitchScript()
+    {
+        if (_itemSwitchScript != null)
+        {
+            return _itemSwitchScript;
+        }
+
+        _itemSwitchScript = GetComponent<ItemSwitchScript>();
+        if (_itemSwitchScript != null)
+        {
+            return _itemSwitchScript;
+        }
+
+        _itemSwitchScript = GetComponentInParent<ItemSwitchScript>();
+        if (_itemSwitchScript != null)
+        {
+            return _itemSwitchScript;
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        _itemSwitchScript = FindFirstObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
+#else
+        _itemSwitchScript = FindObjectOfType<ItemSwitchScript>(true);
+#endif
+
+        return _itemSwitchScript;
     }
 
     // Handle Is UIBlocking Gameplay.

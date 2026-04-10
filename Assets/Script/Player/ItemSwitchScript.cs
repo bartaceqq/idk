@@ -200,6 +200,25 @@ public class ItemSwitchScript : MonoBehaviour
         return false;
     }
 
+    // Handle Try Get Equipped Sword.
+    public bool TryGetEquippedSword(out Sword equippedSword)
+    {
+        equippedSword = null;
+        if (Sword.TryResolve(item, out equippedSword))
+        {
+            return true;
+        }
+
+        string equippedName = NormalizeItemName(currentitemname);
+        if (string.IsNullOrEmpty(equippedName) ||
+            !TryResolveItemByName(equippedName, out Item resolvedItem))
+        {
+            return false;
+        }
+
+        return Sword.TryResolve(resolvedItem, out equippedSword);
+    }
+
     // Handle Can Use Item.
     private bool CanUseItem(Item candidate)
     {
@@ -334,8 +353,7 @@ public class ItemSwitchScript : MonoBehaviour
             return;
         }
 
-        string mappedName = MapCommonWeaponName(targetItem.name);
-        if (!string.Equals(mappedName, "Sword", System.StringComparison.OrdinalIgnoreCase))
+        if (!IsSwordItem(targetItem))
         {
             return;
         }
@@ -740,6 +758,11 @@ public class ItemSwitchScript : MonoBehaviour
             return false;
         }
 
+        if (Sword.TryResolve(candidate, out _))
+        {
+            return true;
+        }
+
         return string.Equals(
             MapCommonWeaponName(candidate.name),
             "Sword",
@@ -836,8 +859,13 @@ public class ItemSwitchScript : MonoBehaviour
     }
 
     // Handle Is Sword Equipped.
-    private bool IsSwordEquipped()
+    public bool IsSwordEquipped()
     {
+        if (TryGetEquippedSword(out _))
+        {
+            return true;
+        }
+
         string equippedName = NormalizeItemName(currentitemname);
         if (string.IsNullOrEmpty(equippedName) && item != null)
         {

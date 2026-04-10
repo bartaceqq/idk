@@ -67,6 +67,7 @@ public class ActionScript : MonoBehaviour
     private int _nextLightAttackIndex;
     private int _nextHeavyAttackIndex;
     private PlayerRootMotionDriver _rootMotionDriver;
+    private ItemSwitchScript _itemSwitchScript;
 
     private static readonly int AttackWeaponStateHash = Animator.StringToHash("AttackWeapon");
     private static readonly int AttackTwoHandedStateHash = Animator.StringToHash("AttackTwoHanded");
@@ -361,12 +362,14 @@ public class ActionScript : MonoBehaviour
     // Handle Try Equip Sword.
     public bool TryEquipSword()
     {
+        ApplyConfiguredActionAnimationSpeeds();
         return TryPlaySwordFullBodyState(swordEquipStateName);
     }
 
     // Handle Try Unequip Sword.
     public bool TryUnequipSword()
     {
+        ApplyConfiguredActionAnimationSpeeds();
         Animator animator = ResolveCharacterAnimator();
         TrySetAnimatorBoolParameter(animator, SwordBlockingParameterName, false);
         return TryPlaySwordFullBodyState(swordUnequipStateName);
@@ -1149,8 +1152,9 @@ public class ActionScript : MonoBehaviour
             return;
         }
 
-        TrySetAnimatorFloatParameter(animator, AttackLightSpeedParameterName, ResolveConfiguredSpeed(lightAttackAnimationSpeed));
-        TrySetAnimatorFloatParameter(animator, AttackHeavySpeedParameterName, ResolveConfiguredSpeed(heavyAttackAnimationSpeed));
+        float swordAnimationSpeedMultiplier = ResolveEquippedSwordAnimationSpeedMultiplier();
+        TrySetAnimatorFloatParameter(animator, AttackLightSpeedParameterName, ResolveConfiguredSpeed(lightAttackAnimationSpeed) * swordAnimationSpeedMultiplier);
+        TrySetAnimatorFloatParameter(animator, AttackHeavySpeedParameterName, ResolveConfiguredSpeed(heavyAttackAnimationSpeed) * swordAnimationSpeedMultiplier);
         TrySetAnimatorFloatParameter(animator, PunchLeftSpeedParameterName, ResolveConfiguredSpeed(punchLeftAnimationSpeed));
         TrySetAnimatorFloatParameter(animator, PunchRightSpeedParameterName, ResolveConfiguredSpeed(punchRightAnimationSpeed));
         TrySetAnimatorFloatParameter(animator, MineSpeedParameterName, ResolveConfiguredSpeed(mineAnimationSpeed));
@@ -1158,6 +1162,18 @@ public class ActionScript : MonoBehaviour
         TrySetAnimatorFloatParameter(animator, GunShootSpeedParameterName, ResolveConfiguredSpeed(gunShootAnimationSpeed));
         TrySetAnimatorFloatParameter(animator, GunReloadSpeedParameterName, ResolveConfiguredSpeed(gunReloadAnimationSpeed));
         SetUpperBodyChopAnimationSpeed();
+    }
+
+    // Handle Resolve Equipped Sword Animation Speed Multiplier.
+    private float ResolveEquippedSwordAnimationSpeedMultiplier()
+    {
+        ItemSwitchScript itemSwitchScript = ResolveItemSwitchScript();
+        if (itemSwitchScript == null || !itemSwitchScript.TryGetEquippedSword(out Sword equippedSword))
+        {
+            return 1f;
+        }
+
+        return equippedSword.GetResolvedAnimationSpeed();
     }
 
     // Handle Try Queue Active Chop.
@@ -1597,6 +1613,35 @@ public class ActionScript : MonoBehaviour
         }
 
         return 1f;
+    }
+
+    // Handle Resolve Item Switch Script.
+    private ItemSwitchScript ResolveItemSwitchScript()
+    {
+        if (_itemSwitchScript != null)
+        {
+            return _itemSwitchScript;
+        }
+
+        _itemSwitchScript = GetComponent<ItemSwitchScript>();
+        if (_itemSwitchScript != null)
+        {
+            return _itemSwitchScript;
+        }
+
+        _itemSwitchScript = GetComponentInParent<ItemSwitchScript>();
+        if (_itemSwitchScript != null)
+        {
+            return _itemSwitchScript;
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        _itemSwitchScript = FindFirstObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
+#else
+        _itemSwitchScript = FindObjectOfType<ItemSwitchScript>(true);
+#endif
+
+        return _itemSwitchScript;
     }
 
     // Handle Resolve Configured Speed.

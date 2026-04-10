@@ -40,16 +40,20 @@ public class CraftableItem : MonoBehaviour
 
         if (!RequiresPrefab() || ResolveCraftPrefab() != null)
         {
+            ValidateSwordPrefab();
             return;
         }
 
         Debug.LogWarning($"{name}: Type {itemType} requires a prefab (itemPrefab or craftedInventoryItem.itemPrefab).", this);
+        ValidateSwordPrefab();
     }
 
     // Handle Requires Prefab.
     public bool RequiresPrefab()
     {
-        return itemType == InventoryItemType.Tool || itemType == InventoryItemType.Building;
+        return itemType == InventoryItemType.Tool ||
+               itemType == InventoryItemType.Sword ||
+               itemType == InventoryItemType.Building;
     }
 
     // Handle Resolve Craft Prefab.
@@ -172,5 +176,22 @@ public class CraftableItem : MonoBehaviour
         }
 
         return axisValue;
+    }
+
+    // Handle Validate Sword Prefab.
+    private void ValidateSwordPrefab()
+    {
+        if (itemType != InventoryItemType.Sword)
+        {
+            return;
+        }
+
+        GameObject swordPrefab = ResolveCraftPrefab();
+        if (swordPrefab == null || swordPrefab.GetComponent<Sword>() != null)
+        {
+            return;
+        }
+
+        Debug.LogWarning($"{name}: Crafted sword prefabs should include a Sword component.", this);
     }
 }

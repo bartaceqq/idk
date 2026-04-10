@@ -72,7 +72,9 @@ public class InventoryItem : MonoBehaviour
     // Handle Requires Prefab.
     public bool RequiresPrefab()
     {
-        return itemType == InventoryItemType.Tool || itemType == InventoryItemType.Building;
+        return itemType == InventoryItemType.Tool ||
+               itemType == InventoryItemType.Sword ||
+               itemType == InventoryItemType.Building;
     }
 
     // Handle Has Required Prefab.
@@ -108,6 +110,8 @@ public class InventoryItem : MonoBehaviour
             Debug.LogWarning($"{name}: Item type {itemType} requires itemPrefab.", this);
             ValidateBuildScale();
         }
+
+        ValidateSwordSetup(logWarning);
     }
 
     // Handle Validate Build Scale.
@@ -116,6 +120,20 @@ public class InventoryItem : MonoBehaviour
         buildScale.x = ValidateScaleAxis(buildScale.x);
         buildScale.y = ValidateScaleAxis(buildScale.y);
         buildScale.z = ValidateScaleAxis(buildScale.z);
+    }
+
+    // Handle Validate Sword Setup.
+    private void ValidateSwordSetup(bool logWarning)
+    {
+        if (!logWarning || itemType != InventoryItemType.Sword || itemPrefab == null)
+        {
+            return;
+        }
+
+        if (itemPrefab.GetComponent<Sword>() == null)
+        {
+            Debug.LogWarning($"{name}: Sword items should use an itemPrefab with a Sword component.", this);
+        }
     }
 
     // Handle Validate Scale Axis.

@@ -537,9 +537,10 @@ public class RayScript : MonoBehaviour
     // Handle Resolve Sword Action Cooldown.
     private float ResolveSwordActionCooldown(float fallbackCooldown)
     {
+        float resolvedFallbackCooldown = ResolveSwordFallbackCooldown(fallbackCooldown);
         if (actionScript == null)
         {
-            return Mathf.Max(0.01f, fallbackCooldown);
+            return resolvedFallbackCooldown;
         }
 
         float lockSeconds = actionScript.GetRemainingGameplayInputLockSeconds();
@@ -548,7 +549,19 @@ public class RayScript : MonoBehaviour
             return Mathf.Max(0.01f, lockSeconds);
         }
 
-        return Mathf.Max(0.01f, fallbackCooldown);
+        return resolvedFallbackCooldown;
+    }
+
+    // Handle Resolve Sword Fallback Cooldown.
+    private float ResolveSwordFallbackCooldown(float fallbackCooldown)
+    {
+        float resolvedCooldown = Mathf.Max(0.01f, fallbackCooldown);
+        if (itemSwitchScript == null || !itemSwitchScript.TryGetEquippedSword(out Sword equippedSword))
+        {
+            return resolvedCooldown;
+        }
+
+        return Mathf.Max(0.01f, resolvedCooldown / equippedSword.GetResolvedAnimationSpeed());
     }
 
     // Handle Get Sword Special Hotkey Index.
@@ -575,7 +588,7 @@ public class RayScript : MonoBehaviour
     // Handle Is Sword Equipped.
     private bool IsSwordEquipped()
     {
-        return IsEquippedWeaponType("Sword", 3);
+        return itemSwitchScript != null && itemSwitchScript.IsSwordEquipped();
     }
 
     // Handle Is Axe Equipped.

@@ -24,6 +24,7 @@ public class RadiusForAttackScript : MonoBehaviour
     public Transform attackOrigin;
     public EnemiesHandler enemiesHandler;
     public ActionScript actionScript;
+    public ItemSwitchScript itemSwitchScript;
     public float attackRadius = 5f;
     public float attackDamage = 40f;
     public Vector3 attackOriginLocalOffset = new Vector3(0f, 1f, 1.25f);
@@ -78,6 +79,20 @@ public class RadiusForAttackScript : MonoBehaviour
             if (actionScript == null)
             {
                 actionScript = FindFirstObjectByType<ActionScript>(FindObjectsInactive.Include);
+            }
+        }
+
+        if (itemSwitchScript == null)
+        {
+            itemSwitchScript = GetComponent<ItemSwitchScript>();
+            if (itemSwitchScript == null)
+            {
+                itemSwitchScript = GetComponentInParent<ItemSwitchScript>();
+            }
+
+            if (itemSwitchScript == null)
+            {
+                itemSwitchScript = FindFirstObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
             }
         }
     }
@@ -237,7 +252,8 @@ public class RadiusForAttackScript : MonoBehaviour
         EnsureWindowRegistryCapacity(profile.windows.Count);
         SwordHitWindow activeWindow = profile.windows[activeWindowIndex];
         float radius = Mathf.Max(0.01f, attackRadius * Mathf.Max(0.1f, profile.radiusMultiplier));
-        float damage = attackDamage * Mathf.Max(0f, activeWindow.damageMultiplier);
+        float baseDamage = ResolveSwordBaseDamage();
+        float damage = baseDamage * Mathf.Max(0f, activeWindow.damageMultiplier);
         if (damage <= 0f)
         {
             return;
@@ -347,8 +363,19 @@ public class RadiusForAttackScript : MonoBehaviour
         PerformAttackSweep(
             ResolveAttackOrigin(),
             Mathf.Max(0.01f, attackRadius),
-            attackDamage,
+            ResolveSwordBaseDamage(),
             null);
+    }
+
+    // Handle Resolve Sword Base Damage.
+    private float ResolveSwordBaseDamage()
+    {
+        if (itemSwitchScript != null && itemSwitchScript.TryGetEquippedSword(out Sword equippedSword))
+        {
+            return equippedSword.GetResolvedDamage();
+        }
+
+        return Mathf.Max(0f, attackDamage);
     }
 
     // Handle Resolve Attack Origin.
