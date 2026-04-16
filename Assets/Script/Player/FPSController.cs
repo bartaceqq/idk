@@ -264,6 +264,10 @@ public class FPSController : MonoBehaviour
         bool runPressed = !movementInputLocked && (_runAction != null
             ? _runAction.IsPressed()
             : (Keyboard.current?.leftShiftKey?.isPressed ?? false));
+        bool jumpPressedThisFrame = !movementInputLocked && _jumpAction != null && _jumpAction.triggered;
+
+        HandleEmoteInput(uiBlocking, movementInputLocked, moveInput, runPressed, jumpPressedThisFrame);
+
         bool canSprint = actionScript != null && actionScript.staminaScript != null
             ? actionScript.staminaScript.enoughstamina
             : true;
@@ -286,7 +290,6 @@ public class FPSController : MonoBehaviour
 
         UpdateMovementFlags(moveInput, isRunning);
 
-        bool jumpPressedThisFrame = !movementInputLocked && _jumpAction != null && _jumpAction.triggered;
         if (jumpPressedThisFrame)
         {
             _lastJumpPressedTime = Time.time;
@@ -740,6 +743,64 @@ public class FPSController : MonoBehaviour
         actionScript.Sprint(anyRun, forwardRun);
         actionScript.SprintForwardLeft(_isForwardLeftRun);
         actionScript.SprintForwardRight(_isForwardRightRun);
+    }
+
+    private void HandleEmoteInput(
+        bool uiBlocking,
+        bool movementInputLocked,
+        Vector2 moveInput,
+        bool runPressed,
+        bool jumpPressedThisFrame)
+    {
+        if (actionScript == null)
+        {
+            return;
+        }
+
+        bool emotePressedThisFrame = !uiBlocking &&
+            !movementInputLocked &&
+            (Keyboard.current?.hKey?.wasPressedThisFrame ?? false);
+        bool cancelEmote = HasMovementInput(moveInput) ||
+            runPressed ||
+            jumpPressedThisFrame ||
+            IsGameplayMouseButtonPressedThisFrame() ||
+            IsOtherGameplayKeyPressedThisFrame(emotePressedThisFrame);
+
+        if (cancelEmote)
+        {
+            actionScript.StopEmote();
+        }
+
+        if (emotePressedThisFrame && !cancelEmote)
+        {
+            actionScript.TryStartEmote();
+        }
+    }
+
+    private static bool HasMovementInput(Vector2 moveInput)
+    {
+        const float deadzone = 0.1f;
+        return Mathf.Abs(moveInput.x) > deadzone || Mathf.Abs(moveInput.y) > deadzone;
+    }
+
+    private static bool IsGameplayMouseButtonPressedThisFrame()
+    {
+        Mouse mouse = Mouse.current;
+        return mouse != null &&
+               ((mouse.leftButton?.wasPressedThisFrame ?? false) ||
+                (mouse.rightButton?.wasPressedThisFrame ?? false) ||
+                (mouse.middleButton?.wasPressedThisFrame ?? false));
+    }
+
+    private static bool IsOtherGameplayKeyPressedThisFrame(bool emotePressedThisFrame)
+    {
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard == null || !keyboard.anyKey.wasPressedThisFrame)
+        {
+            return false;
+        }
+
+        return !emotePressedThisFrame;
     }
 
     // Handle On Jump.

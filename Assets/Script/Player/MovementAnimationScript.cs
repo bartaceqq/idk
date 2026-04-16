@@ -35,6 +35,7 @@ public class MovementAnimationScript : MonoBehaviour
     private static readonly int JumpTriggerHash = Animator.StringToHash("Jump");
     private static readonly int IdleStateHash = Animator.StringToHash("Idle");
     private static readonly int IdleFullPathHash = Animator.StringToHash("Base Layer.Idle");
+    private static readonly int RunningJumpFullPathHash = Animator.StringToHash("Base Layer.RunningJump");
 
     private static readonly int ForewardBoolHash = Animator.StringToHash("Foreward");
     private static readonly int IdleBoolHash = Animator.StringToHash("Idle");
@@ -121,6 +122,13 @@ public class MovementAnimationScript : MonoBehaviour
         ApplyConfiguredAnimationSpeeds();
         ApplySyncedJumpAnimationSpeed(preferRunningJumpSpeed, expectedAirTimeSeconds, 0f);
         animator.ResetTrigger(JumpTriggerHash);
+
+        if (preferRunningJumpSpeed && animator.HasState(0, RunningJumpFullPathHash))
+        {
+            animator.CrossFadeInFixedTime(RunningJumpFullPathHash, 0.02f, 0, 0f);
+            return;
+        }
+
         animator.SetTrigger(JumpTriggerHash);
     }
 

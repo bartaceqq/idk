@@ -11,6 +11,12 @@ public static class RebuildMaleAnimatorController
     private const string WalkPath = PrepReworkFolder + "/Walking.anim";
     private const string RunPath = PrepReworkFolder + "/Run.anim";
     private const string JumpPath = PrepReworkFolder + "/Jump.anim";
+    private const string RunningJumpPath = PrepReworkFolder + "/RunningJump.anim";
+    private const string WalkBackwardPath = PrepReworkFolder + "/WalkingBackwards.anim";
+    private const string LeftStrafePath = PrepReworkFolder + "/LeftStrafeWalking.anim";
+    private const string RightStrafePath = PrepReworkFolder + "/RightStrafeWalking.anim";
+    private const string RightStrafeTypoPath = PrepReworkFolder + "/RightStrafeWalkling.anim";
+    private const string EmotePath = PrepReworkFolder + "/Emote.anim";
     private const string MinePath = PrepReworkFolder + "/Mine.anim";
     private const string AxeFirstPath = PrepReworkFolder + "/AxeFirst.anim";
     private const string AxeSecondPath = PrepReworkFolder + "/AxeSecond.anim";
@@ -76,6 +82,11 @@ public static class RebuildMaleAnimatorController
         AnimationClip walk = LoadClip(WalkPath);
         AnimationClip run = LoadClip(RunPath);
         AnimationClip jump = LoadClip(JumpPath);
+        AnimationClip runningJump = LoadClip(RunningJumpPath);
+        AnimationClip walkBackward = LoadClip(WalkBackwardPath);
+        AnimationClip leftStrafe = LoadClip(LeftStrafePath);
+        AnimationClip rightStrafe = LoadFirstExistingClip(RightStrafeTypoPath, RightStrafePath);
+        AnimationClip emote = LoadClip(EmotePath);
         AnimationClip mine = LoadClip(MinePath);
         AnimationClip axeFirst = LoadClip(AxeFirstPath);
         AnimationClip axeSecond = LoadClip(AxeSecondPath);
@@ -119,6 +130,11 @@ public static class RebuildMaleAnimatorController
             walk,
             run,
             jump,
+            runningJump,
+            walkBackward,
+            leftStrafe,
+            rightStrafe,
+            emote,
             swordAttack,
             swordAttack2,
             specialAttack1,
@@ -198,6 +214,11 @@ public static class RebuildMaleAnimatorController
         AnimationClip walk,
         AnimationClip run,
         AnimationClip jump,
+        AnimationClip runningJump,
+        AnimationClip walkBackward,
+        AnimationClip leftStrafe,
+        AnimationClip rightStrafe,
+        AnimationClip emote,
         AnimationClip swordAttack,
         AnimationClip swordAttack2,
         AnimationClip specialAttack1,
@@ -212,14 +233,16 @@ public static class RebuildMaleAnimatorController
         AnimatorState idleState = AddState(stateMachine, "Idle", new Vector3(420f, 220f, 0f), idle, "IdleSpeed");
         AnimatorState forwardState = AddOptionalState(stateMachine, "ForeWard", new Vector3(700f, 220f, 0f), walk, "WalkSpeed");
         AnimatorState sprintState = AddOptionalState(stateMachine, "SprintForeWard", new Vector3(700f, 100f, 0f), run, "RunSpeed");
-        AnimatorState backwardState = AddOptionalState(stateMachine, "WalkingBackWards", new Vector3(700f, 340f, 0f), walk, "WalkBackwardSpeed");
-        AnimatorState leftState = AddOptionalState(stateMachine, "WalkingLeft", new Vector3(920f, 220f, 0f), walk, "LeftStrafeSpeed");
-        AnimatorState rightState = AddOptionalState(stateMachine, "WalkingRight", new Vector3(920f, 340f, 0f), walk, "RightStrafeSpeed");
+        AnimatorState backwardState = AddOptionalState(stateMachine, "WalkingBackWards", new Vector3(700f, 340f, 0f), walkBackward != null ? walkBackward : walk, "WalkBackwardSpeed");
+        AnimatorState leftState = AddOptionalState(stateMachine, "WalkingLeft", new Vector3(920f, 220f, 0f), leftStrafe != null ? leftStrafe : walk, "LeftStrafeSpeed");
+        AnimatorState rightState = AddOptionalState(stateMachine, "WalkingRight", new Vector3(920f, 340f, 0f), rightStrafe != null ? rightStrafe : walk, "RightStrafeSpeed");
         AnimatorState forwardLeftState = AddOptionalState(stateMachine, "WalkingForwardLeft", new Vector3(920f, 100f, 0f), walk, "LeftStrafeSpeed");
         AnimatorState forwardRightState = AddOptionalState(stateMachine, "WalkingForwardRight", new Vector3(920f, 460f, 0f), walk, "RightStrafeSpeed");
         AnimatorState sprintForwardLeftState = AddOptionalState(stateMachine, "SprintingForwardLeft", new Vector3(1120f, 100f, 0f), run, "RunSpeed");
         AnimatorState sprintForwardRightState = AddOptionalState(stateMachine, "SprintingForwardRight", new Vector3(1120f, 460f, 0f), run, "RunSpeed");
         AnimatorState jumpState = AddOptionalState(stateMachine, "Jump", new Vector3(420f, 520f, 0f), jump, "JumpSpeed");
+        AnimatorState runningJumpState = AddOptionalState(stateMachine, "RunningJump", new Vector3(620f, 520f, 0f), runningJump, "RunningJumpSpeed");
+        AddOptionalState(stateMachine, "Emote", new Vector3(820f, 520f, 0f), emote, null);
         AnimatorState swordAttackState = AddOptionalState(stateMachine, "SwordAttack", new Vector3(180f, 680f, 0f), swordAttack, "AttackLightSpeed");
         AnimatorState swordAttack2State = AddOptionalState(stateMachine, "SwordAttack2", new Vector3(180f, 840f, 0f), swordAttack2, "AttackLightSpeed");
         AnimatorState specialAttack1State = AddOptionalState(stateMachine, "SpecialAttack1", new Vector3(420f, 700f, 0f), specialAttack1, "AttackHeavySpeed");
@@ -244,6 +267,7 @@ public static class RebuildMaleAnimatorController
         AddMovementStateTransitions(stateMachine, sprintForwardRightState, idleState, "SprintingForwardRight");
 
         ConfigureActionState(jumpState, idleState);
+        ConfigureActionState(runningJumpState, idleState);
         ConfigureActionState(swordAttackState, idleState);
         ConfigureActionState(swordAttack2State, idleState);
         ConfigureActionState(specialAttack1State, idleState);
@@ -411,6 +435,25 @@ public static class RebuildMaleAnimatorController
         }
 
         return clip;
+    }
+
+    private static AnimationClip LoadFirstExistingClip(params string[] paths)
+    {
+        if (paths == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < paths.Length; i++)
+        {
+            AnimationClip clip = LoadClip(paths[i]);
+            if (clip != null)
+            {
+                return clip;
+            }
+        }
+
+        return null;
     }
 
     private static AnimatorState AddState(

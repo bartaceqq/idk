@@ -53,6 +53,16 @@ public class ActionScript : MonoBehaviour
     public string[] lightAttackStateNames = { "SwordAttack", "SwordAttack2" };
     public string[] heavyAttackStateNames = { "SpecialAttack1", "SpecialAttack2", "SpecialAttack3" };
 
+    [Header("Emote")]
+    public string emoteStateName = "Emote";
+    public float emoteBlendTime = 0.05f;
+    public float emoteCancelBlendTime = 0f;
+
+    [Header("Emote Audio")]
+    public AudioClip emoteLoopClip;
+    public AudioSource emoteLoopAudioSource;
+    [Range(0f, 1f)] public float emoteLoopVolume = 1f;
+
     public MovementAnimationScript movementAnimationScript;
     public AxeAnimationScript axeAnimationScript;
     public PickaxeAnimationScript pickaxeAnimationScript;
@@ -90,17 +100,25 @@ public class ActionScript : MonoBehaviour
     {
         EnsurePlayerRootMotionDriver();
         ApplyConfiguredActionAnimationSpeeds();
+        ConfigureEmoteLoopAudioSource();
     }
 
     private void OnEnable()
     {
         EnsurePlayerRootMotionDriver();
         ApplyConfiguredActionAnimationSpeeds();
+        ConfigureEmoteLoopAudioSource();
+    }
+
+    private void OnDisable()
+    {
+        StopEmoteLoopAudio();
     }
 
     private void OnValidate()
     {
         ApplyConfiguredActionAnimationSpeeds();
+        ConfigureEmoteLoopAudioSource();
     }
 
     private void Update()
@@ -140,6 +158,8 @@ public class ActionScript : MonoBehaviour
     // Handle Try Chop.
     public bool TryChop()
     {
+        CancelEmoteIfActive();
+
         if (TryQueueActiveChop())
         {
             _nextChopAllowedTime = Time.time + GetChopRepeatDelaySeconds();
@@ -235,6 +255,8 @@ public class ActionScript : MonoBehaviour
     // Handle Try Mine.
     public bool TryMine()
     {
+        CancelEmoteIfActive();
+
         if (IsUpperBodyActionLocked())
         {
             return false;
@@ -266,6 +288,8 @@ public class ActionScript : MonoBehaviour
     // Handle Try Attack Light.
     public bool TryAttackLight()
     {
+        CancelEmoteIfActive();
+
         if (IsUpperBodyActionLocked() || IsGameplayInputLocked())
         {
             return false;
@@ -302,6 +326,8 @@ public class ActionScript : MonoBehaviour
     // Handle Try Attack Heavy.
     public bool TryAttackHeavy()
     {
+        CancelEmoteIfActive();
+
         if (IsUpperBodyActionLocked() || IsGameplayInputLocked())
         {
             return false;
@@ -332,6 +358,8 @@ public class ActionScript : MonoBehaviour
     // Handle Try Attack Special.
     public bool TryAttackSpecial(int specialIndex)
     {
+        CancelEmoteIfActive();
+
         if (IsUpperBodyActionLocked() || IsGameplayInputLocked())
         {
             return false;
@@ -362,6 +390,7 @@ public class ActionScript : MonoBehaviour
     // Handle Try Equip Sword.
     public bool TryEquipSword()
     {
+        CancelEmoteIfActive();
         ApplyConfiguredActionAnimationSpeeds();
         return TryPlaySwordFullBodyState(swordEquipStateName);
     }
@@ -369,6 +398,7 @@ public class ActionScript : MonoBehaviour
     // Handle Try Unequip Sword.
     public bool TryUnequipSword()
     {
+        CancelEmoteIfActive();
         ApplyConfiguredActionAnimationSpeeds();
         Animator animator = ResolveCharacterAnimator();
         TrySetAnimatorBoolParameter(animator, SwordBlockingParameterName, false);
@@ -378,6 +408,8 @@ public class ActionScript : MonoBehaviour
     // Handle Try Begin Sword Block.
     public bool TryBeginSwordBlock()
     {
+        CancelEmoteIfActive();
+
         Animator animator = ResolveCharacterAnimator();
         if (animator == null)
         {
@@ -467,6 +499,8 @@ public class ActionScript : MonoBehaviour
     // Handle Try Unarmed Punch Combo.
     public bool TryUnarmedPunchCombo()
     {
+        CancelEmoteIfActive();
+
         if (IsUpperBodyActionLocked())
         {
             return false;
@@ -667,6 +701,56 @@ public class ActionScript : MonoBehaviour
         return TryGetActiveFullBodyActionStateInfo(animator, out _);
     }
 
+    public bool TryStartEmote()
+    {
+        if (string.IsNullOrWhiteSpace(emoteStateName) ||
+            IsUpperBodyActionLocked() ||
+            IsGameplayInputLocked() ||
+            IsSwordBlockActive())
+        {
+            return false;
+        }
+
+        Animator animator = ResolveCharacterAnimator();
+        if (!TryGetBaseLayerIndex(animator, out int layerIndex))
+        {
+            return false;
+        }
+
+        ApplyConfiguredActionAnimationSpeeds();
+        TrySetAnimatorBoolParameter(animator, SwordBlockingParameterName, false);
+
+        bool played = TryPlayAnimatorState(animator, layerIndex, emoteStateName, Mathf.Max(0f, emoteBlendTime));
+        if (played)
+        {
+            ForceStopMovementAnimations();
+            PlayEmoteLoopAudio();
+        }
+
+        return played;
+    }
+
+    public void StopEmote()
+    {
+        StopEmoteLoopAudio();
+
+        Animator animator = ResolveCharacterAnimator();
+        if (!TryGetBaseLayerIndex(animator, out int layerIndex) ||
+            !TryGetAnimatorStateInfo(animator, layerIndex, emoteStateName, out _))
+        {
+            return;
+        }
+
+        TryPlayAnimatorState(animator, layerIndex, "Idle", Mathf.Max(0f, emoteCancelBlendTime));
+    }
+
+    public bool IsEmoteActive()
+    {
+        Animator animator = ResolveCharacterAnimator();
+        return TryGetBaseLayerIndex(animator, out int layerIndex) &&
+               TryGetAnimatorStateInfo(animator, layerIndex, emoteStateName, out _);
+    }
+
     // Handle Get Remaining Gameplay Input Lock Seconds.
     public float GetRemainingGameplayInputLockSeconds()
     {
@@ -763,6 +847,63 @@ public class ActionScript : MonoBehaviour
         movementAnimationScript.WalkForwardRight(false);
         movementAnimationScript.SprintForwardLeft(false);
         movementAnimationScript.SprintForwardRight(false);
+    }
+
+    private void CancelEmoteIfActive()
+    {
+        if (IsEmoteActive())
+        {
+            StopEmote();
+        }
+    }
+
+    private void ConfigureEmoteLoopAudioSource()
+    {
+        if (emoteLoopAudioSource == null && Application.isPlaying)
+        {
+            emoteLoopAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        if (emoteLoopAudioSource == null)
+        {
+            return;
+        }
+
+        emoteLoopAudioSource.playOnAwake = false;
+        emoteLoopAudioSource.loop = true;
+        emoteLoopAudioSource.spatialBlend = 0f;
+        emoteLoopAudioSource.clip = emoteLoopClip;
+        emoteLoopAudioSource.volume = Mathf.Clamp01(emoteLoopVolume);
+    }
+
+    private void PlayEmoteLoopAudio()
+    {
+        ConfigureEmoteLoopAudioSource();
+        if (emoteLoopAudioSource == null || emoteLoopClip == null)
+        {
+            return;
+        }
+
+        emoteLoopAudioSource.clip = emoteLoopClip;
+        emoteLoopAudioSource.volume = Mathf.Clamp01(emoteLoopVolume);
+
+        if (!emoteLoopClip.preloadAudioData)
+        {
+            emoteLoopClip.LoadAudioData();
+        }
+
+        if (!emoteLoopAudioSource.isPlaying)
+        {
+            emoteLoopAudioSource.Play();
+        }
+    }
+
+    private void StopEmoteLoopAudio()
+    {
+        if (emoteLoopAudioSource != null && emoteLoopAudioSource.isPlaying)
+        {
+            emoteLoopAudioSource.Stop();
+        }
     }
 
     // Handle Update Animator Root Motion State.
