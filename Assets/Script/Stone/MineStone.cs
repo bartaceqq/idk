@@ -197,6 +197,7 @@ public class MineStone : MonoBehaviour
         Transform[] descendants = root.GetComponentsInChildren<Transform>(includeInactiveChildrenForAutoPopulate);
         List<GameObject> detectedStoneParts = new List<GameObject>();
         List<GameObject> detectedOreParts = new List<GameObject>();
+        HashSet<Transform> detectedOreTransforms = new HashSet<Transform>();
 
         for (int i = 0; i < descendants.Length; i++)
         {
@@ -215,7 +216,13 @@ public class MineStone : MonoBehaviour
             if (NameContains(current.name, oreChildNameContains))
             {
                 detectedOreParts.Add(current.gameObject);
+                detectedOreTransforms.Add(current);
             }
+        }
+
+        if (detectedStoneParts.Count == 0)
+        {
+            CollectFallbackStoneParts(root, descendants, detectedOreTransforms, detectedStoneParts);
         }
 
         SortByName(detectedStoneParts);
@@ -313,21 +320,23 @@ public class MineStone : MonoBehaviour
         if (parts == null || parts.Count == 0)
         {
             Debug.LogWarning($"{name}: No stone parts were auto-detected. Check child names.", this);
-            return;
         }
 
-        if (chosen.Count < parts.Count)
+        if (parts != null && parts.Count > 0)
         {
-            int selectedIndex = GetRandomAvailablePartIndex();
-            if (selectedIndex >= 0)
+            if (chosen.Count < parts.Count)
             {
-                chosen.Add(selectedIndex);
-                ApplyMaterialToObject(parts[selectedIndex], blackmaterial);
+                int selectedIndex = GetRandomAvailablePartIndex();
+                if (selectedIndex >= 0)
+                {
+                    chosen.Add(selectedIndex);
+                    ApplyMaterialToObject(parts[selectedIndex], blackmaterial);
+                }
             }
-        }
-        else
-        {
-            counter = 0;
+            else
+            {
+                counter = 0;
+            }
         }
 
         if (counter == 0)
@@ -916,6 +925,156 @@ public class MineStone : MonoBehaviour
 
             return string.Compare(left.name, right.name, StringComparison.OrdinalIgnoreCase);
         });
+    }
+
+    // Handle Collect Fallback Stone Parts.
+    private static void CollectFallbackStoneParts(
+        Transform root,
+        Transform[] descendants,
+        HashSet<Transform> detectedOreTransforms,
+        List<GameObject> detectedStoneParts)
+    {
+        if (root == null || descendants == null || detectedStoneParts == null)
+        {
+            return;
+        }
+
+        HashSet<int> seenPartIds = new HashSet<int>();
+        for (int i = 0; i < detectedStoneParts.Count; i++)
+        {
+            GameObject existingPart = detectedStoneParts[i];
+            if (existingPart != null)
+            {
+                seenPartIds.Add(existingPart.GetInstanceID());
+            }
+        }
+
+        for (int i = 0; i < descendants.Length; i++)
+        {
+            Transform current = descendants[i];
+            if (!IsValidFallbackStonePart(current, root, detectedOreTransforms))
+            {
+                continue;
+            }
+
+            if (HasChildFallbackStonePartCandidate(current, detectedOreTransforms))
+            {
+                continue;
+            }
+
+            GameObject candidate = current.gameObject;
+            if (candidate != null && seenPartIds.Add(candidate.GetInstanceID()))
+            {
+                detectedStoneParts.Add(candidate);
+            }
+        }
+    }
+
+    // Handle Is Valid Fallback Stone Part.
+    private static bool IsValidFallbackStonePart(Transform target, Transform root, HashSet<Transform> detectedOreTransforms)
+    {
+        if (target == null || target == root)
+        {
+            return false;
+        }
+
+        if (IsOreTransformOrChildOfOre(target, detectedOreTransforms))
+        {
+            return false;
+        }
+
+        return HasDirectBreakableGeometry(target);
+    }
+
+    // Handle Has Child Fallback Stone Part Candidate.
+    private static bool HasChildFallbackStonePartCandidate(Transform target, HashSet<Transform> detectedOreTransforms)
+    {
+        if (target == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < target.childCount; i++)
+        {
+            Transform child = target.GetChild(i);
+            if (child == null)
+            {
+                continue;
+            }
+
+            if (IsOreTransformOrChildOfOre(child, detectedOreTransforms))
+            {
+                continue;
+            }
+
+            if (HasDirectBreakableGeometry(child))
+            {
+                return true;
+            }
+
+            if (HasChildFallbackStonePartCandidate(child, detectedOreTransforms))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Handle Is Ore Transform Or Child Of Ore.
+    private static bool IsOreTransformOrChildOfOre(Transform target, HashSet<Transform> detectedOreTransforms)
+    {
+        if (target == null || detectedOreTransforms == null || detectedOreTransforms.Count == 0)
+        {
+            return false;
+        }
+
+        Transform current = target;
+        while (current != null)
+        {
+            if (detectedOreTransforms.Contains(current))
+            {
+                return true;
+            }
+
+            current = current.parent;
+        }
+
+        return false;
+    }
+
+    // Handle Has Direct Breakable Geometry.
+    private static bool HasDirectBreakableGeometry(Transform target)
+    {
+        if (target == null)
+        {
+            return false;
+        }
+
+        if (target.GetComponent<MeshFilter>() != null)
+        {
+            return true;
+        }
+
+        Renderer[] directRenderers = target.GetComponents<Renderer>();
+        for (int i = 0; i < directRenderers.Length; i++)
+        {
+            if (directRenderers[i] != null)
+            {
+                return true;
+            }
+        }
+
+        Collider[] directColliders = target.GetComponents<Collider>();
+        for (int i = 0; i < directColliders.Length; i++)
+        {
+            if (directColliders[i] != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Handle Try Get World Bounds.

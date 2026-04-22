@@ -27,13 +27,13 @@ public class TestHitting : MonoBehaviour
     [SerializeField] private float actionScriptScanInterval = 0.5f;
 
     [Header("Slow Motion")]
-    [SerializeField] private bool slowTimeWhileInside = true;
+    [SerializeField] private bool slowTimeWhileInside = false;
     [SerializeField] [Range(0.01f, 1f)] private float insideTimeScale = 0.3f;
     [SerializeField] private bool smoothTimeScaleTransitions = true;
     [SerializeField] [Min(0.01f)] private float timeScaleBlendSpeed = 8f;
 
     [Header("Camera Focus")]
-    [SerializeField] private bool focusCameraOnHit = true;
+    [SerializeField] private bool focusCameraOnHit = false;
     [SerializeField] private Camera focusCamera;
     [SerializeField] private float cameraFocusRotateSpeed = 9f;
     [SerializeField] [Min(0.01f)] private float cameraFocusPointSmoothSpeed = 16f;

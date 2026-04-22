@@ -1,7 +1,10 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Events;
 
 public class CraftingProcessHandler : MonoBehaviour
 {
@@ -13,18 +16,32 @@ public class CraftingProcessHandler : MonoBehaviour
     public Button button;
     public bool hasenough;
 
+    [Header("Craft Timing")]
+    [SerializeField, Min(0f)] private float craftDurationSeconds = 4f;
+    [SerializeField] private Slider craftProgressSlider;
+    [SerializeField] private TextMeshProUGUI craftButtonLabel;
+    [SerializeField] private bool showCraftPercentOnButton = true;
+    [SerializeField] private string craftingLabelPrefix = "CRAFTING";
+
+    [Header("Craft Click Guard")]
+    [SerializeField, Min(0f)] private float craftClickCooldownSeconds = 0.2f;
+
+    private float _craftButtonCooldownUntil;
+    private bool _craftInProgress;
+    private Coroutine _craftRoutine;
+    private string _defaultCraftButtonLabel = "CRAFT";
+    private bool _hasCachedDefaultCraftButtonLabel;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        if (button != null)
-        {
-            button.onClick.RemoveListener(Craft);
-            button.onClick.AddListener(Craft);
-        }
-
         ResolveReferences();
+        ResolveCraftUiReferences();
+        EnsureCraftProgressSliderExists();
+        BindCraftButtonIfNeeded();
         AutoSelectCraftableItem();
         UpdateSelectedSlotVisuals();
+        ResetCraftProgressVisuals();
         RefreshCraftAvailability();
     }
 
@@ -32,6 +49,7 @@ public class CraftingProcessHandler : MonoBehaviour
     void Update()
     {
         ResolveReferences();
+        ResolveCraftUiReferences();
         AutoSelectCraftableItem();
         UpdateSelectedSlotVisuals();
         RefreshCraftAvailability();
@@ -47,7 +65,14 @@ public class CraftingProcessHandler : MonoBehaviour
 
     public void Craft()
     {
+        if (IsCraftInteractionLocked())
+        {
+            return;
+        }
+
         ResolveReferences();
+        ResolveCraftUiReferences();
+        EnsureCraftProgressSliderExists();
 
         if (!TryBuildRequirementMap(out Dictionary<string, int> requiredResources))
         {
@@ -99,28 +124,16 @@ public class CraftingProcessHandler : MonoBehaviour
             return;
         }
 
-        bool addedCraftedItem;
-        if (inventoryManager != null)
+        _craftInProgress = true;
+        _craftButtonCooldownUntil = Time.unscaledTime + Mathf.Max(0f, craftClickCooldownSeconds);
+        UpdateCraftButtonInteractable(false);
+
+        if (_craftRoutine != null)
         {
-            addedCraftedItem = inventoryManager.AddItem(craftedItem, craftedAmount);
-        }
-        else if (slotManager != null)
-        {
-            addedCraftedItem = slotManager.AddItem(craftedItem, craftedAmount);
-        }
-        else
-        {
-            addedCraftedItem = false;
+            StopCoroutine(_craftRoutine);
         }
 
-        if (!addedCraftedItem)
-        {
-            hasenough = false;
-            OnCraftMissingResources();
-            return;
-        }
-
-        RefreshCraftAvailability();
+        _craftRoutine = StartCoroutine(CraftAfterDelay(craftedItem, craftedAmount));
     }
 
     // Handle Refresh Craft Availability.
@@ -465,6 +478,115 @@ public class CraftingProcessHandler : MonoBehaviour
         }
     }
 
+    // Handle Resolve Craft UI References.
+    private void ResolveCraftUiReferences()
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        if (craftButtonLabel == null)
+        {
+            craftButtonLabel = button.GetComponentInChildren<TextMeshProUGUI>(true);
+        }
+
+        if (!_hasCachedDefaultCraftButtonLabel && craftButtonLabel != null && !string.IsNullOrWhiteSpace(craftButtonLabel.text))
+        {
+            _defaultCraftButtonLabel = craftButtonLabel.text;
+            _hasCachedDefaultCraftButtonLabel = true;
+        }
+
+        if (craftProgressSlider == null)
+        {
+            craftProgressSlider = button.GetComponentInChildren<Slider>(true);
+        }
+    }
+
+    // Handle Ensure Craft Progress Slider Exists.
+    private void EnsureCraftProgressSliderExists()
+    {
+        if (craftProgressSlider != null || button == null)
+        {
+            return;
+        }
+
+        craftProgressSlider = CreateRuntimeCraftProgressSlider(button.transform as RectTransform);
+    }
+
+    // Handle Bind Craft Button If Needed.
+    private void BindCraftButtonIfNeeded()
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.onClick.RemoveListener(Craft);
+        if (!HasPersistentCraftBinding(button))
+        {
+            button.onClick.AddListener(Craft);
+        }
+    }
+
+    // Handle Create Runtime Craft Progress Slider.
+    private Slider CreateRuntimeCraftProgressSlider(RectTransform parent)
+    {
+        if (parent == null)
+        {
+            return null;
+        }
+
+        GameObject rootObject = new GameObject("CraftProgressSlider", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Slider));
+        RectTransform rootRect = rootObject.GetComponent<RectTransform>();
+        rootRect.SetParent(parent, false);
+        rootRect.anchorMin = Vector2.zero;
+        rootRect.anchorMax = Vector2.one;
+        rootRect.offsetMin = Vector2.zero;
+        rootRect.offsetMax = Vector2.zero;
+        rootRect.SetSiblingIndex(0);
+
+        Image backgroundImage = rootObject.GetComponent<Image>();
+        backgroundImage.color = new Color32(28, 24, 18, 200);
+        backgroundImage.raycastTarget = false;
+        backgroundImage.type = Image.Type.Simple;
+
+        Slider slider = rootObject.GetComponent<Slider>();
+        slider.interactable = false;
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+        slider.targetGraphic = backgroundImage;
+
+        GameObject fillAreaObject = new GameObject("Fill Area", typeof(RectTransform));
+        RectTransform fillAreaRect = fillAreaObject.GetComponent<RectTransform>();
+        fillAreaRect.SetParent(rootRect, false);
+        fillAreaRect.anchorMin = new Vector2(0f, 0f);
+        fillAreaRect.anchorMax = new Vector2(1f, 1f);
+        fillAreaRect.offsetMin = new Vector2(4f, 4f);
+        fillAreaRect.offsetMax = new Vector2(-4f, -4f);
+
+        GameObject fillObject = new GameObject("Fill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform fillRect = fillObject.GetComponent<RectTransform>();
+        fillRect.SetParent(fillAreaRect, false);
+        fillRect.anchorMin = new Vector2(0f, 0f);
+        fillRect.anchorMax = new Vector2(1f, 1f);
+        fillRect.offsetMin = Vector2.zero;
+        fillRect.offsetMax = Vector2.zero;
+
+        Image fillImage = fillObject.GetComponent<Image>();
+        fillImage.color = new Color32(118, 193, 96, 255);
+        fillImage.raycastTarget = false;
+        fillImage.type = Image.Type.Simple;
+
+        slider.fillRect = fillRect;
+        slider.handleRect = null;
+        slider.value = 0f;
+
+        return slider;
+    }
+
     // Handle Auto Select Craftable Item.
     private void AutoSelectCraftableItem()
     {
@@ -575,19 +697,163 @@ public class CraftingProcessHandler : MonoBehaviour
     // Handle On Craft Has Enough Resources.
     private void OnCraftHasEnoughResources()
     {
-        if (button != null)
-        {
-            button.interactable = true;
-        }
+        UpdateCraftButtonInteractable(true);
     }
 
     // Handle On Craft Missing Resources.
     private void OnCraftMissingResources()
     {
-        if (button != null)
+        UpdateCraftButtonInteractable(false);
+    }
+
+    // Handle Update Craft Button Interactable.
+    private void UpdateCraftButtonInteractable(bool canInteract)
+    {
+        if (button == null)
         {
-            button.interactable = false;
+            return;
         }
+
+        button.interactable = canInteract && !IsCraftInteractionLocked();
+    }
+
+    // Handle Reset Craft Progress Visuals.
+    private void ResetCraftProgressVisuals()
+    {
+        if (craftProgressSlider != null)
+        {
+            craftProgressSlider.value = 0f;
+            craftProgressSlider.gameObject.SetActive(false);
+        }
+
+        ApplyIdleCraftButtonLabel();
+    }
+
+    // Handle Set Craft Progress.
+    private void SetCraftProgress(float normalizedProgress)
+    {
+        float clampedProgress = Mathf.Clamp01(normalizedProgress);
+
+        if (craftProgressSlider != null)
+        {
+            if (!craftProgressSlider.gameObject.activeSelf)
+            {
+                craftProgressSlider.gameObject.SetActive(true);
+            }
+
+            craftProgressSlider.value = clampedProgress;
+        }
+
+        if (showCraftPercentOnButton && craftButtonLabel != null)
+        {
+            int progressPercent = Mathf.RoundToInt(clampedProgress * 100f);
+            craftButtonLabel.text = $"{craftingLabelPrefix} {progressPercent}%";
+        }
+    }
+
+    // Handle Apply Idle Craft Button Label.
+    private void ApplyIdleCraftButtonLabel()
+    {
+        if (craftButtonLabel == null)
+        {
+            return;
+        }
+
+        craftButtonLabel.text = _defaultCraftButtonLabel;
+    }
+
+    // Handle Is Craft Interaction Locked.
+    private bool IsCraftInteractionLocked()
+    {
+        if (_craftInProgress)
+        {
+            return true;
+        }
+
+        return Time.unscaledTime < _craftButtonCooldownUntil;
+    }
+
+    // Handle Has Persistent Craft Binding.
+    private bool HasPersistentCraftBinding(Button targetButton)
+    {
+        if (targetButton == null)
+        {
+            return false;
+        }
+
+        UnityEventBase clickEvent = targetButton.onClick;
+        int persistentEventCount = clickEvent.GetPersistentEventCount();
+        for (int i = 0; i < persistentEventCount; i++)
+        {
+            if (!string.Equals(clickEvent.GetPersistentMethodName(i), nameof(Craft), StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            UnityEngine.Object persistentTarget = clickEvent.GetPersistentTarget(i);
+            if (persistentTarget == this)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Handle Craft After Delay.
+    private IEnumerator CraftAfterDelay(InventoryItem craftedItem, int craftedAmount)
+    {
+        float duration = Mathf.Max(0f, craftDurationSeconds);
+        SetCraftProgress(0f);
+
+        if (duration > 0f)
+        {
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                SetCraftProgress(elapsed / duration);
+                yield return null;
+            }
+        }
+
+        SetCraftProgress(1f);
+
+        bool addedCraftedItem = TryAddCraftedItem(craftedItem, craftedAmount);
+
+        _craftInProgress = false;
+        _craftRoutine = null;
+        ResetCraftProgressVisuals();
+
+        if (!addedCraftedItem)
+        {
+            hasenough = false;
+            OnCraftMissingResources();
+            yield break;
+        }
+
+        RefreshCraftAvailability();
+    }
+
+    // Handle Try Add Crafted Item.
+    private bool TryAddCraftedItem(InventoryItem craftedItem, int craftedAmount)
+    {
+        if (craftedItem == null || craftedAmount <= 0)
+        {
+            return false;
+        }
+
+        if (inventoryManager != null)
+        {
+            return inventoryManager.AddItem(craftedItem, craftedAmount);
+        }
+
+        if (slotManager != null)
+        {
+            return slotManager.AddItem(craftedItem, craftedAmount);
+        }
+
+        return false;
     }
 
     // Supports entries like "wood" (defaults to 1) and "wood:3".
