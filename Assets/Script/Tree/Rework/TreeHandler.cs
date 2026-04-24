@@ -25,6 +25,8 @@ public class TreeHandler : MonoBehaviour
     [SerializeField, Min(0f)] private float fallLinearDamping = 0.2f;
     [SerializeField, Min(0f)] private float fallAngularDamping = 6f;
     [SerializeField, Min(0.1f)] private float fallMaxAngularVelocity = 2f;
+    [SerializeField, Min(0f)] private float topPartGroundDespawnDelaySeconds = 1f;
+    [SerializeField, Range(0f, 1f)] private float groundHitContactNormalY = 0.35f;
     [Header("Chop")]
     [SerializeField] private int chopsToFall = 4;
     [SerializeField] private float hitCooldownSeconds = 0.12f;
@@ -162,7 +164,7 @@ public void TreeFall()
             topRigidbody = toppart.AddComponent<Rigidbody>();
         }
 
-    
+        ConfigureGroundDespawnOnTopPart();
     }
     private void SpawnChopImpact(Transform attacker)
     {
@@ -469,6 +471,22 @@ public void TreeFall()
         topRigidbody.ResetInertiaTensor();
     }
 
+    private void ConfigureGroundDespawnOnTopPart()
+    {
+        if (toppart == null)
+        {
+            return;
+        }
+
+        TreeTopGroundDespawn groundDespawn = toppart.GetComponent<TreeTopGroundDespawn>();
+        if (groundDespawn == null)
+        {
+            groundDespawn = toppart.AddComponent<TreeTopGroundDespawn>();
+        }
+
+        groundDespawn.Configure(transform, topPartGroundDespawnDelaySeconds, groundHitContactNormalY);
+    }
+
     private static PhysicsMaterial ResolveNoRollMaterial()
     {
         if (fallbackNoRollMaterial != null)
@@ -576,4 +594,69 @@ public void TreeFall()
         }
     }
 
+}
+
+sealed class TreeTopGroundDespawn : MonoBehaviour
+{
+    private Transform owningTreeRoot;
+    private float despawnDelaySeconds = 1f;
+    private float minimumGroundNormalY = 0.35f;
+    private bool despawnScheduled;
+
+    public void Configure(Transform treeRoot, float delaySeconds, float groundNormalY)
+    {
+        owningTreeRoot = treeRoot;
+        despawnDelaySeconds = Mathf.Max(0f, delaySeconds);
+        minimumGroundNormalY = Mathf.Clamp01(groundNormalY);
+        despawnScheduled = false;
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        TryScheduleDespawn(collision);
+    }
+
+    private void OnCollisionStay(Collision collision)
+    {
+        TryScheduleDespawn(collision);
+    }
+
+    private void TryScheduleDespawn(Collision collision)
+    {
+        if (despawnScheduled || !IsGroundHit(collision))
+        {
+            return;
+        }
+
+        despawnScheduled = true;
+        Destroy(gameObject, despawnDelaySeconds);
+    }
+
+    private bool IsGroundHit(Collision collision)
+    {
+        if (collision == null || collision.collider == null || collision.contactCount <= 0)
+        {
+            return false;
+        }
+
+        if (owningTreeRoot != null && collision.collider.transform.IsChildOf(owningTreeRoot))
+        {
+            return false;
+        }
+
+        if (collision.collider is TerrainCollider)
+        {
+            return true;
+        }
+
+        for (int i = 0; i < collision.contactCount; i++)
+        {
+            if (collision.GetContact(i).normal.y >= minimumGroundNormalY)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

@@ -1,9 +1,8 @@
 using System.Collections.Generic;
 using Sydewa;
 using UnityEngine;
-using UnityEngine.AI;
 
-// Spawns enemies on terrain NavMesh when night starts.
+// Spawns enemies on terrain when night starts.
 public class SpawnNpcsAtNight : MonoBehaviour
 {
     [Header("Prefabs")]
@@ -14,11 +13,15 @@ public class SpawnNpcsAtNight : MonoBehaviour
     public Terrain[] terrains;
     public int monstersPerTerrain = 20;
     public int maxSpawnAttemptsPerMonster = 25;
+    [Tooltip("Legacy name: now used as the physics ground probe radius, not a NavMesh radius.")]
     public float navMeshSampleRadius = 12f;
     public float minDistanceFromPlayer = 20f;
     public Transform spawnedParent;
     [Tooltip("Hard cap for alive enemies spawned by this spawner. Set <= 0 to disable cap.")]
     public int maxTotalAliveFromThisSpawner = 60;
+    public float spawnClearRadius = 0.65f;
+    public float spawnClearHeight = 2f;
+    public LayerMask spawnBlockMask = ~0;
 
     [Header("Night Settings")]
     public LightingManager lightingManager;
@@ -163,7 +166,7 @@ public class SpawnNpcsAtNight : MonoBehaviour
             {
                 Debug.LogWarning(
                     $"SpawnNpcsAtNight: terrain '{terrain.name}' spawned {spawnedOnThisTerrain}/{monstersPerTerrain}. " +
-                    "Increase navMeshSampleRadius or ensure NavMesh covers that terrain.");
+                    "Increase maxSpawnAttemptsPerMonster or check spawn clearance near the player.");
             }
         }
 
@@ -342,14 +345,85 @@ public class SpawnNpcsAtNight : MonoBehaviour
                 }
             }
 
-            if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, navMeshSampleRadius, NavMesh.AllAreas))
+            if (TryProjectSpawnPosition(terrain, candidate, out Vector3 groundedCandidate) &&
+                IsSpawnPositionClear(groundedCandidate))
             {
-                spawnPosition = hit.position;
+                spawnPosition = groundedCandidate;
                 return true;
             }
         }
 
         return false;
+    }
+
+    // Handle Try Project Spawn Position.
+    private bool TryProjectSpawnPosition(Terrain terrain, Vector3 candidate, out Vector3 spawnPosition)
+    {
+        spawnPosition = candidate;
+        if (terrain == null || terrain.terrainData == null)
+        {
+            return false;
+        }
+
+        Vector3 terrainOrigin = terrain.transform.position;
+        spawnPosition.y = terrain.SampleHeight(candidate) + terrainOrigin.y;
+
+        float probeRadius = Mathf.Max(0.1f, navMeshSampleRadius);
+        Vector3 rayStart = spawnPosition + Vector3.up * probeRadius;
+        RaycastHit[] hits = Physics.RaycastAll(
+            rayStart,
+            Vector3.down,
+            probeRadius * 2f + 2f,
+            spawnBlockMask,
+            QueryTriggerInteraction.Ignore);
+
+        float bestY = spawnPosition.y;
+        bool foundGround = false;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            RaycastHit hit = hits[i];
+            if (hit.collider == null || hit.normal.y < 0.45f)
+            {
+                continue;
+            }
+
+            if (!foundGround || hit.point.y > bestY)
+            {
+                bestY = hit.point.y;
+                foundGround = true;
+            }
+        }
+
+        spawnPosition.y = foundGround ? bestY : spawnPosition.y;
+        return true;
+    }
+
+    // Handle Is Spawn Position Clear.
+    private bool IsSpawnPositionClear(Vector3 spawnPosition)
+    {
+        float radius = Mathf.Max(0.1f, spawnClearRadius);
+        float height = Mathf.Max(radius * 2f, spawnClearHeight);
+        Vector3 bottom = spawnPosition + Vector3.up * radius;
+        Vector3 top = spawnPosition + Vector3.up * (height - radius);
+        Collider[] overlaps = Physics.OverlapCapsule(
+            bottom,
+            top,
+            radius,
+            spawnBlockMask,
+            QueryTriggerInteraction.Ignore);
+
+        for (int i = 0; i < overlaps.Length; i++)
+        {
+            Collider overlap = overlaps[i];
+            if (overlap == null || overlap is TerrainCollider)
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
     }
 
     // Handle Get Active Player Transform.

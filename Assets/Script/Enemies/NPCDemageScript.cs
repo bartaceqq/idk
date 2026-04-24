@@ -102,24 +102,14 @@ public class NPCDemageScript : MonoBehaviour
         float lockSeconds = Mathf.Max(0f, reactionLockSeconds);
         if (lockSeconds <= 0f) return;
 
-        RandomZombieScript zombie = GetComponent<RandomZombieScript>();
-        if (zombie == null)
+        CustomEnemyAIBase enemyAi = GetComponent<CustomEnemyAIBase>();
+        if (enemyAi == null)
         {
-            zombie = GetComponentInParent<RandomZombieScript>();
+            enemyAi = GetComponentInParent<CustomEnemyAIBase>();
         }
-        if (zombie != null)
+        if (enemyAi != null)
         {
-            zombie.LockActions(lockSeconds);
-        }
-
-        RandomSkeletonScript skeleton = GetComponent<RandomSkeletonScript>();
-        if (skeleton == null)
-        {
-            skeleton = GetComponentInParent<RandomSkeletonScript>();
-        }
-        if (skeleton != null)
-        {
-            skeleton.LockActions(lockSeconds);
+            enemyAi.LockActions(lockSeconds);
         }
     }
 

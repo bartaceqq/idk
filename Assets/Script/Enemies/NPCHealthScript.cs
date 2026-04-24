@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using UnityEngine.AI;
 
 // Controls NPCHealth Script behavior.
 public class NPCHealthScript : MonoBehaviour
@@ -92,43 +91,14 @@ public class NPCHealthScript : MonoBehaviour
     // Handle Stop Enemy Behaviour.
     private void StopEnemyBehaviour()
     {
-        NavMeshAgent agent = GetComponent<NavMeshAgent>();
-        if (agent == null)
+        CustomEnemyAIBase enemyAi = GetComponent<CustomEnemyAIBase>();
+        if (enemyAi == null)
         {
-            agent = GetComponentInParent<NavMeshAgent>();
+            enemyAi = GetComponentInParent<CustomEnemyAIBase>();
         }
-        if (agent != null && agent.enabled && agent.gameObject.activeInHierarchy)
+        if (enemyAi != null)
         {
-            if (agent.isOnNavMesh)
-            {
-                agent.isStopped = true;
-                if (agent.hasPath)
-                {
-                    agent.ResetPath();
-                }
-            }
-
-            agent.enabled = false;
-        }
-
-        RandomZombieScript zombie = GetComponent<RandomZombieScript>();
-        if (zombie == null)
-        {
-            zombie = GetComponentInParent<RandomZombieScript>();
-        }
-        if (zombie != null)
-        {
-            zombie.enabled = false;
-        }
-
-        RandomSkeletonScript skeleton = GetComponent<RandomSkeletonScript>();
-        if (skeleton == null)
-        {
-            skeleton = GetComponentInParent<RandomSkeletonScript>();
-        }
-        if (skeleton != null)
-        {
-            skeleton.enabled = false;
+            enemyAi.enabled = false;
         }
     }
 

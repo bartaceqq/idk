@@ -24,11 +24,11 @@ public class RayScript : MonoBehaviour
     public LayerMask hitMask = ~0;
 
     [Header("Timing")]
-    public float cutDelaySeconds = 0.13f;
-    public float axeHitDelaySeconds = 0f;
-    public bool useDelayedAxeHit = false;
-    public float pickaxeHitDelaySeconds = 0f;
-    public bool useDelayedPickaxeHit = false;
+    public float cutDelaySeconds = 0.65f;
+    public float axeHitDelaySeconds = 0.58f;
+    public bool useDelayedAxeHit = true;
+    public float pickaxeHitDelaySeconds = 0.65f;
+    public bool useDelayedPickaxeHit = true;
     public float swingCooldownSeconds = 1f;
     public float axeSwingCooldownSeconds = 0.22f;
     public float pickaxeSwingCooldownSeconds = 0.28f;
@@ -59,7 +59,8 @@ public class RayScript : MonoBehaviour
     public AudioSource swordAudioSource;
 
     [Header("Sound Delays")]
-    public float pickaxeSoundDelaySeconds = 0.1f;
+    public float axeSoundDelaySeconds = 0.58f;
+    public float pickaxeSoundDelaySeconds = 0.65f;
     public float swordSoundDelaySeconds = 0.1f;
 
     [Header("Pickup Detection")]
@@ -236,7 +237,7 @@ public class RayScript : MonoBehaviour
             }
 
             swingCooldown = Mathf.Max(swingCooldown, actionScript.GetChopRepeatDelaySeconds());
-            TryPlayWeaponSound(axeaudiosource, 0f, ref _nextAxeSoundAllowedTime, swingCooldown);
+            TryPlayWeaponSound(axeaudiosource, axeSoundDelaySeconds, ref _nextAxeSoundAllowedTime, swingCooldown);
         }
 
         _nextAxeSwingTime = Time.time + swingCooldown;
