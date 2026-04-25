@@ -39,7 +39,7 @@ public class InventoryManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(key))
+        if (GameSettings.GetKeyDown(GameSettings.Key.Inventory, key))
         {
             UIShown = !UIShown;
             EnableInventory(UIShown);

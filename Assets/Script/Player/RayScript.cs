@@ -132,7 +132,7 @@ public class RayScript : MonoBehaviour
             return;
         }
 
-        bool leftClick = Input.GetMouseButtonDown(0);
+        bool leftClick = GameSettings.GetMouseButtonDown(GameSettings.Key.Attack, 0);
         bool rightClick = Input.GetMouseButtonDown(1);
         int swordSpecialIndex = GetSwordSpecialHotkeyIndex();
 
@@ -568,17 +568,17 @@ public class RayScript : MonoBehaviour
     // Handle Get Sword Special Hotkey Index.
     private static int GetSwordSpecialHotkeyIndex()
     {
-        if (Input.GetKeyDown(KeyCode.Alpha3))
+        if (GameSettings.GetKeyDown(GameSettings.Key.SwordSpecial1, KeyCode.Alpha3))
         {
             return 0;
         }
 
-        if (Input.GetKeyDown(KeyCode.Alpha4))
+        if (GameSettings.GetKeyDown(GameSettings.Key.SwordSpecial2, KeyCode.Alpha4))
         {
             return 1;
         }
 
-        if (Input.GetKeyDown(KeyCode.Alpha5))
+        if (GameSettings.GetKeyDown(GameSettings.Key.SwordSpecial3, KeyCode.Alpha5))
         {
             return 2;
         }
@@ -737,7 +737,7 @@ public class RayScript : MonoBehaviour
             return;
         }
 
-        if (changed || runPickableMethodEveryFrameInRange || Input.GetKeyDown(KeyCode.E))
+        if (changed || runPickableMethodEveryFrameInRange || GameSettings.GetKeyDown(GameSettings.Key.Interact, KeyCode.E))
         {
             OnPickableInRange(nearestPickableObject);
         }
@@ -751,7 +751,7 @@ public class RayScript : MonoBehaviour
         {
             return;
         }
-        if (Input.GetKeyDown(KeyCode.E))
+        if (GameSettings.GetKeyDown(GameSettings.Key.Interact, KeyCode.E))
         {
             switch (objectik.tag)
             {

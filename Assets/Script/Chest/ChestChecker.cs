@@ -21,7 +21,7 @@ public class ChestChecker : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (!GameplayUiState.IsMenuOpen && Input.GetKeyDown(pressEkey))
+        if (!GameplayUiState.IsMenuOpen && GameSettings.GetKeyDown(GameSettings.Key.Interact, pressEkey))
         {
             if(CheckDistance() < range && !looted)
             {

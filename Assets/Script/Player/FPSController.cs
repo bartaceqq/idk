@@ -263,7 +263,7 @@ public class FPSController : MonoBehaviour
             : _moveAction.ReadValue<Vector2>();
         bool runPressed = !movementInputLocked && (_runAction != null
             ? _runAction.IsPressed()
-            : (Keyboard.current?.leftShiftKey?.isPressed ?? false));
+            : GameSettings.GetKeyHeld(GameSettings.Key.Sprint, KeyCode.LeftShift));
         bool jumpPressedThisFrame = !movementInputLocked && _jumpAction != null && _jumpAction.triggered;
 
         HandleEmoteInput(uiBlocking, movementInputLocked, moveInput, runPressed, jumpPressedThisFrame);
@@ -759,7 +759,7 @@ public class FPSController : MonoBehaviour
 
         bool emotePressedThisFrame = !uiBlocking &&
             !movementInputLocked &&
-            (Keyboard.current?.hKey?.wasPressedThisFrame ?? false);
+            GameSettings.GetKeyDown(GameSettings.Key.Emote, KeyCode.H);
         bool cancelEmote = HasMovementInput(moveInput) ||
             runPressed ||
             jumpPressedThisFrame ||

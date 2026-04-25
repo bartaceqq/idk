@@ -22,7 +22,7 @@ public class InventoryController : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(keycode))
+        if (GameSettings.GetKeyDown(GameSettings.Key.Inventory, keycode))
         {
             SetInventoryShown(!UIshown);
         }

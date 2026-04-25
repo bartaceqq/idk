@@ -28,6 +28,18 @@ public class ItemSwitchScript : MonoBehaviour
         KeyCode.Alpha8,
         KeyCode.Alpha9
     };
+    private static readonly string[] WeaponSlotHotkeyIds =
+    {
+        GameSettings.Key.WeaponSlot1,
+        GameSettings.Key.WeaponSlot2,
+        GameSettings.Key.WeaponSlot3,
+        GameSettings.Key.WeaponSlot4,
+        GameSettings.Key.WeaponSlot5,
+        GameSettings.Key.WeaponSlot6,
+        GameSettings.Key.WeaponSlot7,
+        GameSettings.Key.WeaponSlot8,
+        GameSettings.Key.WeaponSlot9
+    };
 
     private void Awake()
     {
@@ -77,12 +89,13 @@ public class ItemSwitchScript : MonoBehaviour
         int slotCount = Mathf.Min(orderedSlots.Count, WeaponSlotHotkeys.Length);
         for (int i = 0; i < slotCount; i++)
         {
-            if (ShouldReserveSwordSpecialHotkey(WeaponSlotHotkeys[i]))
+            KeyCode hotkey = GameSettings.GetKey(WeaponSlotHotkeyIds[i], WeaponSlotHotkeys[i]);
+            if (ShouldReserveSwordSpecialHotkey(hotkey))
             {
                 continue;
             }
 
-            if (!Input.GetKeyDown(WeaponSlotHotkeys[i]))
+            if (!Input.GetKeyDown(hotkey))
             {
                 continue;
             }
@@ -850,7 +863,10 @@ public class ItemSwitchScript : MonoBehaviour
     {
         if (key != KeyCode.Alpha3 &&
             key != KeyCode.Alpha4 &&
-            key != KeyCode.Alpha5)
+            key != KeyCode.Alpha5 &&
+            key != GameSettings.GetKey(GameSettings.Key.SwordSpecial1, KeyCode.Alpha3) &&
+            key != GameSettings.GetKey(GameSettings.Key.SwordSpecial2, KeyCode.Alpha4) &&
+            key != GameSettings.GetKey(GameSettings.Key.SwordSpecial3, KeyCode.Alpha5))
         {
             return false;
         }

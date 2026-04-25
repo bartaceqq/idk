@@ -31,7 +31,7 @@ public class LookingController : MonoBehaviour
             return;
         }
 
-        if (Input.GetKeyDown(keycode))
+        if (GameSettings.GetKeyDown(GameSettings.Key.BuildMode, keycode))
         {
             Switch();
         }

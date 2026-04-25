@@ -41,7 +41,7 @@ public class CraftingManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(toggleKey))
+        if (GameSettings.GetKeyDown(GameSettings.Key.Crafting, toggleKey))
         {
             if (menuShown)
             {

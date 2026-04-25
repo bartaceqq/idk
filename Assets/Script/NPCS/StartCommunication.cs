@@ -37,7 +37,7 @@ public class StartCommunication : MonoBehaviour
 
         _stopRequestedDueToRange = false;
 
-        if (!GameplayUiState.IsMenuOpen && Input.GetKeyDown(key))
+        if (!GameplayUiState.IsMenuOpen && GameSettings.GetKeyDown(GameSettings.Key.Interact, key))
         {
             HandleInteractPressed();
         }

@@ -43,7 +43,7 @@ public class UpgradeManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.K))
+        if (GameSettings.GetKeyDown(GameSettings.Key.Upgrade, KeyCode.K))
         {
             UpgradeUIShown = !UpgradeUIShown;
             ApplyUIState();
