@@ -1,0 +1,139 @@
+# Asset Manifest
+
+## Backgrounds
+- `background_main_forest.png`
+- `background_settings_forest.png`
+- `modal_backdrop.png`
+
+## Buttons
+- `button_apply_disabled.png`
+- `button_apply_hover.png`
+- `button_apply_normal.png`
+- `button_apply_pressed.png`
+- `button_footer_disabled.png`
+- `button_footer_hover.png`
+- `button_footer_normal.png`
+- `button_footer_pressed.png`
+- `button_large_active.png`
+- `button_large_disabled.png`
+- `button_large_hover.png`
+- `button_large_normal.png`
+- `button_large_pressed.png`
+- `button_small_active.png`
+- `button_small_disabled.png`
+- `button_small_hover.png`
+- `button_small_normal.png`
+- `button_small_pressed.png`
+- `modal_button_disabled.png`
+- `modal_button_hover.png`
+- `modal_button_normal.png`
+- `modal_button_pressed.png`
+
+## Panels
+- `modal_panel_background.png`
+- `panel_dark_value_box.png`
+- `panel_inner_background.png`
+- `panel_row_background.png`
+- `panel_settings_background.png`
+
+## Tabs
+- `tab_active.png`
+- `tab_active_hover.png`
+- `tab_active_pressed.png`
+- `tab_disabled.png`
+- `tab_hover.png`
+- `tab_normal.png`
+- `tab_pressed.png`
+
+## Sliders
+- `slider_fill.png`
+- `slider_handle_disabled.png`
+- `slider_handle_hover.png`
+- `slider_handle_normal.png`
+- `slider_handle_pressed.png`
+- `slider_track.png`
+
+## Toggles
+- `toggle_box_disabled.png`
+- `toggle_box_off_hover.png`
+- `toggle_box_off_normal.png`
+- `toggle_box_off_pressed.png`
+- `toggle_box_on_hover.png`
+- `toggle_box_on_normal.png`
+- `toggle_box_on_pressed.png`
+- `toggle_checkmark.png`
+
+## Dropdowns
+- `arrow_down_disabled.png`
+- `arrow_down_hover.png`
+- `arrow_down_normal.png`
+- `arrow_down_pressed.png`
+- `arrow_left_disabled.png`
+- `arrow_left_hover.png`
+- `arrow_left_normal.png`
+- `arrow_left_pressed.png`
+- `arrow_right_disabled.png`
+- `arrow_right_hover.png`
+- `arrow_right_normal.png`
+- `arrow_right_pressed.png`
+- `choice_box_disabled.png`
+- `choice_box_hover.png`
+- `choice_box_normal.png`
+- `choice_box_pressed.png`
+- `dropdown_list_background.png`
+- `dropdown_option_hover.png`
+- `dropdown_option_normal.png`
+- `dropdown_option_selected.png`
+
+## Scrollbars
+- `scroll_view_background.png`
+- `scrollbar_handle_horizontal_disabled.png`
+- `scrollbar_handle_horizontal_hover.png`
+- `scrollbar_handle_horizontal_normal.png`
+- `scrollbar_handle_horizontal_pressed.png`
+- `scrollbar_handle_vertical_disabled.png`
+- `scrollbar_handle_vertical_hover.png`
+- `scrollbar_handle_vertical_normal.png`
+- `scrollbar_handle_vertical_pressed.png`
+- `scrollbar_track_horizontal.png`
+- `scrollbar_track_vertical.png`
+
+## Keybinds
+- `keybind_button_disabled.png`
+- `keybind_button_hover.png`
+- `keybind_button_normal.png`
+- `keybind_button_pressed.png`
+- `keybind_button_waiting.png`
+- `reset_button_disabled.png`
+- `reset_button_hover.png`
+- `reset_button_normal.png`
+- `reset_button_pressed.png`
+
+## Decorations
+- `banner_side_left.png`
+- `banner_side_right.png`
+- `corner_bottom_left_gold.png`
+- `corner_bottom_right_gold.png`
+- `corner_top_left_gold.png`
+- `corner_top_right_gold.png`
+- `divider_gold_center.png`
+- `frame_bottom_wood.png`
+- `frame_left_wood.png`
+- `frame_right_wood.png`
+- `frame_top_wood.png`
+- `gem_green_diamond.png`
+- `logo_one_more_night.png`
+- `ornament_gold_center.png`
+- `ornament_gold_left.png`
+- `ornament_gold_right.png`
+- `title_settings_banner.png`
+
+## Icons
+- `icon_audio.png`
+- `icon_book_credits.png`
+- `icon_display.png`
+- `icon_exit.png`
+- `icon_graphics.png`
+- `icon_keybind.png`
+- `icon_settings.png`
+
