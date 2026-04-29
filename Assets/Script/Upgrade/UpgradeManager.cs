@@ -107,6 +107,8 @@ public class UpgradeManager : MonoBehaviour
 // Centralizes UI-open checks that should block gameplay input or unlock the cursor.
 public static class GameplayUiState
 {
+    private static bool externalMenuOpen;
+
     // Handle Is Menu Open.
     public static bool IsMenuOpen
     {
@@ -115,7 +117,8 @@ public static class GameplayUiState
             return InventoryController.IsInventoryOpen ||
                    InventoryManager.IsInventoryOpen ||
                    CraftingManager.IsCraftingOpen ||
-                   UpgradeManager.IsUpgradeOpen;
+                   UpgradeManager.IsUpgradeOpen ||
+                   externalMenuOpen;
         }
     }
 
@@ -134,6 +137,12 @@ public static class GameplayUiState
         bool uiBlocking = IsGameplayInputBlocked;
         Cursor.lockState = uiBlocking ? CursorLockMode.None : CursorLockMode.Locked;
         Cursor.visible = uiBlocking;
+    }
+
+    public static void SetExternalMenuOpen(bool open)
+    {
+        externalMenuOpen = open;
+        ApplyCursorState();
     }
     
 }

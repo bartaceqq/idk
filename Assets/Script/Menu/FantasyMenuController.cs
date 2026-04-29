@@ -1,18 +1,30 @@
 using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public sealed class FantasyMenuController : MonoBehaviour
 {
+    private static FantasyMenuController instance;
+
     private enum SettingsTab
     {
         Display,
         Keybind,
         Audio,
         Graphics
+    }
+
+    private struct KeybindEntry
+    {
+        public string KeyId;
+        public KeyCode Fallback;
+        public Button Button;
+        public TMP_Text Label;
     }
 
     [Header("Scene")]
@@ -74,13 +86,97 @@ public sealed class FantasyMenuController : MonoBehaviour
     [SerializeField] private Slider uiScaleSlider;
     [SerializeField] private TMP_Text uiScaleValueText;
 
+    [Header("Audio Controls")]
+    [SerializeField] private Slider masterVolumeSlider;
+    [SerializeField] private TMP_Text masterVolumeValueText;
+    [SerializeField] private Slider musicVolumeSlider;
+    [SerializeField] private TMP_Text musicVolumeValueText;
+    [SerializeField] private Slider sfxVolumeSlider;
+    [SerializeField] private TMP_Text sfxVolumeValueText;
+    [SerializeField] private Slider ambienceVolumeSlider;
+    [SerializeField] private TMP_Text ambienceVolumeValueText;
+    [SerializeField] private Toggle mutedToggle;
+
+    [Header("Graphics Controls")]
+    [SerializeField] private Button qualityPreviousButton;
+    [SerializeField] private Button qualityNextButton;
+    [SerializeField] private TMP_Text qualityValueText;
+    [SerializeField] private Button frameRatePreviousButton;
+    [SerializeField] private Button frameRateNextButton;
+    [SerializeField] private TMP_Text frameRateValueText;
+    [SerializeField] private Slider renderScaleSlider;
+    [SerializeField] private TMP_Text renderScaleValueText;
+    [SerializeField] private Button antiAliasingPreviousButton;
+    [SerializeField] private Button antiAliasingNextButton;
+    [SerializeField] private TMP_Text antiAliasingValueText;
+    [SerializeField] private Button shadowQualityPreviousButton;
+    [SerializeField] private Button shadowQualityNextButton;
+    [SerializeField] private TMP_Text shadowQualityValueText;
+    [SerializeField] private Slider shadowDistanceSlider;
+    [SerializeField] private TMP_Text shadowDistanceValueText;
+    [SerializeField] private Button textureQualityPreviousButton;
+    [SerializeField] private Button textureQualityNextButton;
+    [SerializeField] private TMP_Text textureQualityValueText;
+    [SerializeField] private Toggle anisotropicFilteringToggle;
+    [SerializeField] private Slider viewDistanceSlider;
+    [SerializeField] private TMP_Text viewDistanceValueText;
+    [SerializeField] private Toggle bloomToggle;
+    [SerializeField] private Toggle motionBlurToggle;
+
+    [Header("Keybind Controls")]
+    [SerializeField] private Button moveForwardKeyButton;
+    [SerializeField] private Button moveBackwardKeyButton;
+    [SerializeField] private Button moveLeftKeyButton;
+    [SerializeField] private Button moveRightKeyButton;
+    [SerializeField] private Button jumpKeyButton;
+    [SerializeField] private Button sprintKeyButton;
+    [SerializeField] private Button interactKeyButton;
+    [SerializeField] private Button attackKeyButton;
+    [SerializeField] private Button inventoryKeyButton;
+    [SerializeField] private TMP_Text keybindInfoText;
+
     private SettingsTab currentTab = SettingsTab.Display;
     private GameSettings.ResolutionChoice[] resolutionChoices = Array.Empty<GameSettings.ResolutionChoice>();
     private int currentResolutionIndex;
     private bool suppressCallbacks;
+    private readonly List<KeybindEntry> keybindEntries = new List<KeybindEntry>();
+    private string pendingKeybindId = string.Empty;
+    private KeyCode pendingKeybindFallback = KeyCode.None;
+    private Button pendingKeybindButton;
+    private TMP_Text pendingKeybindLabel;
+    private bool isWaitingForKeybind;
+    private int keybindCaptureStartFrame;
+    private readonly int[] frameRateOptions = { 0, 30, 60, 90, 120, 144, 165, 240 };
+    private readonly int[] antiAliasingOptions = { 0, 2, 4, 8 };
+    private readonly string[] shadowQualityLabels = { "Off", "Hard", "All" };
+    private readonly string[] textureQualityLabels = { "Full", "Half", "Quarter", "Eighth" };
+    private string[] qualityNames = Array.Empty<string>();
+    private int qualityOptionIndex;
+    private int frameRateOptionIndex;
+    private int antiAliasingOptionIndex;
+    private int shadowQualityOptionIndex;
+    private int textureQualityOptionIndex;
+    private string menuSceneName = string.Empty;
+    private GameObject menuCanvasRoot;
+    private GameObject menuEventSystemRoot;
+    private bool gameplaySettingsOpen;
 
     private void Awake()
     {
+        if (instance != null && instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        instance = this;
+        DontDestroyOnLoad(gameObject);
+        SceneManager.sceneLoaded += OnSceneLoaded;
+
+        menuSceneName = SceneManager.GetActiveScene().name;
+        CachePersistentRoots();
+        PersistUiRoots();
+
         RandomizeMenuCameraView();
         GameSettings.EnsureDefaults();
         BindUi();
@@ -97,6 +193,43 @@ public sealed class FantasyMenuController : MonoBehaviour
     private void OnDisable()
     {
         GameSettings.SettingsChanged -= OnExternalSettingsChanged;
+    }
+
+    private void OnDestroy()
+    {
+        if (instance != this)
+        {
+            return;
+        }
+
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        GameplayUiState.SetExternalMenuOpen(false);
+        instance = null;
+    }
+
+    private void Update()
+    {
+        if (isWaitingForKeybind)
+        {
+            CaptureNextKeybind();
+            return;
+        }
+
+        if (!IsInGameplayScene() || !Input.GetKeyDown(KeyCode.Escape))
+        {
+            return;
+        }
+
+        if (gameplaySettingsOpen)
+        {
+            CloseGameplaySettingsOverlay();
+            return;
+        }
+
+        if (!GameplayUiState.IsMenuOpen)
+        {
+            OpenGameplaySettingsOverlay();
+        }
     }
 
     private void BindUi()
@@ -144,6 +277,10 @@ public sealed class FantasyMenuController : MonoBehaviour
             uiScaleSlider.onValueChanged.RemoveAllListeners();
             uiScaleSlider.onValueChanged.AddListener(OnUiScaleChanged);
         }
+
+        BindAudioUi();
+        BindGraphicsUi();
+        BindKeybindUi();
     }
 
     private static void BindButton(Button button, UnityAction action)
@@ -155,6 +292,101 @@ public sealed class FantasyMenuController : MonoBehaviour
 
         button.onClick.RemoveAllListeners();
         button.onClick.AddListener(action);
+    }
+
+    private void BindAudioUi()
+    {
+        BindSlider(masterVolumeSlider, OnMasterVolumeChanged);
+        BindSlider(musicVolumeSlider, OnMusicVolumeChanged);
+        BindSlider(sfxVolumeSlider, OnSfxVolumeChanged);
+        BindSlider(ambienceVolumeSlider, OnAmbienceVolumeChanged);
+
+        if (mutedToggle != null)
+        {
+            mutedToggle.onValueChanged.RemoveAllListeners();
+            mutedToggle.onValueChanged.AddListener(OnMutedChanged);
+        }
+    }
+
+    private void BindGraphicsUi()
+    {
+        BindButton(qualityPreviousButton, () => StepQuality(-1));
+        BindButton(qualityNextButton, () => StepQuality(1));
+        BindButton(frameRatePreviousButton, () => StepFrameRate(-1));
+        BindButton(frameRateNextButton, () => StepFrameRate(1));
+        BindButton(antiAliasingPreviousButton, () => StepAntiAliasing(-1));
+        BindButton(antiAliasingNextButton, () => StepAntiAliasing(1));
+        BindButton(shadowQualityPreviousButton, () => StepShadowQuality(-1));
+        BindButton(shadowQualityNextButton, () => StepShadowQuality(1));
+        BindButton(textureQualityPreviousButton, () => StepTextureQuality(-1));
+        BindButton(textureQualityNextButton, () => StepTextureQuality(1));
+
+        BindSlider(renderScaleSlider, OnRenderScaleChanged);
+        BindSlider(shadowDistanceSlider, OnShadowDistanceChanged);
+        BindSlider(viewDistanceSlider, OnViewDistanceChanged);
+
+        if (anisotropicFilteringToggle != null)
+        {
+            anisotropicFilteringToggle.onValueChanged.RemoveAllListeners();
+            anisotropicFilteringToggle.onValueChanged.AddListener(OnAnisotropicFilteringChanged);
+        }
+
+        if (bloomToggle != null)
+        {
+            bloomToggle.onValueChanged.RemoveAllListeners();
+            bloomToggle.onValueChanged.AddListener(OnBloomChanged);
+        }
+
+        if (motionBlurToggle != null)
+        {
+            motionBlurToggle.onValueChanged.RemoveAllListeners();
+            motionBlurToggle.onValueChanged.AddListener(OnMotionBlurChanged);
+        }
+    }
+
+    private void BindKeybindUi()
+    {
+        keybindEntries.Clear();
+        BindKeybindButton(moveForwardKeyButton, GameSettings.Key.MoveForward, KeyCode.W);
+        BindKeybindButton(moveBackwardKeyButton, GameSettings.Key.MoveBackward, KeyCode.S);
+        BindKeybindButton(moveLeftKeyButton, GameSettings.Key.MoveLeft, KeyCode.A);
+        BindKeybindButton(moveRightKeyButton, GameSettings.Key.MoveRight, KeyCode.D);
+        BindKeybindButton(jumpKeyButton, GameSettings.Key.Jump, KeyCode.Space);
+        BindKeybindButton(sprintKeyButton, GameSettings.Key.Sprint, KeyCode.LeftShift);
+        BindKeybindButton(interactKeyButton, GameSettings.Key.Interact, KeyCode.E);
+        BindKeybindButton(attackKeyButton, GameSettings.Key.Attack, KeyCode.Mouse0);
+        BindKeybindButton(inventoryKeyButton, GameSettings.Key.Inventory, KeyCode.I);
+    }
+
+    private void BindSlider(Slider slider, UnityAction<float> action)
+    {
+        if (slider == null)
+        {
+            return;
+        }
+
+        slider.onValueChanged.RemoveAllListeners();
+        slider.onValueChanged.AddListener(action);
+    }
+
+    private void BindKeybindButton(Button button, string keyId, KeyCode fallback)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
+        keybindEntries.Add(new KeybindEntry
+        {
+            KeyId = keyId,
+            Fallback = fallback,
+            Button = button,
+            Label = label
+        });
+
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(() => BeginKeybindCapture(keyId, fallback, button, label));
     }
 
     private void PopulateResolutionChoices()
@@ -234,6 +466,9 @@ public sealed class FantasyMenuController : MonoBehaviour
         UpdateBrightnessLabel(GameSettings.Brightness);
         UpdateUiScaleLabel(GameSettings.UIScale);
         ApplyUiScalePreview(GameSettings.UIScale);
+        LoadAudioSettingsToUi();
+        LoadGraphicsSettingsToUi();
+        UpdateKeybindLabels();
 
         suppressCallbacks = false;
         SetSettingsStatus(string.Empty);
@@ -243,16 +478,30 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void ShowMain()
     {
+        if (IsInGameplayScene())
+        {
+            CloseGameplaySettingsOverlay();
+            return;
+        }
+
+        gameplaySettingsOpen = false;
+        if (menuCanvasRoot != null)
+        {
+            menuCanvasRoot.SetActive(true);
+        }
+
         SetPanelState(true, false, false);
         SetBackground(mainBackgroundSprite, mainBackgroundTint);
         SetStatus(string.Empty);
+        GameplayUiState.SetExternalMenuOpen(true);
     }
 
     private void ShowSettings()
     {
         SetPanelState(false, true, false);
         SetBackground(settingsBackgroundSprite, settingsBackgroundTint);
-        ShowTab(SettingsTab.Display);
+        ShowTab(currentTab);
+        GameplayUiState.SetExternalMenuOpen(true);
     }
 
     private void ShowCredits()
@@ -260,6 +509,7 @@ public sealed class FantasyMenuController : MonoBehaviour
         SetPanelState(false, false, true);
         SetBackground(mainBackgroundSprite, mainBackgroundTint);
         SetStatus(string.Empty);
+        GameplayUiState.SetExternalMenuOpen(true);
     }
 
     private void SetPanelState(bool showMain, bool showSettings, bool showCredits)
@@ -297,6 +547,7 @@ public sealed class FantasyMenuController : MonoBehaviour
             backgroundImage.sprite = sprite;
         }
 
+        backgroundImage.enabled = true;
         backgroundImage.color = tint;
     }
 
@@ -477,6 +728,668 @@ public sealed class FantasyMenuController : MonoBehaviour
         }
     }
 
+    private void LoadAudioSettingsToUi()
+    {
+        if (masterVolumeSlider != null)
+        {
+            masterVolumeSlider.minValue = 0f;
+            masterVolumeSlider.maxValue = 1f;
+            masterVolumeSlider.wholeNumbers = false;
+            masterVolumeSlider.value = GameSettings.MasterVolume;
+        }
+
+        if (musicVolumeSlider != null)
+        {
+            musicVolumeSlider.minValue = 0f;
+            musicVolumeSlider.maxValue = 1f;
+            musicVolumeSlider.wholeNumbers = false;
+            musicVolumeSlider.value = GameSettings.MusicVolume;
+        }
+
+        if (sfxVolumeSlider != null)
+        {
+            sfxVolumeSlider.minValue = 0f;
+            sfxVolumeSlider.maxValue = 1f;
+            sfxVolumeSlider.wholeNumbers = false;
+            sfxVolumeSlider.value = GameSettings.SfxVolume;
+        }
+
+        if (ambienceVolumeSlider != null)
+        {
+            ambienceVolumeSlider.minValue = 0f;
+            ambienceVolumeSlider.maxValue = 1f;
+            ambienceVolumeSlider.wholeNumbers = false;
+            ambienceVolumeSlider.value = GameSettings.AmbienceVolume;
+        }
+
+        if (mutedToggle != null)
+        {
+            mutedToggle.isOn = GameSettings.Muted;
+        }
+
+        UpdateVolumeLabel(masterVolumeValueText, GameSettings.MasterVolume);
+        UpdateVolumeLabel(musicVolumeValueText, GameSettings.MusicVolume);
+        UpdateVolumeLabel(sfxVolumeValueText, GameSettings.SfxVolume);
+        UpdateVolumeLabel(ambienceVolumeValueText, GameSettings.AmbienceVolume);
+    }
+
+    private void LoadGraphicsSettingsToUi()
+    {
+        qualityNames = GameSettings.QualityNames();
+        qualityOptionIndex = Mathf.Clamp(GameSettings.QualityIndex, 0, Mathf.Max(0, qualityNames.Length - 1));
+        frameRateOptionIndex = FindClosestOptionIndex(frameRateOptions, GameSettings.TargetFrameRate);
+        antiAliasingOptionIndex = FindClosestOptionIndex(antiAliasingOptions, GameSettings.AntiAliasing);
+        shadowQualityOptionIndex = Mathf.Clamp(GameSettings.ShadowQuality, 0, shadowQualityLabels.Length - 1);
+        textureQualityOptionIndex = Mathf.Clamp(GameSettings.TextureQuality, 0, textureQualityLabels.Length - 1);
+
+        if (renderScaleSlider != null)
+        {
+            renderScaleSlider.minValue = 0.5f;
+            renderScaleSlider.maxValue = 1.5f;
+            renderScaleSlider.wholeNumbers = false;
+            renderScaleSlider.value = GameSettings.RenderScale;
+        }
+
+        if (shadowDistanceSlider != null)
+        {
+            shadowDistanceSlider.minValue = 0f;
+            shadowDistanceSlider.maxValue = 500f;
+            shadowDistanceSlider.wholeNumbers = false;
+            shadowDistanceSlider.value = GameSettings.ShadowDistance;
+        }
+
+        if (viewDistanceSlider != null)
+        {
+            viewDistanceSlider.minValue = 0.45f;
+            viewDistanceSlider.maxValue = 2f;
+            viewDistanceSlider.wholeNumbers = false;
+            viewDistanceSlider.value = GameSettings.ViewDistance;
+        }
+
+        if (anisotropicFilteringToggle != null)
+        {
+            anisotropicFilteringToggle.isOn = GameSettings.AnisotropicFiltering;
+        }
+
+        if (bloomToggle != null)
+        {
+            bloomToggle.isOn = GameSettings.Bloom;
+        }
+
+        if (motionBlurToggle != null)
+        {
+            motionBlurToggle.isOn = GameSettings.MotionBlur;
+        }
+
+        UpdateQualityLabel();
+        UpdateFrameRateLabel();
+        UpdateAntiAliasingLabel();
+        UpdateShadowQualityLabel();
+        UpdateTextureQualityLabel();
+        UpdateRenderScaleLabel(GameSettings.RenderScale);
+        UpdateShadowDistanceLabel(GameSettings.ShadowDistance);
+        UpdateViewDistanceLabel(GameSettings.ViewDistance);
+    }
+
+    private void OnMasterVolumeChanged(float value)
+    {
+        UpdateVolumeLabel(masterVolumeValueText, value);
+        if (suppressCallbacks)
+        {
+            return;
+        }
+
+        GameSettings.MasterVolume = value;
+        GameSettings.ApplyAudioSettings();
+        GameSettings.NotifyChanged();
+        MarkSettingsDirty($"Master volume {Mathf.RoundToInt(value * 100f)}%.");
+    }
+
+    private void OnMusicVolumeChanged(float value)
+    {
+        UpdateVolumeLabel(musicVolumeValueText, value);
+        if (suppressCallbacks)
+        {
+            return;
+        }
+
+        GameSettings.MusicVolume = value;
+        GameSettings.ApplyAudioSettings();
+        GameSettings.NotifyChanged();
+        MarkSettingsDirty($"Music volume {Mathf.RoundToInt(value * 100f)}%.");
+    }
+
+    private void OnSfxVolumeChanged(float value)
+    {
+        UpdateVolumeLabel(sfxVolumeValueText, value);
+        if (suppressCallbacks)
+        {
+            return;
+        }
+
+        GameSettings.SfxVolume = value;
+        GameSettings.ApplyAudioSettings();
+        GameSettings.NotifyChanged();
+        MarkSettingsDirty($"SFX volume {Mathf.RoundToInt(value * 100f)}%.");
+    }
+
+    private void OnAmbienceVolumeChanged(float value)
+    {
+        UpdateVolumeLabel(ambienceVolumeValueText, value);
+        if (suppressCallbacks)
+        {
+            return;
+        }
+
+        GameSettings.AmbienceVolume = value;
+        GameSettings.ApplyAudioSettings();
+        GameSettings.NotifyChanged();
+        MarkSettingsDirty($"Ambience volume {Mathf.RoundToInt(value * 100f)}%.");
+    }
+
+    private void OnMutedChanged(bool value)
+    {
+        if (suppressCallbacks)
+        {
+            return;
+        }
+
+        GameSettings.Muted = value;
+        GameSettings.ApplyAudioSettings();
+        GameSettings.NotifyChanged();
+        MarkSettingsDirty(value ? "Audio muted." : "Audio unmuted.");
+    }
+
+    private void StepQuality(int delta)
+    {
+        if (qualityNames == null || qualityNames.Length == 0)
+        {
+            qualityNames = GameSettings.QualityNames();
+        }
+
+        qualityOptionIndex = WrapIndex(qualityOptionIndex + delta, Mathf.Max(1, qualityNames.Length));
+        GameSettings.QualityIndex = qualityOptionIndex;
+        GameSettings.ApplyGraphicsSettings();
+        GameSettings.NotifyChanged();
+        UpdateQualityLabel();
+        MarkSettingsDirty($"Quality {qualityNames[Mathf.Clamp(qualityOptionIndex, 0, qualityNames.Length - 1)]}.");
+    }
+
+    private void StepFrameRate(int delta)
+    {
+        frameRateOptionIndex = WrapIndex(frameRateOptionIndex + delta, frameRateOptions.Length);
+        int target = frameRateOptions[frameRateOptionIndex];
+        GameSettings.TargetFrameRate = target;
+        GameSettings.ApplyDisplaySettings();
+        GameSettings.NotifyChanged();
+        UpdateFrameRateLabel();
+        MarkSettingsDirty(target <= 0 ? "Frame rate unlimited." : $"Target frame rate {target}.");
+    }
+
+    private void StepAntiAliasing(int delta)
+    {
+        antiAliasingOptionIndex = WrapIndex(antiAliasingOptionIndex + delta, antiAliasingOptions.Length);
+        int value = antiAliasingOptions[antiAliasingOptionIndex];
+        GameSettings.AntiAliasing = value;
+        GameSettings.ApplyGraphicsSettings();
+        GameSettings.NotifyChanged();
+        UpdateAntiAliasingLabel();
+        MarkSettingsDirty(value == 0 ? "Anti-aliasing off." : $"Anti-aliasing {value}x.");
+    }
+
+    private void StepShadowQuality(int delta)
+    {
+        shadowQualityOptionIndex = WrapIndex(shadowQualityOptionIndex + delta, shadowQualityLabels.Length);
+        GameSettings.ShadowQuality = shadowQualityOptionIndex;
+        GameSettings.ApplyGraphicsSettings();
+        GameSettings.NotifyChanged();
+        UpdateShadowQualityLabel();
+        MarkSettingsDirty($"Shadows {shadowQualityLabels[shadowQualityOptionIndex]}.");
+    }
+
+    private void StepTextureQuality(int delta)
+    {
+        textureQualityOptionIndex = WrapIndex(textureQualityOptionIndex + delta, textureQualityLabels.Length);
+        GameSettings.TextureQuality = textureQualityOptionIndex;
+        GameSettings.ApplyGraphicsSettings();
+        GameSettings.NotifyChanged();
+        UpdateTextureQualityLabel();
+        MarkSettingsDirty($"Texture quality {textureQualityLabels[textureQualityOptionIndex]}.");
+    }
+
+    private void OnRenderScaleChanged(float value)
+    {
+        UpdateRenderScaleLabel(value);
+        if (suppressCallbacks)
+        {
+            return;
+        }
+
+        GameSettings.RenderScale = value;
+        GameSettings.ApplyGraphicsSettings();
+        GameSettings.NotifyChanged();
+        MarkSettingsDirty($"Render scale {value:0.00}x.");
+    }
+
+    private void OnShadowDistanceChanged(float value)
+    {
+        UpdateShadowDistanceLabel(value);
+        if (suppressCallbacks)
+        {
+            return;
+        }
+
+        GameSettings.ShadowDistance = value;
+        GameSettings.ApplyGraphicsSettings();
+        GameSettings.NotifyChanged();
+        MarkSettingsDirty($"Shadow distance {Mathf.RoundToInt(value)}m.");
+    }
+
+    private void OnViewDistanceChanged(float value)
+    {
+        UpdateViewDistanceLabel(value);
+        if (suppressCallbacks)
+        {
+            return;
+        }
+
+        GameSettings.ViewDistance = value;
+        GameSettings.ApplyGraphicsSettings();
+        GameSettings.NotifyChanged();
+        MarkSettingsDirty($"View distance {value:0.00}x.");
+    }
+
+    private void OnAnisotropicFilteringChanged(bool value)
+    {
+        if (suppressCallbacks)
+        {
+            return;
+        }
+
+        GameSettings.AnisotropicFiltering = value;
+        GameSettings.ApplyGraphicsSettings();
+        GameSettings.NotifyChanged();
+        MarkSettingsDirty(value ? "Anisotropic filtering enabled." : "Anisotropic filtering disabled.");
+    }
+
+    private void OnBloomChanged(bool value)
+    {
+        if (suppressCallbacks)
+        {
+            return;
+        }
+
+        GameSettings.Bloom = value;
+        GameSettings.ApplyGraphicsSettings();
+        GameSettings.NotifyChanged();
+        MarkSettingsDirty(value ? "Bloom enabled." : "Bloom disabled.");
+    }
+
+    private void OnMotionBlurChanged(bool value)
+    {
+        if (suppressCallbacks)
+        {
+            return;
+        }
+
+        GameSettings.MotionBlur = value;
+        GameSettings.ApplyGraphicsSettings();
+        GameSettings.NotifyChanged();
+        MarkSettingsDirty(value ? "Motion blur enabled." : "Motion blur disabled.");
+    }
+
+    private void BeginKeybindCapture(string keyId, KeyCode fallback, Button button, TMP_Text label)
+    {
+        isWaitingForKeybind = true;
+        pendingKeybindId = keyId;
+        pendingKeybindFallback = fallback;
+        pendingKeybindButton = button;
+        pendingKeybindLabel = label;
+        keybindCaptureStartFrame = Time.frameCount;
+
+        if (pendingKeybindLabel != null)
+        {
+            pendingKeybindLabel.text = "Press key...";
+        }
+
+        if (keybindInfoText != null)
+        {
+            keybindInfoText.text = "Press any key (Esc cancels)";
+        }
+
+        SetSettingsStatus($"Rebinding {keyId}...");
+    }
+
+    private void CaptureNextKeybind()
+    {
+        if (Time.frameCount == keybindCaptureStartFrame)
+        {
+            return;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            CancelKeybindCapture();
+            return;
+        }
+
+        Array values = Enum.GetValues(typeof(KeyCode));
+        for (int i = 0; i < values.Length; i++)
+        {
+            KeyCode keyCode = (KeyCode)values.GetValue(i);
+            if (keyCode == KeyCode.None)
+            {
+                continue;
+            }
+
+            if (!Input.GetKeyDown(keyCode))
+            {
+                continue;
+            }
+
+            ApplyCapturedKeybind(keyCode);
+            return;
+        }
+    }
+
+    private void CancelKeybindCapture()
+    {
+        isWaitingForKeybind = false;
+        pendingKeybindId = string.Empty;
+        pendingKeybindButton = null;
+        pendingKeybindLabel = null;
+        if (keybindInfoText != null)
+        {
+            keybindInfoText.text = string.Empty;
+        }
+
+        UpdateKeybindLabels();
+        SetSettingsStatus("Keybind capture canceled.");
+    }
+
+    private void ApplyCapturedKeybind(KeyCode keyCode)
+    {
+        isWaitingForKeybind = false;
+        GameSettings.SetKey(pendingKeybindId, keyCode, false);
+        GameSettings.ApplyInputOverridesToScene();
+        GameSettings.NotifyChanged();
+        UpdateKeybindLabels();
+
+        if (keybindInfoText != null)
+        {
+            keybindInfoText.text = string.Empty;
+        }
+
+        MarkSettingsDirty($"{pendingKeybindId} -> {GameSettings.ToDisplayName(keyCode)}.");
+        pendingKeybindId = string.Empty;
+        pendingKeybindButton = null;
+        pendingKeybindLabel = null;
+    }
+
+    private void UpdateKeybindLabels()
+    {
+        for (int i = 0; i < keybindEntries.Count; i++)
+        {
+            KeybindEntry entry = keybindEntries[i];
+            if (entry.Label == null)
+            {
+                continue;
+            }
+
+            if (isWaitingForKeybind && entry.Button == pendingKeybindButton)
+            {
+                entry.Label.text = "Press key...";
+                continue;
+            }
+
+            entry.Label.text = GameSettings.GetKeyDisplayName(entry.KeyId, entry.Fallback);
+        }
+    }
+
+    private void UpdateVolumeLabel(TMP_Text text, float value)
+    {
+        if (text != null)
+        {
+            text.text = $"{Mathf.RoundToInt(Mathf.Clamp01(value) * 100f)}%";
+        }
+    }
+
+    private void UpdateQualityLabel()
+    {
+        if (qualityValueText == null)
+        {
+            return;
+        }
+
+        if (qualityNames == null || qualityNames.Length == 0)
+        {
+            qualityNames = GameSettings.QualityNames();
+        }
+
+        int index = Mathf.Clamp(qualityOptionIndex, 0, qualityNames.Length - 1);
+        qualityValueText.text = qualityNames[index];
+    }
+
+    private void UpdateFrameRateLabel()
+    {
+        if (frameRateValueText != null)
+        {
+            int value = frameRateOptions[Mathf.Clamp(frameRateOptionIndex, 0, frameRateOptions.Length - 1)];
+            frameRateValueText.text = value <= 0 ? "Unlimited" : value.ToString();
+        }
+    }
+
+    private void UpdateAntiAliasingLabel()
+    {
+        if (antiAliasingValueText != null)
+        {
+            int value = antiAliasingOptions[Mathf.Clamp(antiAliasingOptionIndex, 0, antiAliasingOptions.Length - 1)];
+            antiAliasingValueText.text = value <= 0 ? "Off" : $"{value}x";
+        }
+    }
+
+    private void UpdateShadowQualityLabel()
+    {
+        if (shadowQualityValueText != null)
+        {
+            int index = Mathf.Clamp(shadowQualityOptionIndex, 0, shadowQualityLabels.Length - 1);
+            shadowQualityValueText.text = shadowQualityLabels[index];
+        }
+    }
+
+    private void UpdateTextureQualityLabel()
+    {
+        if (textureQualityValueText != null)
+        {
+            int index = Mathf.Clamp(textureQualityOptionIndex, 0, textureQualityLabels.Length - 1);
+            textureQualityValueText.text = textureQualityLabels[index];
+        }
+    }
+
+    private void UpdateRenderScaleLabel(float value)
+    {
+        if (renderScaleValueText != null)
+        {
+            renderScaleValueText.text = $"{value:0.00}x";
+        }
+    }
+
+    private void UpdateShadowDistanceLabel(float value)
+    {
+        if (shadowDistanceValueText != null)
+        {
+            shadowDistanceValueText.text = $"{Mathf.RoundToInt(value)}m";
+        }
+    }
+
+    private void UpdateViewDistanceLabel(float value)
+    {
+        if (viewDistanceValueText != null)
+        {
+            viewDistanceValueText.text = $"{value:0.00}x";
+        }
+    }
+
+    private static int FindClosestOptionIndex(int[] values, int target)
+    {
+        if (values == null || values.Length == 0)
+        {
+            return 0;
+        }
+
+        int bestIndex = 0;
+        int bestDelta = int.MaxValue;
+        for (int i = 0; i < values.Length; i++)
+        {
+            int delta = Mathf.Abs(values[i] - target);
+            if (delta < bestDelta)
+            {
+                bestDelta = delta;
+                bestIndex = i;
+            }
+        }
+
+        return bestIndex;
+    }
+
+    private static int WrapIndex(int value, int length)
+    {
+        if (length <= 0)
+        {
+            return 0;
+        }
+
+        int result = value % length;
+        if (result < 0)
+        {
+            result += length;
+        }
+
+        return result;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (instance != this)
+        {
+            return;
+        }
+
+        if (IsMenuScene(scene.name))
+        {
+            gameplaySettingsOpen = false;
+            if (menuCanvasRoot != null)
+            {
+                menuCanvasRoot.SetActive(true);
+            }
+
+            ShowMain();
+            return;
+        }
+
+        CloseGameplaySettingsOverlay();
+    }
+
+    private void CachePersistentRoots()
+    {
+        if (menuCanvasRoot == null)
+        {
+            Canvas rootCanvas = null;
+            if (scaledRoot != null)
+            {
+                rootCanvas = scaledRoot.GetComponentInParent<Canvas>();
+            }
+
+            if (rootCanvas == null && settingsScreen != null)
+            {
+                rootCanvas = settingsScreen.GetComponentInParent<Canvas>(true);
+            }
+
+            if (rootCanvas == null && backgroundImage != null)
+            {
+                rootCanvas = backgroundImage.GetComponentInParent<Canvas>(true);
+            }
+
+            if (rootCanvas != null)
+            {
+                menuCanvasRoot = rootCanvas.gameObject;
+            }
+        }
+
+        if (menuEventSystemRoot == null && EventSystem.current != null)
+        {
+            menuEventSystemRoot = EventSystem.current.gameObject;
+        }
+    }
+
+    private void PersistUiRoots()
+    {
+        if (menuCanvasRoot != null)
+        {
+            DontDestroyOnLoad(menuCanvasRoot.transform.root.gameObject);
+        }
+
+        if (menuEventSystemRoot != null)
+        {
+            DontDestroyOnLoad(menuEventSystemRoot.transform.root.gameObject);
+        }
+    }
+
+    private bool IsInGameplayScene()
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        return !IsMenuScene(activeScene.name);
+    }
+
+    private bool IsMenuScene(string sceneName)
+    {
+        return string.Equals(sceneName, menuSceneName, StringComparison.Ordinal);
+    }
+
+    private void OpenGameplaySettingsOverlay()
+    {
+        gameplaySettingsOpen = true;
+        if (menuCanvasRoot != null)
+        {
+            menuCanvasRoot.SetActive(true);
+        }
+
+        if (menuEventSystemRoot != null)
+        {
+            menuEventSystemRoot.SetActive(true);
+        }
+
+        SetPanelState(false, true, false);
+        ShowTab(currentTab);
+        SetStatus(string.Empty);
+        if (backgroundImage != null)
+        {
+            backgroundImage.enabled = false;
+        }
+
+        LoadSettingsToUi();
+        GameplayUiState.SetExternalMenuOpen(true);
+    }
+
+    private void CloseGameplaySettingsOverlay()
+    {
+        gameplaySettingsOpen = false;
+        SetPanelState(false, false, false);
+        SetStatus(string.Empty);
+        SetSettingsStatus(string.Empty);
+        if (menuCanvasRoot != null && IsInGameplayScene())
+        {
+            menuCanvasRoot.SetActive(false);
+        }
+
+        if (backgroundImage != null)
+        {
+            backgroundImage.enabled = false;
+        }
+
+        GameplayUiState.SetExternalMenuOpen(false);
+    }
+
     private void MarkSettingsDirty(string message)
     {
         SetSettingsStatus($"Pending changes: {message}");
@@ -492,8 +1405,20 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void ApplySettings()
     {
+        isWaitingForKeybind = false;
+        pendingKeybindId = string.Empty;
+        pendingKeybindButton = null;
+        pendingKeybindLabel = null;
+        if (keybindInfoText != null)
+        {
+            keybindInfoText.text = string.Empty;
+        }
+
         GameSettings.SaveAndApply();
         ApplyUiScalePreview(GameSettings.UIScale);
+        LoadAudioSettingsToUi();
+        LoadGraphicsSettingsToUi();
+        UpdateKeybindLabels();
         SetSettingsStatus("Settings applied.");
     }
 
@@ -504,9 +1429,7 @@ public sealed class FantasyMenuController : MonoBehaviour
             return;
         }
 
-        ApplyUiScalePreview(GameSettings.UIScale);
-        UpdateBrightnessLabel(GameSettings.Brightness);
-        UpdateUiScaleLabel(GameSettings.UIScale);
+        LoadSettingsToUi();
     }
 
     private void ContinueGame()
@@ -567,6 +1490,7 @@ public sealed class FantasyMenuController : MonoBehaviour
         }
 
         GameSettings.SaveAndApply();
+        GameplayUiState.SetExternalMenuOpen(false);
         SceneManager.LoadScene(trimmed);
     }
 

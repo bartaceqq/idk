@@ -12,6 +12,11 @@ public static class MainMenuSceneRepair
     [InitializeOnLoadMethod]
     private static void AutoRepairOpenMainMenuScene()
     {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            return;
+        }
+
         if (autoRepairAttempted)
         {
             return;
@@ -24,11 +29,22 @@ public static class MainMenuSceneRepair
     [MenuItem("Tools/One More Night/Repair Main Menu Scene")]
     public static void RepairMainMenuScene()
     {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogWarning("Main menu scene repair is disabled during Play Mode.");
+            return;
+        }
+
         RebuildSceneKeepingContext();
     }
 
     private static void TryAutoRepair()
     {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            return;
+        }
+
         Scene activeScene = EditorSceneManager.GetActiveScene();
         if (activeScene.path != MenuScenePath)
         {
@@ -60,6 +76,11 @@ public static class MainMenuSceneRepair
 
     private static void RebuildSceneKeepingContext()
     {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            return;
+        }
+
         Scene previousScene = EditorSceneManager.GetActiveScene();
         string previousScenePath = previousScene.path;
 

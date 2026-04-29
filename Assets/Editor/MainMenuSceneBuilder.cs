@@ -18,6 +18,7 @@ public static class MainMenuSceneBuilder
     private static readonly Color ShellInnerColor = new Color(0.74f, 0.63f, 0.43f, 0.92f);
     private static readonly Color CardColor = new Color(0.64f, 0.53f, 0.36f, 0.88f);
     private static readonly Color RowColor = new Color(0.15f, 0.10f, 0.07f, 0.26f);
+    private static readonly Color RowLabelColor = new Color(0.96f, 0.90f, 0.78f, 1f);
     private static readonly Color TextPrimary = new Color(0.97f, 0.91f, 0.78f, 1f);
     private static readonly Color TextSecondary = new Color(0.82f, 0.72f, 0.56f, 1f);
     private static readonly Color AccentColor = new Color(0.27f, 0.40f, 0.20f, 1f);
@@ -68,6 +69,52 @@ public static class MainMenuSceneBuilder
         public TMP_Text BrightnessValueText;
         public Slider UiScaleSlider;
         public TMP_Text UiScaleValueText;
+
+        public Slider MasterVolumeSlider;
+        public TMP_Text MasterVolumeValueText;
+        public Slider MusicVolumeSlider;
+        public TMP_Text MusicVolumeValueText;
+        public Slider SfxVolumeSlider;
+        public TMP_Text SfxVolumeValueText;
+        public Slider AmbienceVolumeSlider;
+        public TMP_Text AmbienceVolumeValueText;
+        public Toggle MutedToggle;
+
+        public Button QualityPreviousButton;
+        public Button QualityNextButton;
+        public TMP_Text QualityValueText;
+        public Button FrameRatePreviousButton;
+        public Button FrameRateNextButton;
+        public TMP_Text FrameRateValueText;
+        public Slider RenderScaleSlider;
+        public TMP_Text RenderScaleValueText;
+        public Button AntiAliasingPreviousButton;
+        public Button AntiAliasingNextButton;
+        public TMP_Text AntiAliasingValueText;
+        public Button ShadowQualityPreviousButton;
+        public Button ShadowQualityNextButton;
+        public TMP_Text ShadowQualityValueText;
+        public Slider ShadowDistanceSlider;
+        public TMP_Text ShadowDistanceValueText;
+        public Button TextureQualityPreviousButton;
+        public Button TextureQualityNextButton;
+        public TMP_Text TextureQualityValueText;
+        public Toggle AnisotropicFilteringToggle;
+        public Slider ViewDistanceSlider;
+        public TMP_Text ViewDistanceValueText;
+        public Toggle BloomToggle;
+        public Toggle MotionBlurToggle;
+
+        public Button MoveForwardKeyButton;
+        public Button MoveBackwardKeyButton;
+        public Button MoveLeftKeyButton;
+        public Button MoveRightKeyButton;
+        public Button JumpKeyButton;
+        public Button SprintKeyButton;
+        public Button InteractKeyButton;
+        public Button AttackKeyButton;
+        public Button InventoryKeyButton;
+        public TMP_Text KeybindInfoText;
     }
 
     private sealed class CreditsMenuRefs
@@ -78,6 +125,12 @@ public static class MainMenuSceneBuilder
     [MenuItem("Tools/One More Night/Rebuild Main Menu Scene")]
     public static void Build()
     {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogWarning("Main menu scene rebuild is disabled during Play Mode.");
+            return;
+        }
+
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         CreateWorldCamera();
@@ -87,6 +140,7 @@ public static class MainMenuSceneBuilder
         TMP_FontAsset font = ResolveFont();
         Sprite uiSprite = ResolveBuiltinSprite("UI/Skin/UISprite.psd");
         Sprite knobSprite = ResolveBuiltinSprite("UI/Skin/Knob.psd");
+        Sprite panelSprite = ResolveBuiltinSprite("UI/Skin/Background.psd");
 
         if (uiSprite == null)
         {
@@ -97,6 +151,11 @@ public static class MainMenuSceneBuilder
         if (knobSprite == null)
         {
             knobSprite = uiSprite;
+        }
+
+        if (panelSprite == null)
+        {
+            panelSprite = uiSprite;
         }
 
         GameObject canvasObject = new GameObject(
@@ -166,7 +225,7 @@ public static class MainMenuSceneBuilder
         StretchRect(creditsScreen);
 
         MainMenuRefs mainRefs = BuildMainScreen(mainScreen, font, uiSprite);
-        SettingsMenuRefs settingsRefs = BuildSettingsScreen(settingsScreen, font, uiSprite, knobSprite);
+        SettingsMenuRefs settingsRefs = BuildSettingsScreen(settingsScreen, font, uiSprite, knobSprite, panelSprite);
         CreditsMenuRefs creditsRefs = BuildCreditsScreen(creditsScreen, font, uiSprite);
 
         settingsScreen.gameObject.SetActive(false);
@@ -277,38 +336,60 @@ public static class MainMenuSceneBuilder
         RectTransform parent,
         TMP_FontAsset font,
         Sprite uiSprite,
-        Sprite knobSprite)
+        Sprite knobSprite,
+        Sprite panelSprite)
     {
         SettingsMenuRefs refs = new SettingsMenuRefs();
 
-        Image titlePlate = CreateImage("Settings Title Plate", parent, uiSprite, new Color(0.19f, 0.12f, 0.08f, 0.72f), false);
+        RectTransform settingsRoot = CreateRect("Settings Root", parent);
+        StretchRect(settingsRoot);
+
+        Image dimmer = CreateImage("Settings Dimmer", settingsRoot, panelSprite, new Color(0f, 0f, 0f, 0.36f), false);
+        StretchRect(dimmer.rectTransform);
+        dimmer.type = Image.Type.Sliced;
+
+        RectTransform settingsFrame = CreateRect("Settings Frame", settingsRoot);
+        StretchRect(settingsFrame, new Vector2(116f, 52f), new Vector2(-116f, -52f));
+
+        Image settingsFrameImage = CreateImage("Settings Frame Background", settingsFrame, panelSprite, new Color(0.24f, 0.20f, 0.15f, 0.95f), false);
+        StretchRect(settingsFrameImage.rectTransform);
+        settingsFrameImage.type = Image.Type.Sliced;
+
+        Outline frameOutline = settingsFrameImage.gameObject.AddComponent<Outline>();
+        frameOutline.effectColor = new Color(0.15f, 0.10f, 0.06f, 0.75f);
+        frameOutline.effectDistance = new Vector2(1f, -1f);
+        Shadow frameShadow = settingsFrameImage.gameObject.AddComponent<Shadow>();
+        frameShadow.effectColor = new Color(0f, 0f, 0f, 0.32f);
+        frameShadow.effectDistance = new Vector2(0f, -4f);
+
+        Image titlePlate = CreateImage("Settings Title Plate", settingsFrame, panelSprite, new Color(0.22f, 0.17f, 0.12f, 0.82f), false);
         titlePlate.type = Image.Type.Sliced;
-        SetTopRect(titlePlate.rectTransform, 6f, -6f, 120f);
+        SetTopRect(titlePlate.rectTransform, 10f, -10f, 112f);
 
         TMP_Text title = CreateText(
             "Settings Title",
-            parent,
+            settingsFrame,
             "SETTINGS",
             font,
             56f,
             TextAlignmentOptions.Center,
             FontStyles.Bold,
             TextPrimary);
-        SetTopRect(title.rectTransform, 14f, -16f, 84f);
+        SetTopRect(title.rectTransform, 16f, -16f, 86f);
         title.textWrappingMode = TextWrappingModes.NoWrap;
         title.enableAutoSizing = true;
         title.fontSizeMin = 34f;
         title.fontSizeMax = 62f;
 
-        RectTransform tabsRow = CreateRect("Settings Tabs", parent);
+        RectTransform tabsRow = CreateRect("Settings Tabs", settingsFrame);
         tabsRow.anchorMin = new Vector2(0f, 1f);
         tabsRow.anchorMax = new Vector2(1f, 1f);
         tabsRow.pivot = new Vector2(0.5f, 1f);
-        tabsRow.offsetMin = new Vector2(0f, -176f);
-        tabsRow.offsetMax = new Vector2(0f, -104f);
+        tabsRow.offsetMin = new Vector2(16f, -194f);
+        tabsRow.offsetMax = new Vector2(-16f, -118f);
 
         HorizontalLayoutGroup tabsLayout = tabsRow.gameObject.AddComponent<HorizontalLayoutGroup>();
-        tabsLayout.spacing = 10f;
+        tabsLayout.spacing = 12f;
         tabsLayout.padding = new RectOffset(0, 0, 0, 0);
         tabsLayout.childControlHeight = true;
         tabsLayout.childControlWidth = true;
@@ -316,29 +397,26 @@ public static class MainMenuSceneBuilder
         tabsLayout.childForceExpandWidth = true;
         tabsLayout.childAlignment = TextAnchor.MiddleCenter;
 
-        refs.DisplayTabButton = CreateFlatButton(tabsRow, "Display Tab", "Display", font, true, 58f, 0f);
-        refs.KeybindTabButton = CreateFlatButton(tabsRow, "Keybind Tab", "Keybind", font, false, 58f, 0f);
-        refs.AudioTabButton = CreateFlatButton(tabsRow, "Audio Tab", "Audio", font, false, 58f, 0f);
-        refs.GraphicsTabButton = CreateFlatButton(tabsRow, "Graphics Tab", "Graphics", font, false, 58f, 0f);
+        refs.DisplayTabButton = CreateFlatButton(tabsRow, "Display Tab", "Display", font, true, 64f, 0f);
+        refs.KeybindTabButton = CreateFlatButton(tabsRow, "Keybind Tab", "Keybind", font, false, 64f, 0f);
+        refs.AudioTabButton = CreateFlatButton(tabsRow, "Audio Tab", "Audio", font, false, 64f, 0f);
+        refs.GraphicsTabButton = CreateFlatButton(tabsRow, "Graphics Tab", "Graphics", font, false, 64f, 0f);
 
         refs.DisplayTabImage = refs.DisplayTabButton.image;
         refs.KeybindTabImage = refs.KeybindTabButton.image;
         refs.AudioTabImage = refs.AudioTabButton.image;
         refs.GraphicsTabImage = refs.GraphicsTabButton.image;
 
-        Image contentPanel = CreateImage("Settings Content Panel", parent, uiSprite, CardColor, false);
+        Image contentPanel = CreateImage("Settings Content Panel", settingsFrame, panelSprite, new Color(0.57f, 0.47f, 0.32f, 0.92f), false);
         contentPanel.type = Image.Type.Sliced;
-        Outline panelOutline = contentPanel.gameObject.AddComponent<Outline>();
-        panelOutline.effectColor = new Color(0.27f, 0.18f, 0.10f, 0.55f);
-        panelOutline.effectDistance = new Vector2(1f, -1f);
         RectTransform contentPanelRect = contentPanel.rectTransform;
         contentPanelRect.anchorMin = new Vector2(0f, 0f);
         contentPanelRect.anchorMax = new Vector2(1f, 1f);
-        contentPanelRect.offsetMin = new Vector2(0f, 152f);
-        contentPanelRect.offsetMax = new Vector2(0f, -174f);
+        contentPanelRect.offsetMin = new Vector2(16f, 176f);
+        contentPanelRect.offsetMax = new Vector2(-16f, -204f);
 
         RectTransform tabContentRoot = CreateRect("Tab Content Root", contentPanelRect);
-        StretchRect(tabContentRoot, new Vector2(16f, 16f), new Vector2(-16f, -16f));
+        StretchRect(tabContentRoot, new Vector2(12f, 12f), new Vector2(-12f, -12f));
 
         RectTransform displayContent = CreateRect("Display Tab Content", tabContentRoot);
         StretchRect(displayContent);
@@ -352,10 +430,15 @@ public static class MainMenuSceneBuilder
         RectTransform graphicsContent = CreateRect("Graphics Tab Content", tabContentRoot);
         StretchRect(graphicsContent);
 
-        BuildDisplayTabContent(displayContent, font, uiSprite, knobSprite, refs);
-        BuildPlaceholderTab(keybindContent, font, "Bindings board");
-        BuildPlaceholderTab(audioContent, font, "Sound board");
-        BuildPlaceholderTab(graphicsContent, font, "Visual board");
+        RectTransform displayScrollContent = CreateScrollableTabContent(displayContent, panelSprite);
+        RectTransform keybindScrollContent = CreateScrollableTabContent(keybindContent, panelSprite);
+        RectTransform audioScrollContent = CreateScrollableTabContent(audioContent, panelSprite);
+        RectTransform graphicsScrollContent = CreateScrollableTabContent(graphicsContent, panelSprite);
+
+        BuildDisplayTabContent(displayScrollContent, font, panelSprite, knobSprite, refs);
+        BuildKeybindTabContent(keybindScrollContent, font, panelSprite, refs);
+        BuildAudioTabContent(audioScrollContent, font, panelSprite, knobSprite, refs);
+        BuildGraphicsTabContent(graphicsScrollContent, font, panelSprite, knobSprite, refs);
 
         refs.DisplayTabContent = displayContent.gameObject;
         refs.KeybindTabContent = keybindContent.gameObject;
@@ -364,10 +447,10 @@ public static class MainMenuSceneBuilder
 
         TMP_Text status = CreateText(
             "Settings Status Text",
-            parent,
+            settingsFrame,
             string.Empty,
             font,
-            20f,
+            22f,
             TextAlignmentOptions.Center,
             FontStyles.Italic,
             TextSecondary);
@@ -376,19 +459,19 @@ public static class MainMenuSceneBuilder
         status.rectTransform.anchorMin = new Vector2(0f, 0f);
         status.rectTransform.anchorMax = new Vector2(1f, 0f);
         status.rectTransform.pivot = new Vector2(0.5f, 0f);
-        status.rectTransform.offsetMin = new Vector2(12f, 94f);
-        status.rectTransform.offsetMax = new Vector2(-12f, 136f);
+        status.rectTransform.offsetMin = new Vector2(16f, 114f);
+        status.rectTransform.offsetMax = new Vector2(-16f, 162f);
         refs.StatusText = status;
 
-        RectTransform footerRow = CreateRect("Settings Footer Row", parent);
+        RectTransform footerRow = CreateRect("Settings Footer Row", settingsFrame);
         footerRow.anchorMin = new Vector2(0f, 0f);
         footerRow.anchorMax = new Vector2(1f, 0f);
         footerRow.pivot = new Vector2(0.5f, 0f);
-        footerRow.offsetMin = new Vector2(0f, 18f);
-        footerRow.offsetMax = new Vector2(0f, 86f);
+        footerRow.offsetMin = new Vector2(0f, 26f);
+        footerRow.offsetMax = new Vector2(0f, 100f);
 
         HorizontalLayoutGroup footerLayout = footerRow.gameObject.AddComponent<HorizontalLayoutGroup>();
-        footerLayout.spacing = 12f;
+        footerLayout.spacing = 14f;
         footerLayout.padding = new RectOffset(0, 0, 0, 0);
         footerLayout.childControlHeight = true;
         footerLayout.childControlWidth = false;
@@ -396,8 +479,8 @@ public static class MainMenuSceneBuilder
         footerLayout.childForceExpandWidth = false;
         footerLayout.childAlignment = TextAnchor.MiddleCenter;
 
-        refs.BackButton = CreateFlatButton(footerRow, "Settings Back Button", "Back", font, false, 56f, 180f);
-        refs.ApplyButton = CreateFlatButton(footerRow, "Settings Apply Button", "Apply", font, true, 56f, 180f);
+        refs.BackButton = CreateFlatButton(footerRow, "Settings Back Button", "Back", font, false, 56f, 200f);
+        refs.ApplyButton = CreateFlatButton(footerRow, "Settings Apply Button", "Apply", font, true, 56f, 200f);
 
         return refs;
     }
@@ -405,7 +488,7 @@ public static class MainMenuSceneBuilder
     private static void BuildDisplayTabContent(
         RectTransform parent,
         TMP_FontAsset font,
-        Sprite uiSprite,
+        Sprite panelSprite,
         Sprite knobSprite,
         SettingsMenuRefs refs)
     {
@@ -416,161 +499,437 @@ public static class MainMenuSceneBuilder
         layout.childControlWidth = true;
         layout.childForceExpandHeight = false;
         layout.childForceExpandWidth = true;
-        layout.childAlignment = TextAnchor.UpperCenter;
+        layout.childAlignment = TextAnchor.UpperLeft;
 
-        RectTransform resolutionRow = CreateSettingsRow(parent, font, uiSprite, "Resolution");
+        RectTransform resolutionRow = CreateSettingsRow(parent, font, panelSprite, "Resolution");
         RectTransform resolutionControl = CreateRowControlContainer(resolutionRow);
         refs.ResolutionPreviousButton = CreateSmallIconButton(resolutionControl, "Resolution Previous", "<", font);
 
-        Image resolutionValuePanel = CreateImage("Resolution Value Panel", resolutionControl, uiSprite, ValuePanelColor, true);
-        RectTransform resolutionValueRect = resolutionValuePanel.rectTransform;
+        Image resolutionValuePanel = CreateImage("Resolution Value Panel", resolutionControl, panelSprite, ValuePanelColor, true);
+        resolutionValuePanel.type = Image.Type.Sliced;
         LayoutElement resolutionValueLayout = resolutionValuePanel.gameObject.AddComponent<LayoutElement>();
-        resolutionValueLayout.preferredHeight = 40f;
-        resolutionValueLayout.minHeight = 40f;
-        resolutionValueLayout.minWidth = 280f;
-        resolutionValueLayout.preferredWidth = 340f;
+        resolutionValueLayout.preferredHeight = 52f;
+        resolutionValueLayout.minHeight = 52f;
+        resolutionValueLayout.minWidth = 360f;
+        resolutionValueLayout.preferredWidth = 560f;
         resolutionValueLayout.flexibleWidth = 1f;
+
         refs.ResolutionValueText = CreateText(
             "Resolution Value Text",
-            resolutionValueRect,
+            resolutionValuePanel.rectTransform,
             "1920 x 1080",
             font,
-            28f,
+            27f,
             TextAlignmentOptions.Center,
             FontStyles.Normal,
             TextPrimary);
-        StretchRect(refs.ResolutionValueText.rectTransform);
+        StretchRect(refs.ResolutionValueText.rectTransform, new Vector2(8f, 0f), new Vector2(-8f, 0f));
         refs.ResolutionValueText.textWrappingMode = TextWrappingModes.NoWrap;
         refs.ResolutionValueText.overflowMode = TextOverflowModes.Ellipsis;
         refs.ResolutionValueText.enableAutoSizing = true;
-        refs.ResolutionValueText.fontSizeMin = 18f;
-        refs.ResolutionValueText.fontSizeMax = 30f;
+        refs.ResolutionValueText.fontSizeMin = 19f;
+        refs.ResolutionValueText.fontSizeMax = 29f;
 
         refs.ResolutionNextButton = CreateSmallIconButton(resolutionControl, "Resolution Next", ">", font);
 
-        RectTransform fullscreenRow = CreateSettingsRow(parent, font, uiSprite, "Fullscreen");
+        RectTransform fullscreenRow = CreateSettingsRow(parent, font, panelSprite, "Fullscreen");
         RectTransform fullscreenControl = CreateRowControlContainer(fullscreenRow);
-        refs.FullscreenToggle = CreateFlatToggle(fullscreenControl, "Fullscreen Toggle", uiSprite, true);
+        refs.FullscreenToggle = CreateFlatToggle(fullscreenControl, "Fullscreen Toggle", panelSprite, true);
+        AddFlexibleSpacer(fullscreenControl);
 
-        RectTransform vsyncRow = CreateSettingsRow(parent, font, uiSprite, "VSync");
+        RectTransform vsyncRow = CreateSettingsRow(parent, font, panelSprite, "VSync");
         RectTransform vsyncControl = CreateRowControlContainer(vsyncRow);
-        refs.VSyncToggle = CreateFlatToggle(vsyncControl, "VSync Toggle", uiSprite, true);
+        refs.VSyncToggle = CreateFlatToggle(vsyncControl, "VSync Toggle", panelSprite, true);
+        AddFlexibleSpacer(vsyncControl);
 
-        RectTransform brightnessRow = CreateSettingsRow(parent, font, uiSprite, "Brightness");
+        RectTransform brightnessRow = CreateSettingsRow(parent, font, panelSprite, "Brightness");
         RectTransform brightnessControl = CreateRowControlContainer(brightnessRow);
-        refs.BrightnessSlider = CreateFlatSlider(brightnessControl, "Brightness Slider", uiSprite, knobSprite);
+        refs.BrightnessSlider = CreateFlatSlider(brightnessControl, "Brightness Slider", panelSprite, knobSprite);
 
-        Image brightnessValuePanel = CreateImage("Brightness Value Panel", brightnessControl, uiSprite, ValuePanelColor, true);
-        RectTransform brightnessValueRect = brightnessValuePanel.rectTransform;
+        Image brightnessValuePanel = CreateImage("Brightness Value Panel", brightnessControl, panelSprite, ValuePanelColor, true);
+        brightnessValuePanel.type = Image.Type.Sliced;
         LayoutElement brightnessValueLayout = brightnessValuePanel.gameObject.AddComponent<LayoutElement>();
-        brightnessValueLayout.preferredHeight = 40f;
-        brightnessValueLayout.minHeight = 40f;
-        brightnessValueLayout.preferredWidth = 84f;
-        brightnessValueLayout.minWidth = 84f;
+        brightnessValueLayout.preferredHeight = 52f;
+        brightnessValueLayout.minHeight = 52f;
+        brightnessValueLayout.preferredWidth = 112f;
+        brightnessValueLayout.minWidth = 112f;
         refs.BrightnessValueText = CreateText(
             "Brightness Value",
-            brightnessValueRect,
+            brightnessValuePanel.rectTransform,
             "100%",
             font,
-            24f,
+            26f,
             TextAlignmentOptions.Center,
             FontStyles.Normal,
             TextPrimary);
         StretchRect(refs.BrightnessValueText.rectTransform);
         refs.BrightnessValueText.textWrappingMode = TextWrappingModes.NoWrap;
         refs.BrightnessValueText.enableAutoSizing = true;
-        refs.BrightnessValueText.fontSizeMin = 16f;
-        refs.BrightnessValueText.fontSizeMax = 26f;
+        refs.BrightnessValueText.fontSizeMin = 18f;
+        refs.BrightnessValueText.fontSizeMax = 28f;
 
-        RectTransform uiScaleRow = CreateSettingsRow(parent, font, uiSprite, "UI Scale");
+        RectTransform uiScaleRow = CreateSettingsRow(parent, font, panelSprite, "UI Scale");
         RectTransform uiScaleControl = CreateRowControlContainer(uiScaleRow);
-        refs.UiScaleSlider = CreateFlatSlider(uiScaleControl, "UI Scale Slider", uiSprite, knobSprite);
+        refs.UiScaleSlider = CreateFlatSlider(uiScaleControl, "UI Scale Slider", panelSprite, knobSprite);
 
-        Image uiScaleValuePanel = CreateImage("UI Scale Value Panel", uiScaleControl, uiSprite, ValuePanelColor, true);
-        RectTransform uiScaleValueRect = uiScaleValuePanel.rectTransform;
+        Image uiScaleValuePanel = CreateImage("UI Scale Value Panel", uiScaleControl, panelSprite, ValuePanelColor, true);
+        uiScaleValuePanel.type = Image.Type.Sliced;
         LayoutElement uiScaleValueLayout = uiScaleValuePanel.gameObject.AddComponent<LayoutElement>();
-        uiScaleValueLayout.preferredHeight = 40f;
-        uiScaleValueLayout.minHeight = 40f;
-        uiScaleValueLayout.preferredWidth = 84f;
-        uiScaleValueLayout.minWidth = 84f;
+        uiScaleValueLayout.preferredHeight = 52f;
+        uiScaleValueLayout.minHeight = 52f;
+        uiScaleValueLayout.preferredWidth = 112f;
+        uiScaleValueLayout.minWidth = 112f;
         refs.UiScaleValueText = CreateText(
             "UI Scale Value",
-            uiScaleValueRect,
+            uiScaleValuePanel.rectTransform,
             "100%",
             font,
-            24f,
+            26f,
             TextAlignmentOptions.Center,
             FontStyles.Normal,
             TextPrimary);
         StretchRect(refs.UiScaleValueText.rectTransform);
         refs.UiScaleValueText.textWrappingMode = TextWrappingModes.NoWrap;
         refs.UiScaleValueText.enableAutoSizing = true;
-        refs.UiScaleValueText.fontSizeMin = 16f;
-        refs.UiScaleValueText.fontSizeMax = 26f;
+        refs.UiScaleValueText.fontSizeMin = 18f;
+        refs.UiScaleValueText.fontSizeMax = 28f;
     }
 
-    private static RectTransform CreateSettingsRow(RectTransform parent, TMP_FontAsset font, Sprite uiSprite, string label)
+    private static void BuildKeybindTabContent(
+        RectTransform parent,
+        TMP_FontAsset font,
+        Sprite panelSprite,
+        SettingsMenuRefs refs)
     {
+        VerticalLayoutGroup layout = parent.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.spacing = 12f;
+        layout.padding = new RectOffset(0, 0, 0, 0);
+        layout.childControlHeight = true;
+        layout.childControlWidth = true;
+        layout.childForceExpandHeight = false;
+        layout.childForceExpandWidth = true;
+        layout.childAlignment = TextAnchor.UpperLeft;
+
+        refs.MoveForwardKeyButton = CreateKeybindRow(parent, font, panelSprite, "Move Forward", "W");
+        refs.MoveBackwardKeyButton = CreateKeybindRow(parent, font, panelSprite, "Move Backward", "S");
+        refs.MoveLeftKeyButton = CreateKeybindRow(parent, font, panelSprite, "Move Left", "A");
+        refs.MoveRightKeyButton = CreateKeybindRow(parent, font, panelSprite, "Move Right", "D");
+        refs.JumpKeyButton = CreateKeybindRow(parent, font, panelSprite, "Jump", "Space");
+        refs.SprintKeyButton = CreateKeybindRow(parent, font, panelSprite, "Sprint", "Left Shift");
+        refs.InteractKeyButton = CreateKeybindRow(parent, font, panelSprite, "Interact", "E");
+        refs.AttackKeyButton = CreateKeybindRow(parent, font, panelSprite, "Attack", "Mouse 1");
+        refs.InventoryKeyButton = CreateKeybindRow(parent, font, panelSprite, "Inventory", "I");
+
+        RectTransform infoRow = CreateRect("Keybind Info Row", parent);
+        LayoutElement infoLayout = infoRow.gameObject.AddComponent<LayoutElement>();
+        infoLayout.preferredHeight = 58f;
+        infoLayout.minHeight = 58f;
+        Image infoImage = infoRow.gameObject.AddComponent<Image>();
+        infoImage.sprite = panelSprite;
+        infoImage.type = Image.Type.Sliced;
+        infoImage.color = new Color(0.18f, 0.13f, 0.09f, 0.40f);
+        infoImage.raycastTarget = false;
+
+        refs.KeybindInfoText = CreateText(
+            "Keybind Info Text",
+            infoRow,
+            string.Empty,
+            font,
+            22f,
+            TextAlignmentOptions.Center,
+            FontStyles.Italic,
+            TextSecondary);
+        StretchRect(refs.KeybindInfoText.rectTransform, new Vector2(10f, 0f), new Vector2(-10f, 0f));
+        refs.KeybindInfoText.textWrappingMode = TextWrappingModes.NoWrap;
+        refs.KeybindInfoText.overflowMode = TextOverflowModes.Ellipsis;
+    }
+
+    private static void BuildAudioTabContent(
+        RectTransform parent,
+        TMP_FontAsset font,
+        Sprite panelSprite,
+        Sprite knobSprite,
+        SettingsMenuRefs refs)
+    {
+        VerticalLayoutGroup layout = parent.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.spacing = 12f;
+        layout.padding = new RectOffset(0, 0, 0, 0);
+        layout.childControlHeight = true;
+        layout.childControlWidth = true;
+        layout.childForceExpandHeight = false;
+        layout.childForceExpandWidth = true;
+        layout.childAlignment = TextAnchor.UpperLeft;
+
+        CreateSliderValueRow(parent, font, panelSprite, knobSprite, "Master Volume", out refs.MasterVolumeSlider, out refs.MasterVolumeValueText);
+        CreateSliderValueRow(parent, font, panelSprite, knobSprite, "Music Volume", out refs.MusicVolumeSlider, out refs.MusicVolumeValueText);
+        CreateSliderValueRow(parent, font, panelSprite, knobSprite, "SFX Volume", out refs.SfxVolumeSlider, out refs.SfxVolumeValueText);
+        CreateSliderValueRow(parent, font, panelSprite, knobSprite, "Ambience Volume", out refs.AmbienceVolumeSlider, out refs.AmbienceVolumeValueText);
+
+        RectTransform mutedRow = CreateSettingsRow(parent, font, panelSprite, "Muted");
+        RectTransform mutedControls = CreateRowControlContainer(mutedRow);
+        refs.MutedToggle = CreateFlatToggle(mutedControls, "Muted Toggle", panelSprite, false);
+        AddFlexibleSpacer(mutedControls);
+    }
+
+    private static void BuildGraphicsTabContent(
+        RectTransform parent,
+        TMP_FontAsset font,
+        Sprite panelSprite,
+        Sprite knobSprite,
+        SettingsMenuRefs refs)
+    {
+        VerticalLayoutGroup layout = parent.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.spacing = 12f;
+        layout.padding = new RectOffset(0, 0, 0, 0);
+        layout.childControlHeight = true;
+        layout.childControlWidth = true;
+        layout.childForceExpandHeight = false;
+        layout.childForceExpandWidth = true;
+        layout.childAlignment = TextAnchor.UpperLeft;
+
+        CreateOptionCycleRow(parent, font, panelSprite, "Quality", out refs.QualityPreviousButton, out refs.QualityValueText, out refs.QualityNextButton, "High");
+        CreateOptionCycleRow(parent, font, panelSprite, "Frame Rate", out refs.FrameRatePreviousButton, out refs.FrameRateValueText, out refs.FrameRateNextButton, "Unlimited");
+        CreateSliderValueRow(parent, font, panelSprite, knobSprite, "Render Scale", out refs.RenderScaleSlider, out refs.RenderScaleValueText);
+        CreateOptionCycleRow(parent, font, panelSprite, "Anti Aliasing", out refs.AntiAliasingPreviousButton, out refs.AntiAliasingValueText, out refs.AntiAliasingNextButton, "2x");
+        CreateOptionCycleRow(parent, font, panelSprite, "Shadow Quality", out refs.ShadowQualityPreviousButton, out refs.ShadowQualityValueText, out refs.ShadowQualityNextButton, "All");
+        CreateSliderValueRow(parent, font, panelSprite, knobSprite, "Shadow Distance", out refs.ShadowDistanceSlider, out refs.ShadowDistanceValueText);
+        CreateOptionCycleRow(parent, font, panelSprite, "Texture Quality", out refs.TextureQualityPreviousButton, out refs.TextureQualityValueText, out refs.TextureQualityNextButton, "Full");
+
+        RectTransform anisotropicRow = CreateSettingsRow(parent, font, panelSprite, "Anisotropic");
+        RectTransform anisotropicControls = CreateRowControlContainer(anisotropicRow);
+        refs.AnisotropicFilteringToggle = CreateFlatToggle(anisotropicControls, "Anisotropic Filtering Toggle", panelSprite, true);
+        AddFlexibleSpacer(anisotropicControls);
+
+        CreateSliderValueRow(parent, font, panelSprite, knobSprite, "View Distance", out refs.ViewDistanceSlider, out refs.ViewDistanceValueText);
+
+        RectTransform bloomRow = CreateSettingsRow(parent, font, panelSprite, "Bloom");
+        RectTransform bloomControls = CreateRowControlContainer(bloomRow);
+        refs.BloomToggle = CreateFlatToggle(bloomControls, "Bloom Toggle", panelSprite, true);
+        AddFlexibleSpacer(bloomControls);
+
+        RectTransform blurRow = CreateSettingsRow(parent, font, panelSprite, "Motion Blur");
+        RectTransform blurControls = CreateRowControlContainer(blurRow);
+        refs.MotionBlurToggle = CreateFlatToggle(blurControls, "Motion Blur Toggle", panelSprite, false);
+        AddFlexibleSpacer(blurControls);
+    }
+
+    private static RectTransform CreateScrollableTabContent(RectTransform tabRoot, Sprite panelSprite)
+    {
+        RectTransform scrollRoot = CreateRect("Scroll View", tabRoot);
+        StretchRect(scrollRoot);
+        Image scrollRootImage = scrollRoot.gameObject.AddComponent<Image>();
+        scrollRootImage.sprite = panelSprite;
+        scrollRootImage.type = Image.Type.Sliced;
+        scrollRootImage.color = new Color(0f, 0f, 0f, 0.001f);
+        scrollRootImage.raycastTarget = true;
+
+        ScrollRect scrollRect = scrollRoot.gameObject.AddComponent<ScrollRect>();
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.movementType = ScrollRect.MovementType.Clamped;
+        scrollRect.scrollSensitivity = 50f;
+        scrollRect.inertia = true;
+        scrollRect.decelerationRate = 0.135f;
+        scrollRect.viewport = null;
+        scrollRect.content = null;
+
+        Image viewportImage = CreateImage("Viewport", scrollRoot, panelSprite, new Color(0f, 0f, 0f, 0.01f), true);
+        viewportImage.type = Image.Type.Sliced;
+        RectTransform viewport = viewportImage.rectTransform;
+        StretchRect(viewport);
+        viewport.gameObject.AddComponent<RectMask2D>();
+
+        RectTransform content = CreateRect("Content", viewport);
+        content.anchorMin = new Vector2(0f, 1f);
+        content.anchorMax = new Vector2(1f, 1f);
+        content.pivot = new Vector2(0.5f, 1f);
+        content.offsetMin = new Vector2(0f, 0f);
+        content.offsetMax = new Vector2(0f, 0f);
+        content.sizeDelta = new Vector2(0f, 0f);
+
+        ContentSizeFitter fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        scrollRect.viewport = viewport;
+        scrollRect.content = content;
+        scrollRect.verticalNormalizedPosition = 1f;
+
+        return content;
+    }
+
+    private static Button CreateKeybindRow(RectTransform parent, TMP_FontAsset font, Sprite panelSprite, string label, string defaultBinding)
+    {
+        RectTransform row = CreateSettingsRow(parent, font, panelSprite, label);
+        RectTransform controls = CreateRowControlContainer(row);
+        Button keyButton = CreateFlatButton(controls, $"{label} Button", defaultBinding, font, false, 52f, 230f);
+        AddFlexibleSpacer(controls);
+        return keyButton;
+    }
+
+    private static void CreateOptionCycleRow(
+        RectTransform parent,
+        TMP_FontAsset font,
+        Sprite panelSprite,
+        string label,
+        out Button previousButton,
+        out TMP_Text valueText,
+        out Button nextButton,
+        string defaultValue)
+    {
+        RectTransform row = CreateSettingsRow(parent, font, panelSprite, label);
+        RectTransform controls = CreateRowControlContainer(row);
+
+        previousButton = CreateSmallIconButton(controls, $"{label} Previous", "<", font);
+
+        Image valuePanel = CreateImage($"{label} Value Panel", controls, panelSprite, ValuePanelColor, true);
+        valuePanel.type = Image.Type.Sliced;
+        LayoutElement valueLayout = valuePanel.gameObject.AddComponent<LayoutElement>();
+        valueLayout.preferredHeight = 52f;
+        valueLayout.minHeight = 52f;
+        valueLayout.preferredWidth = 360f;
+        valueLayout.minWidth = 240f;
+        valueLayout.flexibleWidth = 1f;
+
+        valueText = CreateText(
+            $"{label} Value Text",
+            valuePanel.rectTransform,
+            defaultValue,
+            font,
+            26f,
+            TextAlignmentOptions.Center,
+            FontStyles.Normal,
+            TextPrimary);
+        StretchRect(valueText.rectTransform, new Vector2(10f, 0f), new Vector2(-10f, 0f));
+        valueText.textWrappingMode = TextWrappingModes.NoWrap;
+        valueText.overflowMode = TextOverflowModes.Ellipsis;
+        valueText.enableAutoSizing = true;
+        valueText.fontSizeMin = 17f;
+        valueText.fontSizeMax = 29f;
+
+        nextButton = CreateSmallIconButton(controls, $"{label} Next", ">", font);
+    }
+
+    private static void CreateSliderValueRow(
+        RectTransform parent,
+        TMP_FontAsset font,
+        Sprite panelSprite,
+        Sprite knobSprite,
+        string label,
+        out Slider slider,
+        out TMP_Text valueText)
+    {
+        RectTransform row = CreateSettingsRow(parent, font, panelSprite, label);
+        RectTransform controls = CreateRowControlContainer(row);
+
+        slider = CreateFlatSlider(controls, $"{label} Slider", panelSprite, knobSprite);
+
+        Image valuePanel = CreateImage($"{label} Value Panel", controls, panelSprite, ValuePanelColor, true);
+        valuePanel.type = Image.Type.Sliced;
+        LayoutElement valueLayout = valuePanel.gameObject.AddComponent<LayoutElement>();
+        valueLayout.preferredHeight = 52f;
+        valueLayout.minHeight = 52f;
+        valueLayout.preferredWidth = 112f;
+        valueLayout.minWidth = 112f;
+        valueLayout.flexibleWidth = 0f;
+
+        valueText = CreateText(
+            $"{label} Value Text",
+            valuePanel.rectTransform,
+            "100%",
+            font,
+            24f,
+            TextAlignmentOptions.Center,
+            FontStyles.Normal,
+            TextPrimary);
+        StretchRect(valueText.rectTransform);
+        valueText.textWrappingMode = TextWrappingModes.NoWrap;
+        valueText.enableAutoSizing = true;
+        valueText.fontSizeMin = 17f;
+        valueText.fontSizeMax = 28f;
+    }
+
+    private static RectTransform CreateSettingsRow(RectTransform parent, TMP_FontAsset font, Sprite panelSprite, string label)
+    {
+        const float labelLeft = 24f;
+        const float labelRight = 306f;
+        const float controlLeft = 326f;
+
         RectTransform row = CreateRect($"{label} Row", parent);
         Image rowImage = row.gameObject.AddComponent<Image>();
-        rowImage.sprite = uiSprite;
+        rowImage.sprite = panelSprite;
         rowImage.type = Image.Type.Sliced;
-        rowImage.color = RowColor;
+        rowImage.color = new Color(0.18f, 0.13f, 0.09f, 0.58f);
         rowImage.raycastTarget = false;
 
         LayoutElement rowLayout = row.gameObject.AddComponent<LayoutElement>();
-        rowLayout.preferredHeight = 64f;
-        rowLayout.minHeight = 64f;
-
-        HorizontalLayoutGroup layout = row.gameObject.AddComponent<HorizontalLayoutGroup>();
-        layout.spacing = 14f;
-        layout.padding = new RectOffset(16, 16, 10, 10);
-        layout.childAlignment = TextAnchor.MiddleLeft;
-        layout.childControlHeight = true;
-        layout.childControlWidth = false;
-        layout.childForceExpandHeight = false;
-        layout.childForceExpandWidth = false;
+        rowLayout.preferredHeight = 80f;
+        rowLayout.minHeight = 80f;
 
         RectTransform labelRect = CreateRect("Label", row);
-        LayoutElement labelLayout = labelRect.gameObject.AddComponent<LayoutElement>();
-        labelLayout.preferredWidth = 230f;
-        labelLayout.minWidth = 230f;
+        labelRect.anchorMin = new Vector2(0f, 0f);
+        labelRect.anchorMax = new Vector2(0f, 1f);
+        labelRect.pivot = new Vector2(0f, 0.5f);
+        labelRect.offsetMin = new Vector2(labelLeft, 0f);
+        labelRect.offsetMax = new Vector2(labelRight, 0f);
 
         TMP_Text labelText = CreateText(
             "Label Text",
             labelRect,
             label,
             font,
-            27f,
+            30f,
             TextAlignmentOptions.MidlineLeft,
             FontStyles.Bold,
-            TextPrimary);
+            RowLabelColor);
         StretchRect(labelText.rectTransform);
         labelText.textWrappingMode = TextWrappingModes.NoWrap;
         labelText.overflowMode = TextOverflowModes.Ellipsis;
         labelText.enableAutoSizing = true;
-        labelText.fontSizeMin = 18f;
-        labelText.fontSizeMax = 28f;
+        labelText.fontSizeMin = 22f;
+        labelText.fontSizeMax = 34f;
+
+        RectTransform controls = CreateRect("Controls", row);
+        controls.anchorMin = new Vector2(0f, 0f);
+        controls.anchorMax = new Vector2(1f, 1f);
+        controls.pivot = new Vector2(0.5f, 0.5f);
+        controls.offsetMin = new Vector2(controlLeft, 10f);
+        controls.offsetMax = new Vector2(-20f, -10f);
 
         return row;
     }
 
     private static RectTransform CreateRowControlContainer(RectTransform row)
     {
-        RectTransform controls = CreateRect("Controls", row);
-        LayoutElement controlLayout = controls.gameObject.AddComponent<LayoutElement>();
-        controlLayout.flexibleWidth = 1f;
+        RectTransform controls = row.Find("Controls") as RectTransform;
+        if (controls == null)
+        {
+            controls = CreateRect("Controls", row);
+            controls.anchorMin = new Vector2(0f, 0f);
+            controls.anchorMax = new Vector2(1f, 1f);
+            controls.offsetMin = new Vector2(326f, 10f);
+            controls.offsetMax = new Vector2(-20f, -10f);
+        }
 
         HorizontalLayoutGroup controlsLayout = controls.gameObject.AddComponent<HorizontalLayoutGroup>();
         controlsLayout.spacing = 12f;
         controlsLayout.padding = new RectOffset(0, 0, 0, 0);
-        controlsLayout.childAlignment = TextAnchor.MiddleCenter;
+        controlsLayout.childAlignment = TextAnchor.MiddleLeft;
         controlsLayout.childControlHeight = true;
-        controlsLayout.childControlWidth = false;
+        controlsLayout.childControlWidth = true;
         controlsLayout.childForceExpandHeight = false;
         controlsLayout.childForceExpandWidth = false;
 
         return controls;
+    }
+
+    private static void AddFlexibleSpacer(RectTransform parent)
+    {
+        RectTransform spacer = CreateRect("Spacer", parent);
+        LayoutElement layout = spacer.gameObject.AddComponent<LayoutElement>();
+        layout.flexibleWidth = 1f;
+        layout.minWidth = 0f;
+        layout.preferredWidth = 0f;
     }
 
     private static void BuildPlaceholderTab(RectTransform parent, TMP_FontAsset font, string text)
@@ -731,11 +1090,11 @@ public static class MainMenuSceneBuilder
 
     private static Button CreateSmallIconButton(RectTransform parent, string name, string label, TMP_FontAsset font)
     {
-        Button button = CreateFlatButton(parent, name, label, font, false, 40f, 46f, false);
+        Button button = CreateFlatButton(parent, name, label, font, false, 52f, 78f, false);
         TMP_Text labelText = button.GetComponentInChildren<TMP_Text>(true);
         if (labelText != null)
         {
-            labelText.fontSize = 25f;
+            labelText.fontSize = 32f;
             labelText.enableAutoSizing = false;
             labelText.alignment = TextAlignmentOptions.Center;
         }
@@ -751,10 +1110,10 @@ public static class MainMenuSceneBuilder
         rect.localScale = Vector3.one;
 
         LayoutElement layout = toggleObject.AddComponent<LayoutElement>();
-        layout.preferredWidth = 34f;
-        layout.minWidth = 34f;
-        layout.preferredHeight = 34f;
-        layout.minHeight = 34f;
+        layout.preferredWidth = 50f;
+        layout.minWidth = 50f;
+        layout.preferredHeight = 50f;
+        layout.minHeight = 50f;
 
         Image boxImage = toggleObject.GetComponent<Image>();
         boxImage.sprite = uiSprite;
@@ -763,7 +1122,7 @@ public static class MainMenuSceneBuilder
         boxImage.raycastTarget = true;
 
         RectTransform checkRect = CreateRect("Checkmark", rect);
-        StretchRect(checkRect, new Vector2(6f, 6f), new Vector2(-6f, -6f));
+        StretchRect(checkRect, new Vector2(8f, 8f), new Vector2(-8f, -8f));
         Image checkImage = checkRect.gameObject.AddComponent<Image>();
         checkImage.sprite = uiSprite;
         checkImage.type = Image.Type.Sliced;
@@ -787,8 +1146,10 @@ public static class MainMenuSceneBuilder
         rect.localScale = Vector3.one;
 
         LayoutElement layout = sliderObject.AddComponent<LayoutElement>();
-        layout.preferredHeight = 40f;
-        layout.minHeight = 40f;
+        layout.preferredHeight = 52f;
+        layout.minHeight = 52f;
+        layout.preferredWidth = 640f;
+        layout.minWidth = 520f;
         layout.flexibleWidth = 1f;
 
         Slider slider = sliderObject.GetComponent<Slider>();
@@ -803,8 +1164,8 @@ public static class MainMenuSceneBuilder
         trackRect.anchorMin = new Vector2(0f, 0.5f);
         trackRect.anchorMax = new Vector2(1f, 0.5f);
         trackRect.pivot = new Vector2(0.5f, 0.5f);
-        trackRect.offsetMin = new Vector2(0f, -6f);
-        trackRect.offsetMax = new Vector2(0f, 6f);
+        trackRect.offsetMin = new Vector2(0f, -8f);
+        trackRect.offsetMax = new Vector2(0f, 8f);
         Image trackImage = trackRect.gameObject.AddComponent<Image>();
         trackImage.sprite = uiSprite;
         trackImage.type = Image.Type.Sliced;
@@ -812,7 +1173,7 @@ public static class MainMenuSceneBuilder
         trackImage.raycastTarget = true;
 
         RectTransform fillArea = CreateRect("Fill Area", rect);
-        StretchRect(fillArea, new Vector2(8f, 14f), new Vector2(-8f, -14f));
+        StretchRect(fillArea, new Vector2(10f, 18f), new Vector2(-10f, -18f));
 
         RectTransform fillRect = CreateRect("Fill", fillArea);
         StretchRect(fillRect);
@@ -823,13 +1184,13 @@ public static class MainMenuSceneBuilder
         fillImage.raycastTarget = false;
 
         RectTransform handleSlideArea = CreateRect("Handle Slide Area", rect);
-        StretchRect(handleSlideArea, new Vector2(8f, 4f), new Vector2(-8f, -4f));
+        StretchRect(handleSlideArea, new Vector2(10f, 4f), new Vector2(-10f, -4f));
 
         RectTransform handleRect = CreateRect("Handle", handleSlideArea);
         handleRect.anchorMin = new Vector2(0f, 0.5f);
         handleRect.anchorMax = new Vector2(0f, 0.5f);
         handleRect.pivot = new Vector2(0.5f, 0.5f);
-        handleRect.sizeDelta = new Vector2(24f, 24f);
+        handleRect.sizeDelta = new Vector2(34f, 34f);
         handleRect.anchoredPosition = Vector2.zero;
         Image handleImage = handleRect.gameObject.AddComponent<Image>();
         handleImage.sprite = knobSprite;
@@ -1104,6 +1465,51 @@ public static class MainMenuSceneBuilder
         SetObject(serializedController, "brightnessValueText", settingsRefs.BrightnessValueText);
         SetObject(serializedController, "uiScaleSlider", settingsRefs.UiScaleSlider);
         SetObject(serializedController, "uiScaleValueText", settingsRefs.UiScaleValueText);
+        SetObject(serializedController, "masterVolumeSlider", settingsRefs.MasterVolumeSlider);
+        SetObject(serializedController, "masterVolumeValueText", settingsRefs.MasterVolumeValueText);
+        SetObject(serializedController, "musicVolumeSlider", settingsRefs.MusicVolumeSlider);
+        SetObject(serializedController, "musicVolumeValueText", settingsRefs.MusicVolumeValueText);
+        SetObject(serializedController, "sfxVolumeSlider", settingsRefs.SfxVolumeSlider);
+        SetObject(serializedController, "sfxVolumeValueText", settingsRefs.SfxVolumeValueText);
+        SetObject(serializedController, "ambienceVolumeSlider", settingsRefs.AmbienceVolumeSlider);
+        SetObject(serializedController, "ambienceVolumeValueText", settingsRefs.AmbienceVolumeValueText);
+        SetObject(serializedController, "mutedToggle", settingsRefs.MutedToggle);
+
+        SetObject(serializedController, "qualityPreviousButton", settingsRefs.QualityPreviousButton);
+        SetObject(serializedController, "qualityNextButton", settingsRefs.QualityNextButton);
+        SetObject(serializedController, "qualityValueText", settingsRefs.QualityValueText);
+        SetObject(serializedController, "frameRatePreviousButton", settingsRefs.FrameRatePreviousButton);
+        SetObject(serializedController, "frameRateNextButton", settingsRefs.FrameRateNextButton);
+        SetObject(serializedController, "frameRateValueText", settingsRefs.FrameRateValueText);
+        SetObject(serializedController, "renderScaleSlider", settingsRefs.RenderScaleSlider);
+        SetObject(serializedController, "renderScaleValueText", settingsRefs.RenderScaleValueText);
+        SetObject(serializedController, "antiAliasingPreviousButton", settingsRefs.AntiAliasingPreviousButton);
+        SetObject(serializedController, "antiAliasingNextButton", settingsRefs.AntiAliasingNextButton);
+        SetObject(serializedController, "antiAliasingValueText", settingsRefs.AntiAliasingValueText);
+        SetObject(serializedController, "shadowQualityPreviousButton", settingsRefs.ShadowQualityPreviousButton);
+        SetObject(serializedController, "shadowQualityNextButton", settingsRefs.ShadowQualityNextButton);
+        SetObject(serializedController, "shadowQualityValueText", settingsRefs.ShadowQualityValueText);
+        SetObject(serializedController, "shadowDistanceSlider", settingsRefs.ShadowDistanceSlider);
+        SetObject(serializedController, "shadowDistanceValueText", settingsRefs.ShadowDistanceValueText);
+        SetObject(serializedController, "textureQualityPreviousButton", settingsRefs.TextureQualityPreviousButton);
+        SetObject(serializedController, "textureQualityNextButton", settingsRefs.TextureQualityNextButton);
+        SetObject(serializedController, "textureQualityValueText", settingsRefs.TextureQualityValueText);
+        SetObject(serializedController, "anisotropicFilteringToggle", settingsRefs.AnisotropicFilteringToggle);
+        SetObject(serializedController, "viewDistanceSlider", settingsRefs.ViewDistanceSlider);
+        SetObject(serializedController, "viewDistanceValueText", settingsRefs.ViewDistanceValueText);
+        SetObject(serializedController, "bloomToggle", settingsRefs.BloomToggle);
+        SetObject(serializedController, "motionBlurToggle", settingsRefs.MotionBlurToggle);
+
+        SetObject(serializedController, "moveForwardKeyButton", settingsRefs.MoveForwardKeyButton);
+        SetObject(serializedController, "moveBackwardKeyButton", settingsRefs.MoveBackwardKeyButton);
+        SetObject(serializedController, "moveLeftKeyButton", settingsRefs.MoveLeftKeyButton);
+        SetObject(serializedController, "moveRightKeyButton", settingsRefs.MoveRightKeyButton);
+        SetObject(serializedController, "jumpKeyButton", settingsRefs.JumpKeyButton);
+        SetObject(serializedController, "sprintKeyButton", settingsRefs.SprintKeyButton);
+        SetObject(serializedController, "interactKeyButton", settingsRefs.InteractKeyButton);
+        SetObject(serializedController, "attackKeyButton", settingsRefs.AttackKeyButton);
+        SetObject(serializedController, "inventoryKeyButton", settingsRefs.InventoryKeyButton);
+        SetObject(serializedController, "keybindInfoText", settingsRefs.KeybindInfoText);
 
         serializedController.ApplyModifiedPropertiesWithoutUndo();
     }
