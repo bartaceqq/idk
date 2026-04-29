@@ -122,6 +122,17 @@ public static class MainMenuSceneBuilder
         public Button BackButton;
     }
 
+    private sealed class LoadingScreenRefs
+    {
+        public GameObject Root;
+        public TMP_Text TitleText;
+        public TMP_Text MessageText;
+        public TMP_Text StageText;
+        public TMP_Text ProgressText;
+        public Slider ProgressSlider;
+        public RectTransform Spinner;
+    }
+
     [MenuItem("Tools/One More Night/Rebuild Main Menu Scene")]
     public static void Build()
     {
@@ -227,9 +238,11 @@ public static class MainMenuSceneBuilder
         MainMenuRefs mainRefs = BuildMainScreen(mainScreen, font, uiSprite);
         SettingsMenuRefs settingsRefs = BuildSettingsScreen(settingsScreen, font, uiSprite, knobSprite, panelSprite);
         CreditsMenuRefs creditsRefs = BuildCreditsScreen(creditsScreen, font, uiSprite);
+        LoadingScreenRefs loadingRefs = BuildLoadingScreen(canvasRect, font, uiSprite, knobSprite, panelSprite);
 
         settingsScreen.gameObject.SetActive(false);
         creditsScreen.gameObject.SetActive(false);
+        loadingRefs.Root.SetActive(false);
 
         GameObject controllerObject = new GameObject("Fantasy Menu Controller");
         FantasyMenuController controller = controllerObject.AddComponent<FantasyMenuController>();
@@ -246,6 +259,7 @@ public static class MainMenuSceneBuilder
             mainRefs,
             settingsRefs,
             creditsRefs,
+            loadingRefs,
             uiSprite,
             uiSprite);
 
@@ -1004,6 +1018,171 @@ public static class MainMenuSceneBuilder
         return refs;
     }
 
+    private static LoadingScreenRefs BuildLoadingScreen(
+        RectTransform parent,
+        TMP_FontAsset font,
+        Sprite uiSprite,
+        Sprite knobSprite,
+        Sprite panelSprite)
+    {
+        LoadingScreenRefs refs = new LoadingScreenRefs();
+
+        RectTransform root = CreateRect("Loading Screen", parent);
+        StretchRect(root);
+        refs.Root = root.gameObject;
+
+        Image blocker = CreateImage("Loading Blocker", root, uiSprite, new Color(0f, 0f, 0f, 0.92f), true);
+        blocker.type = Image.Type.Sliced;
+        StretchRect(blocker.rectTransform);
+
+        Image topShade = CreateImage("Loading Top Shade", root, uiSprite, new Color(0.29f, 0.20f, 0.10f, 0.36f), false);
+        topShade.type = Image.Type.Sliced;
+        topShade.rectTransform.anchorMin = new Vector2(0f, 1f);
+        topShade.rectTransform.anchorMax = new Vector2(1f, 1f);
+        topShade.rectTransform.pivot = new Vector2(0.5f, 1f);
+        topShade.rectTransform.offsetMin = new Vector2(0f, -180f);
+        topShade.rectTransform.offsetMax = Vector2.zero;
+
+        Image bottomShade = CreateImage("Loading Bottom Shade", root, uiSprite, new Color(0.10f, 0.07f, 0.04f, 0.52f), false);
+        bottomShade.type = Image.Type.Sliced;
+        bottomShade.rectTransform.anchorMin = Vector2.zero;
+        bottomShade.rectTransform.anchorMax = new Vector2(1f, 0f);
+        bottomShade.rectTransform.pivot = new Vector2(0.5f, 0f);
+        bottomShade.rectTransform.offsetMin = Vector2.zero;
+        bottomShade.rectTransform.offsetMax = new Vector2(0f, 180f);
+
+        Image panel = CreateImage("Loading Panel", root, panelSprite, new Color(0.22f, 0.17f, 0.12f, 0.98f), false);
+        panel.type = Image.Type.Sliced;
+        SetAnchoredRect(panel.rectTransform, new Vector2(860f, 430f), Vector2.zero, new Vector2(0.5f, 0.5f));
+
+        Outline panelOutline = panel.gameObject.AddComponent<Outline>();
+        panelOutline.effectColor = new Color(0.70f, 0.58f, 0.30f, 0.78f);
+        panelOutline.effectDistance = new Vector2(2f, -2f);
+
+        Shadow panelShadow = panel.gameObject.AddComponent<Shadow>();
+        panelShadow.effectColor = new Color(0f, 0f, 0f, 0.42f);
+        panelShadow.effectDistance = new Vector2(0f, -5f);
+
+        RectTransform content = CreateRect("Loading Content", panel.rectTransform);
+        StretchRect(content, new Vector2(54f, 40f), new Vector2(-54f, -40f));
+
+        VerticalLayoutGroup layout = content.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.spacing = 18f;
+        layout.padding = new RectOffset(0, 0, 0, 0);
+        layout.childControlWidth = true;
+        layout.childControlHeight = false;
+        layout.childForceExpandWidth = true;
+        layout.childForceExpandHeight = false;
+        layout.childAlignment = TextAnchor.MiddleCenter;
+
+        TMP_Text brand = CreateText(
+            "Loading Brand",
+            content,
+            "ONE MORE NIGHT",
+            font,
+            22f,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold,
+            TextSecondary);
+        brand.textWrappingMode = TextWrappingModes.NoWrap;
+        LayoutElement brandLayout = brand.gameObject.AddComponent<LayoutElement>();
+        brandLayout.preferredHeight = 28f;
+        brandLayout.minHeight = 24f;
+
+        TMP_Text title = CreateText(
+            "Loading Title",
+            content,
+            "LOADING",
+            font,
+            60f,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold,
+            TextPrimary);
+        title.textWrappingMode = TextWrappingModes.NoWrap;
+        title.enableAutoSizing = true;
+        title.fontSizeMin = 34f;
+        title.fontSizeMax = 64f;
+        LayoutElement titleLayout = title.gameObject.AddComponent<LayoutElement>();
+        titleLayout.preferredHeight = 76f;
+        titleLayout.minHeight = 66f;
+        refs.TitleText = title;
+
+        TMP_Text message = CreateText(
+            "Loading Message",
+            content,
+            "Loading...",
+            font,
+            26f,
+            TextAlignmentOptions.Center,
+            FontStyles.Italic,
+            TextSecondary);
+        message.textWrappingMode = TextWrappingModes.Normal;
+        message.enableAutoSizing = true;
+        message.fontSizeMin = 18f;
+        message.fontSizeMax = 28f;
+        LayoutElement messageLayout = message.gameObject.AddComponent<LayoutElement>();
+        messageLayout.preferredHeight = 50f;
+        messageLayout.minHeight = 42f;
+        refs.MessageText = message;
+
+        TMP_Text stage = CreateText(
+            "Loading Stage",
+            content,
+            "Starting",
+            font,
+            21f,
+            TextAlignmentOptions.Center,
+            FontStyles.Normal,
+            TextSecondary);
+        stage.textWrappingMode = TextWrappingModes.NoWrap;
+        stage.overflowMode = TextOverflowModes.Ellipsis;
+        LayoutElement stageLayout = stage.gameObject.AddComponent<LayoutElement>();
+        stageLayout.preferredHeight = 32f;
+        stageLayout.minHeight = 28f;
+        refs.StageText = stage;
+
+        Slider progressSlider = CreateFlatSlider(content, "Loading Progress Slider", uiSprite, knobSprite);
+        progressSlider.interactable = false;
+        progressSlider.transition = Selectable.Transition.None;
+        progressSlider.SetValueWithoutNotify(0f);
+        LayoutElement progressLayout = progressSlider.GetComponent<LayoutElement>();
+        if (progressLayout != null)
+        {
+            progressLayout.preferredHeight = 52f;
+            progressLayout.minHeight = 52f;
+            progressLayout.preferredWidth = 620f;
+            progressLayout.minWidth = 520f;
+        }
+
+        refs.ProgressSlider = progressSlider;
+
+        TMP_Text progressText = CreateText(
+            "Loading Progress Text",
+            content,
+            "0%",
+            font,
+            24f,
+            TextAlignmentOptions.Center,
+            FontStyles.Bold,
+            TextPrimary);
+        progressText.textWrappingMode = TextWrappingModes.NoWrap;
+        LayoutElement progressTextLayout = progressText.gameObject.AddComponent<LayoutElement>();
+        progressTextLayout.preferredHeight = 36f;
+        progressTextLayout.minHeight = 32f;
+        refs.ProgressText = progressText;
+
+        Image spinner = CreateImage("Loading Spinner", panel.rectTransform, uiSprite, AccentColorHover, false);
+        spinner.type = Image.Type.Sliced;
+        SetAnchoredRect(spinner.rectTransform, new Vector2(54f, 54f), new Vector2(340f, 142f), new Vector2(0.5f, 0.5f));
+        spinner.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        Outline spinnerOutline = spinner.gameObject.AddComponent<Outline>();
+        spinnerOutline.effectColor = new Color(0.70f, 0.58f, 0.30f, 0.78f);
+        spinnerOutline.effectDistance = new Vector2(1f, -1f);
+        refs.Spinner = spinner.rectTransform;
+
+        return refs;
+    }
+
     private static Button CreateFlatButton(
         RectTransform parent,
         string name,
@@ -1404,6 +1583,7 @@ public static class MainMenuSceneBuilder
         MainMenuRefs mainRefs,
         SettingsMenuRefs settingsRefs,
         CreditsMenuRefs creditsRefs,
+        LoadingScreenRefs loadingRefs,
         Sprite tabNormalSprite,
         Sprite tabActiveSprite)
     {
@@ -1455,6 +1635,14 @@ public static class MainMenuSceneBuilder
         SetObject(serializedController, "settingsStatusText", settingsRefs.StatusText);
 
         SetObject(serializedController, "creditsBackButton", creditsRefs.BackButton);
+
+        SetObject(serializedController, "loadingScreen", loadingRefs.Root);
+        SetObject(serializedController, "loadingTitleText", loadingRefs.TitleText);
+        SetObject(serializedController, "loadingMessageText", loadingRefs.MessageText);
+        SetObject(serializedController, "loadingStageText", loadingRefs.StageText);
+        SetObject(serializedController, "loadingProgressText", loadingRefs.ProgressText);
+        SetObject(serializedController, "loadingProgressSlider", loadingRefs.ProgressSlider);
+        SetObject(serializedController, "loadingSpinner", loadingRefs.Spinner);
 
         SetObject(serializedController, "resolutionPreviousButton", settingsRefs.ResolutionPreviousButton);
         SetObject(serializedController, "resolutionNextButton", settingsRefs.ResolutionNextButton);

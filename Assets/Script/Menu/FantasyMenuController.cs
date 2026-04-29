@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -29,6 +30,7 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     [Header("Scene")]
     [SerializeField] private string gameplaySceneName = "SampleScene";
+    [SerializeField] private bool randomizeMenuCameraOnStart = false;
 
     [Header("Layout")]
     [SerializeField] private RectTransform scaledRoot;
@@ -42,6 +44,18 @@ public sealed class FantasyMenuController : MonoBehaviour
     [SerializeField] private GameObject settingsScreen;
     [SerializeField] private GameObject creditsScreen;
     [SerializeField] private TMP_Text statusText;
+
+    [Header("Loading")]
+    [SerializeField] private GameObject loadingScreen;
+    [SerializeField] private TMP_Text loadingTitleText;
+    [SerializeField] private TMP_Text loadingMessageText;
+    [SerializeField] private TMP_Text loadingStageText;
+    [SerializeField] private TMP_Text loadingProgressText;
+    [SerializeField] private Slider loadingProgressSlider;
+    [SerializeField] private RectTransform loadingSpinner;
+    [SerializeField] private float minimumLoadingSeconds = 1.25f;
+    [SerializeField] private float postSceneWarmupSeconds = 0.35f;
+    [SerializeField] private float textureStreamingTimeoutSeconds = 4f;
 
     [Header("Main Buttons")]
     [SerializeField] private Button newGameButton;
@@ -160,6 +174,9 @@ public sealed class FantasyMenuController : MonoBehaviour
     private GameObject menuCanvasRoot;
     private GameObject menuEventSystemRoot;
     private bool gameplaySettingsOpen;
+    private bool isLoadingScene;
+    private float loadingStartedAt;
+    private string loadingBaseMessage = "Loading";
 
     private void Awake()
     {
@@ -177,7 +194,10 @@ public sealed class FantasyMenuController : MonoBehaviour
         CachePersistentRoots();
         PersistUiRoots();
 
-        RandomizeMenuCameraView();
+        if (randomizeMenuCameraOnStart)
+        {
+            RandomizeMenuCameraView();
+        }
         GameSettings.EnsureDefaults();
         BindUi();
         PopulateResolutionChoices();
@@ -209,6 +229,12 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void Update()
     {
+        if (isLoadingScene)
+        {
+            AnimateLoadingVisuals();
+            return;
+        }
+
         if (isWaitingForKeybind)
         {
             CaptureNextKeybind();
@@ -478,6 +504,8 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void ShowMain()
     {
+        HideLoadingScreen();
+
         if (IsInGameplayScene())
         {
             CloseGameplaySettingsOverlay();
@@ -498,6 +526,11 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void ShowSettings()
     {
+        if (isLoadingScene)
+        {
+            return;
+        }
+
         SetPanelState(false, true, false);
         SetBackground(settingsBackgroundSprite, settingsBackgroundTint);
         ShowTab(currentTab);
@@ -506,6 +539,11 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void ShowCredits()
     {
+        if (isLoadingScene)
+        {
+            return;
+        }
+
         SetPanelState(false, false, true);
         SetBackground(mainBackgroundSprite, mainBackgroundTint);
         SetStatus(string.Empty);
@@ -1277,16 +1315,24 @@ public sealed class FantasyMenuController : MonoBehaviour
 
         if (IsMenuScene(scene.name))
         {
+            isLoadingScene = false;
             gameplaySettingsOpen = false;
             if (menuCanvasRoot != null)
             {
                 menuCanvasRoot.SetActive(true);
             }
 
+            HideLoadingScreen();
             ShowMain();
             return;
         }
 
+        if (isLoadingScene)
+        {
+            return;
+        }
+
+        HideLoadingScreen();
         CloseGameplaySettingsOverlay();
     }
 
@@ -1434,7 +1480,7 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void ContinueGame()
     {
-        if (TryLoadSavedScene())
+        if (TryLoadSavedScene("Continuing saved game..."))
         {
             return;
         }
@@ -1444,7 +1490,7 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void LoadSavedGame()
     {
-        if (TryLoadSavedScene())
+        if (TryLoadSavedScene("Loading saved game..."))
         {
             return;
         }
@@ -1452,7 +1498,7 @@ public sealed class FantasyMenuController : MonoBehaviour
         SetStatus("No saved game found.");
     }
 
-    private bool TryLoadSavedScene()
+    private bool TryLoadSavedScene(string loadingMessage)
     {
         string savedScene = PlayerPrefs.GetString("onemorenight.save.scene", string.Empty);
         if (string.IsNullOrWhiteSpace(savedScene))
@@ -1460,7 +1506,7 @@ public sealed class FantasyMenuController : MonoBehaviour
             return false;
         }
 
-        LoadSceneByName(savedScene);
+        LoadSceneByName(savedScene, loadingMessage);
         return true;
     }
 
@@ -1471,11 +1517,16 @@ public sealed class FantasyMenuController : MonoBehaviour
             PlayerPrefs.DeleteKey("onemorenight.save.scene");
         }
 
-        LoadSceneByName(gameplaySceneName);
+        LoadSceneByName(gameplaySceneName, newGame ? "Starting new game..." : "Loading game...");
     }
 
-    private void LoadSceneByName(string sceneName)
+    private void LoadSceneByName(string sceneName, string loadingMessage)
     {
+        if (isLoadingScene)
+        {
+            return;
+        }
+
         string trimmed = sceneName?.Trim();
         if (string.IsNullOrWhiteSpace(trimmed))
         {
@@ -1489,9 +1540,224 @@ public sealed class FantasyMenuController : MonoBehaviour
             return;
         }
 
+        StartCoroutine(LoadSceneWithLoading(trimmed, loadingMessage));
+    }
+
+    private IEnumerator LoadSceneWithLoading(string sceneName, string loadingMessage)
+    {
+        isLoadingScene = true;
+        ShowLoadingScreen(loadingMessage);
+        yield return null;
+
         GameSettings.SaveAndApply();
-        GameplayUiState.SetExternalMenuOpen(false);
-        SceneManager.LoadScene(trimmed);
+
+        AsyncOperation operation = SceneManager.LoadSceneAsync(sceneName);
+        if (operation == null)
+        {
+            isLoadingScene = false;
+            HideLoadingScreen();
+            ShowMain();
+            SetStatus($"Could not load scene '{sceneName}'.");
+            yield break;
+        }
+
+        operation.allowSceneActivation = false;
+        SetLoadingStage("Loading scene data");
+        while (operation.progress < 0.9f)
+        {
+            SetLoadingProgress(Mathf.Lerp(0.05f, 0.82f, Mathf.Clamp01(operation.progress / 0.9f)));
+            yield return null;
+        }
+
+        while (Time.unscaledTime - loadingStartedAt < minimumLoadingSeconds)
+        {
+            SetLoadingStage("Preparing world");
+            SetLoadingProgress(Mathf.MoveTowards(loadingProgressSlider != null ? loadingProgressSlider.value : 0.82f, 0.88f, Time.unscaledDeltaTime * 0.2f));
+            yield return null;
+        }
+
+        SetLoadingStage("Activating world");
+        SetLoadingProgress(0.9f);
+        operation.allowSceneActivation = true;
+
+        while (!operation.isDone)
+        {
+            yield return null;
+        }
+
+        Scene loadedScene = SceneManager.GetSceneByName(sceneName);
+        if (!loadedScene.IsValid())
+        {
+            loadedScene = SceneManager.GetActiveScene();
+        }
+
+        yield return WarmupLoadedScene(loadedScene);
+
+        SetLoadingProgress(1f);
+        isLoadingScene = false;
+        HideLoadingScreen();
+        CloseGameplaySettingsOverlay();
+    }
+
+    private IEnumerator WarmupLoadedScene(Scene scene)
+    {
+        SetLoadingStage("Warming shaders");
+        SetLoadingProgress(0.92f);
+        yield return null;
+
+        Shader.WarmupAllShaders();
+        yield return null;
+
+        SetLoadingStage("Preparing materials");
+        TouchSceneRenderers(scene);
+        SetLoadingProgress(0.95f);
+        yield return new WaitForEndOfFrame();
+
+        bool previousForceLoadAll = Texture.streamingTextureForceLoadAll;
+        Texture.streamingTextureForceLoadAll = true;
+
+        float warmupEnd = Time.unscaledTime + postSceneWarmupSeconds;
+        while (Time.unscaledTime < warmupEnd)
+        {
+            SetLoadingStage("Uploading textures");
+            SetLoadingProgress(Mathf.Lerp(0.95f, 0.98f, 1f - ((warmupEnd - Time.unscaledTime) / Mathf.Max(0.01f, postSceneWarmupSeconds))));
+            yield return null;
+        }
+
+        float timeoutAt = Time.unscaledTime + textureStreamingTimeoutSeconds;
+        while (Texture.streamingTextureLoadingCount > 0 && Time.unscaledTime < timeoutAt)
+        {
+            SetLoadingStage($"Loading textures ({Texture.streamingTextureLoadingCount})");
+            SetLoadingProgress(0.98f);
+            yield return null;
+        }
+
+        Texture.streamingTextureForceLoadAll = previousForceLoadAll;
+        SetLoadingStage("Finishing");
+        SetLoadingProgress(0.99f);
+        yield return null;
+    }
+
+    private static void TouchSceneRenderers(Scene scene)
+    {
+        Renderer[] renderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null || renderer.gameObject.scene != scene)
+            {
+                continue;
+            }
+
+            Material[] materials = renderer.sharedMaterials;
+            for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+            {
+                Material material = materials[materialIndex];
+                if (material == null)
+                {
+                    continue;
+                }
+
+                Shader shader = material.shader;
+                if (shader == null)
+                {
+                    continue;
+                }
+
+                string[] textureNames = material.GetTexturePropertyNames();
+                for (int textureIndex = 0; textureIndex < textureNames.Length; textureIndex++)
+                {
+                    Texture texture = material.GetTexture(textureNames[textureIndex]);
+                    if (texture == null)
+                    {
+                        continue;
+                    }
+
+                    _ = texture.width;
+                    _ = texture.height;
+                }
+            }
+        }
+    }
+
+    private void ShowLoadingScreen(string message)
+    {
+        loadingStartedAt = Time.unscaledTime;
+        if (menuCanvasRoot != null)
+        {
+            menuCanvasRoot.SetActive(true);
+        }
+
+        if (menuEventSystemRoot != null)
+        {
+            menuEventSystemRoot.SetActive(true);
+        }
+
+        SetPanelState(false, false, false);
+        SetBackground(null, new Color(0f, 0f, 0f, 1f));
+        if (loadingScreen != null)
+        {
+            loadingScreen.SetActive(true);
+        }
+
+        if (loadingTitleText != null)
+        {
+            loadingTitleText.text = "LOADING";
+        }
+
+        if (loadingMessageText != null)
+        {
+            loadingBaseMessage = string.IsNullOrWhiteSpace(message) ? "Loading" : message.Trim().TrimEnd('.');
+            loadingMessageText.text = loadingBaseMessage;
+        }
+
+        SetLoadingStage("Starting");
+        SetLoadingProgress(0f);
+        GameplayUiState.SetExternalMenuOpen(true);
+    }
+
+    private void HideLoadingScreen()
+    {
+        if (loadingScreen != null)
+        {
+            loadingScreen.SetActive(false);
+        }
+    }
+
+    private void SetLoadingProgress(float progress)
+    {
+        float clamped = Mathf.Clamp01(progress);
+        if (loadingProgressSlider != null)
+        {
+            loadingProgressSlider.SetValueWithoutNotify(clamped);
+        }
+
+        if (loadingProgressText != null)
+        {
+            loadingProgressText.text = $"{Mathf.RoundToInt(clamped * 100f)}%";
+        }
+    }
+
+    private void SetLoadingStage(string stage)
+    {
+        if (loadingStageText != null)
+        {
+            loadingStageText.text = stage;
+        }
+    }
+
+    private void AnimateLoadingVisuals()
+    {
+        if (loadingSpinner != null)
+        {
+            loadingSpinner.Rotate(0f, 0f, -180f * Time.unscaledDeltaTime);
+        }
+
+        if (loadingMessageText != null)
+        {
+            int dots = Mathf.FloorToInt(Time.unscaledTime * 2.5f) % 4;
+            loadingMessageText.text = loadingBaseMessage + new string('.', dots);
+        }
     }
 
     private void QuitGame()
