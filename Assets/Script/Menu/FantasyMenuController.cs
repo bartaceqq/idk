@@ -68,6 +68,8 @@ public sealed class FantasyMenuController : MonoBehaviour
     [Header("Settings Navigation")]
     [SerializeField] private Button settingsBackButton;
     [SerializeField] private Button settingsApplyButton;
+    [SerializeField] private Button settingsSaveButton;
+    [SerializeField] private Button settingsExitGameButton;
     [SerializeField] private Button displayTabButton;
     [SerializeField] private Button keybindTabButton;
     [SerializeField] private Button audioTabButton;
@@ -173,6 +175,7 @@ public sealed class FantasyMenuController : MonoBehaviour
     private string menuSceneName = string.Empty;
     private GameObject menuCanvasRoot;
     private GameObject menuEventSystemRoot;
+    private RectTransform settingsFooterRow;
     private bool gameplaySettingsOpen;
     private bool isLoadingScene;
     private float loadingStartedAt;
@@ -260,6 +263,8 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void BindUi()
     {
+        EnsureSettingsFooterButtons();
+
         BindButton(newGameButton, () => LoadGameplayScene(true));
         BindButton(continueButton, ContinueGame);
         BindButton(loadGameButton, LoadSavedGame);
@@ -269,6 +274,8 @@ public sealed class FantasyMenuController : MonoBehaviour
 
         BindButton(settingsBackButton, ShowMain);
         BindButton(settingsApplyButton, ApplySettings);
+        BindButton(settingsSaveButton, ApplySettings);
+        BindButton(settingsExitGameButton, QuitGame);
 
         BindButton(displayTabButton, () => ShowTab(SettingsTab.Display));
         BindButton(keybindTabButton, () => ShowTab(SettingsTab.Keybind));
@@ -307,6 +314,155 @@ public sealed class FantasyMenuController : MonoBehaviour
         BindAudioUi();
         BindGraphicsUi();
         BindKeybindUi();
+    }
+
+    private void EnsureSettingsFooterButtons()
+    {
+        if (settingsScreen == null)
+        {
+            return;
+        }
+
+        if (settingsFooterRow == null)
+        {
+            Transform footer = FindChildByName(settingsScreen.transform, "Settings Footer Row");
+            if (footer != null)
+            {
+                settingsFooterRow = footer as RectTransform;
+            }
+        }
+
+        if (settingsFooterRow == null)
+        {
+            return;
+        }
+
+        if (settingsSaveButton == null)
+        {
+            settingsSaveButton = FindButtonByName(settingsFooterRow, "Settings Save Button");
+        }
+
+        if (settingsExitGameButton == null)
+        {
+            settingsExitGameButton = FindButtonByName(settingsFooterRow, "Settings Exit Game Button");
+        }
+
+        if (settingsSaveButton == null && settingsApplyButton != null)
+        {
+            settingsSaveButton = Instantiate(settingsApplyButton, settingsFooterRow);
+            settingsSaveButton.name = "Settings Save Button";
+            SetButtonLabel(settingsSaveButton, "Save");
+        }
+
+        if (settingsExitGameButton == null)
+        {
+            Button source = settingsBackButton != null ? settingsBackButton : exitButton;
+            if (source != null)
+            {
+                settingsExitGameButton = Instantiate(source, settingsFooterRow);
+                settingsExitGameButton.name = "Settings Exit Game Button";
+                SetButtonLabel(settingsExitGameButton, "Exit Game");
+            }
+        }
+
+        ConfigureSettingsFooterLayout();
+    }
+
+    private void ConfigureSettingsFooterLayout()
+    {
+        if (settingsFooterRow == null)
+        {
+            return;
+        }
+
+        HorizontalLayoutGroup layoutGroup = settingsFooterRow.GetComponent<HorizontalLayoutGroup>();
+        if (layoutGroup != null)
+        {
+            layoutGroup.enabled = false;
+        }
+
+        PositionFooterButton(settingsSaveButton, new Vector2(0f, 0.5f), new Vector2(112f, 0f));
+        PositionFooterButton(settingsBackButton, new Vector2(0.5f, 0.5f), new Vector2(-110f, 0f));
+        PositionFooterButton(settingsApplyButton, new Vector2(0.5f, 0.5f), new Vector2(110f, 0f));
+        PositionFooterButton(settingsExitGameButton, new Vector2(1f, 0.5f), new Vector2(-112f, 0f));
+    }
+
+    private static void PositionFooterButton(Button button, Vector2 anchor, Vector2 anchoredPosition)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        RectTransform rectTransform = button.GetComponent<RectTransform>();
+        if (rectTransform == null)
+        {
+            return;
+        }
+
+        rectTransform.anchorMin = anchor;
+        rectTransform.anchorMax = anchor;
+        rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        rectTransform.anchoredPosition = anchoredPosition;
+        rectTransform.sizeDelta = new Vector2(200f, 56f);
+
+        LayoutElement layoutElement = button.GetComponent<LayoutElement>();
+        if (layoutElement != null)
+        {
+            layoutElement.ignoreLayout = true;
+        }
+    }
+
+    private static Button FindButtonByName(Transform root, string name)
+    {
+        if (root == null || string.IsNullOrEmpty(name))
+        {
+            return null;
+        }
+
+        Button[] buttons = root.GetComponentsInChildren<Button>(true);
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            if (string.Equals(buttons[i].name, name, StringComparison.Ordinal))
+            {
+                return buttons[i];
+            }
+        }
+
+        return null;
+    }
+
+    private static Transform FindChildByName(Transform root, string name)
+    {
+        if (root == null || string.IsNullOrEmpty(name))
+        {
+            return null;
+        }
+
+        Transform[] transforms = root.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            if (string.Equals(transforms[i].name, name, StringComparison.Ordinal))
+            {
+                return transforms[i];
+            }
+        }
+
+        return null;
+    }
+
+    private static void SetButtonLabel(Button button, string labelText)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
+        if (label != null)
+        {
+            label.text = labelText;
+        }
     }
 
     private static void BindButton(Button button, UnityAction action)
@@ -531,6 +687,7 @@ public sealed class FantasyMenuController : MonoBehaviour
             return;
         }
 
+        UpdateSettingsFooterContextButtons(false);
         SetPanelState(false, true, false);
         SetBackground(settingsBackgroundSprite, settingsBackgroundTint);
         ShowTab(currentTab);
@@ -1406,6 +1563,7 @@ public sealed class FantasyMenuController : MonoBehaviour
         }
 
         SetPanelState(false, true, false);
+        UpdateSettingsFooterContextButtons(true);
         ShowTab(currentTab);
         SetStatus(string.Empty);
         if (backgroundImage != null)
@@ -1466,6 +1624,19 @@ public sealed class FantasyMenuController : MonoBehaviour
         LoadGraphicsSettingsToUi();
         UpdateKeybindLabels();
         SetSettingsStatus("Settings applied.");
+    }
+
+    private void UpdateSettingsFooterContextButtons(bool inGameplayEscOverlay)
+    {
+        if (settingsSaveButton != null)
+        {
+            settingsSaveButton.gameObject.SetActive(inGameplayEscOverlay);
+        }
+
+        if (settingsExitGameButton != null)
+        {
+            settingsExitGameButton.gameObject.SetActive(inGameplayEscOverlay);
+        }
     }
 
     private void OnExternalSettingsChanged()

@@ -33,6 +33,19 @@ public class SpawnNpcsAtNight : MonoBehaviour
     [Range(0f, 24f)] public float fallbackNightStartsAtHour = 18f;
     [Range(0f, 24f)] public float fallbackNightEndsAtHour = 6f;
 
+    [Header("Day Settings")]
+    public bool spawnDuringDay = true;
+    public bool spawnOnStartIfAlreadyDay = true;
+    public bool spawnEveryDay = true;
+    public bool clearPreviousSpawnedOnNewDay = true;
+    [Range(0f, 1f)] public float dayMonsterRatio = 0.25f;
+
+    [Header("Sword Hit Feedback")]
+    [Tooltip("Adds the same sword-hit behavior used by the practice capsule onto spawned monsters.")]
+    public bool applyPracticeCapsuleHitFeedbackToMonsters = true;
+    public TestHitting practiceCapsuleHitTemplate;
+    public Material fallbackMonsterHitMaterial;
+
     [Header("Enemy References")]
     public LookingController lookingController;
     public EnemiesHandler enemiesHandler;
@@ -40,6 +53,7 @@ public class SpawnNpcsAtNight : MonoBehaviour
     private readonly List<GameObject> _spawnedEnemies = new List<GameObject>();
     private bool _wasNightLastFrame;
     private bool _spawnedThisNight;
+    private bool _spawnedThisDay;
     private bool _spawnedAtLeastOnce;
     private Transform _playerNormal;
     private Transform _playerBuilding;
@@ -49,6 +63,8 @@ public class SpawnNpcsAtNight : MonoBehaviour
     {
         ResolveReferences();
         ResolveTerrains();
+        ApplyMonsterHitFeedback(zombie);
+        ApplyMonsterHitFeedback(skeleton);
 
         bool isNight = IsNightNow();
         _wasNightLastFrame = isNight;
@@ -57,6 +73,12 @@ public class SpawnNpcsAtNight : MonoBehaviour
         {
             SpawnNightWave();
             _spawnedThisNight = true;
+            _spawnedAtLeastOnce = true;
+        }
+        else if (!isNight && spawnDuringDay && spawnOnStartIfAlreadyDay)
+        {
+            SpawnDayWave();
+            _spawnedThisDay = true;
             _spawnedAtLeastOnce = true;
         }
     }
@@ -68,6 +90,7 @@ public class SpawnNpcsAtNight : MonoBehaviour
 
         if (isNight && !_wasNightLastFrame)
         {
+            _spawnedThisDay = false;
             bool shouldSpawnThisNight = spawnEveryNight || !_spawnedAtLeastOnce;
             if (shouldSpawnThisNight && !_spawnedThisNight)
             {
@@ -84,6 +107,19 @@ public class SpawnNpcsAtNight : MonoBehaviour
         else if (!isNight && _wasNightLastFrame)
         {
             _spawnedThisNight = false;
+
+            bool shouldSpawnThisDay = spawnDuringDay && (spawnEveryDay || !_spawnedAtLeastOnce);
+            if (shouldSpawnThisDay && !_spawnedThisDay)
+            {
+                if (clearPreviousSpawnedOnNewDay)
+                {
+                    ClearSpawnedEnemies();
+                }
+
+                SpawnDayWave();
+                _spawnedThisDay = true;
+                _spawnedAtLeastOnce = true;
+            }
         }
 
         _wasNightLastFrame = isNight;
@@ -91,6 +127,18 @@ public class SpawnNpcsAtNight : MonoBehaviour
 
     // Handle Spawn Night Wave.
     public void SpawnNightWave()
+    {
+        SpawnWave(isNightWave: true);
+    }
+
+    // Handle Spawn Day Wave.
+    public void SpawnDayWave()
+    {
+        SpawnWave(isNightWave: false);
+    }
+
+    // Handle Spawn Wave.
+    private void SpawnWave(bool isNightWave)
     {
         ResolveReferences();
         ResolveTerrains();
@@ -109,6 +157,12 @@ public class SpawnNpcsAtNight : MonoBehaviour
         }
 
         EnsureSpawnedParent();
+
+        int monstersPerTerrainForWave = GetMonstersPerTerrainForWave(isNightWave);
+        if (monstersPerTerrainForWave <= 0)
+        {
+            return;
+        }
 
         int spawnBudget = maxTotalAliveFromThisSpawner <= 0
             ? int.MaxValue
@@ -135,7 +189,7 @@ public class SpawnNpcsAtNight : MonoBehaviour
             }
 
             int spawnedOnThisTerrain = 0;
-            for (int i = 0; i < monstersPerTerrain; i++)
+            for (int i = 0; i < monstersPerTerrainForWave; i++)
             {
                 if (totalSpawned >= spawnBudget)
                 {
@@ -162,15 +216,39 @@ public class SpawnNpcsAtNight : MonoBehaviour
                 totalSpawned++;
             }
 
-            if (spawnedOnThisTerrain < monstersPerTerrain)
+            if (spawnedOnThisTerrain < monstersPerTerrainForWave)
             {
                 Debug.LogWarning(
-                    $"SpawnNpcsAtNight: terrain '{terrain.name}' spawned {spawnedOnThisTerrain}/{monstersPerTerrain}. " +
+                    $"SpawnNpcsAtNight: terrain '{terrain.name}' spawned {spawnedOnThisTerrain}/{monstersPerTerrainForWave}. " +
                     "Increase maxSpawnAttemptsPerMonster or check spawn clearance near the player.");
             }
         }
 
-        Debug.Log($"SpawnNpcsAtNight: spawned {totalSpawned} enemies.");
+        string waveName = isNightWave ? "night" : "day";
+        Debug.Log($"SpawnNpcsAtNight: spawned {totalSpawned} enemies for {waveName} wave.");
+    }
+
+    // Handle Get Monsters Per Terrain For Wave.
+    private int GetMonstersPerTerrainForWave(bool isNightWave)
+    {
+        int baseCount = Mathf.Max(0, monstersPerTerrain);
+        if (isNightWave)
+        {
+            return baseCount;
+        }
+
+        if (!spawnDuringDay)
+        {
+            return 0;
+        }
+
+        float ratio = Mathf.Clamp01(dayMonsterRatio);
+        if (ratio <= 0f || baseCount <= 0)
+        {
+            return 0;
+        }
+
+        return Mathf.Max(1, Mathf.RoundToInt(baseCount * ratio));
     }
 
     // Handle Clear Spawned Enemies.
@@ -227,6 +305,8 @@ public class SpawnNpcsAtNight : MonoBehaviour
             enemiesHandler = FindFirstObjectByType<EnemiesHandler>();
         }
 
+        ResolvePracticeCapsuleHitTemplate();
+
         _playerNormal = null;
         _playerBuilding = null;
         if (lookingController != null)
@@ -239,6 +319,33 @@ public class SpawnNpcsAtNight : MonoBehaviour
             {
                 _playerBuilding = lookingController.buildingcapsule.transform;
             }
+        }
+    }
+
+    // Handle Resolve Practice Capsule Hit Template.
+    private void ResolvePracticeCapsuleHitTemplate()
+    {
+        if (practiceCapsuleHitTemplate != null)
+        {
+            return;
+        }
+
+        TestHitting[] hitTargets = FindObjectsByType<TestHitting>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < hitTargets.Length; i++)
+        {
+            TestHitting candidate = hitTargets[i];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (candidate.GetComponentInParent<NPCDemageScript>() != null)
+            {
+                continue;
+            }
+
+            practiceCapsuleHitTemplate = candidate;
+            return;
         }
     }
 
@@ -511,5 +618,72 @@ public class SpawnNpcsAtNight : MonoBehaviour
                 skeletonScript.enemiesHandler = enemiesHandler;
             }
         }
+
+        ApplyMonsterHitFeedback(enemy);
+    }
+
+    // Handle Apply Monster Hit Feedback.
+    private void ApplyMonsterHitFeedback(GameObject enemy)
+    {
+        if (!applyPracticeCapsuleHitFeedbackToMonsters || enemy == null)
+        {
+            return;
+        }
+
+        if (!enemy.scene.IsValid())
+        {
+            return;
+        }
+
+        Collider targetCollider = enemy.GetComponent<Collider>();
+        if (targetCollider == null)
+        {
+            targetCollider = enemy.GetComponentInChildren<Collider>(true);
+        }
+
+        if (targetCollider == null)
+        {
+            return;
+        }
+
+        TestHitting hitFeedback = targetCollider.GetComponent<TestHitting>();
+        if (hitFeedback == null)
+        {
+            hitFeedback = targetCollider.gameObject.AddComponent<TestHitting>();
+        }
+
+        Renderer targetRenderer = enemy.GetComponentInChildren<Renderer>(true);
+        if (targetRenderer != null)
+        {
+            hitFeedback.meshRenderer = targetRenderer;
+        }
+
+        Material hitMaterial = ResolveMonsterHitMaterial(enemy);
+        if (hitMaterial != null)
+        {
+            hitFeedback.hitmat = hitMaterial;
+        }
+    }
+
+    // Handle Resolve Monster Hit Material.
+    private Material ResolveMonsterHitMaterial(GameObject enemy)
+    {
+        if (practiceCapsuleHitTemplate != null && practiceCapsuleHitTemplate.hitmat != null)
+        {
+            return practiceCapsuleHitTemplate.hitmat;
+        }
+
+        if (fallbackMonsterHitMaterial != null)
+        {
+            return fallbackMonsterHitMaterial;
+        }
+
+        NPCDemageScript damageScript = enemy.GetComponent<NPCDemageScript>();
+        if (damageScript == null)
+        {
+            damageScript = enemy.GetComponentInChildren<NPCDemageScript>(true);
+        }
+
+        return damageScript != null ? damageScript.demagemat : null;
     }
 }

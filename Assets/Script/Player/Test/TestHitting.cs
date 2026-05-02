@@ -12,7 +12,7 @@ public class TestHitting : MonoBehaviour
     [SerializeField] private int maxHistoryEntries = 100;
 
     [Header("Visuals")]
-    public MeshRenderer meshRenderer;
+    public Renderer meshRenderer;
     public Material hitmat;
 
     [Header("Detection")]
@@ -98,7 +98,12 @@ public class TestHitting : MonoBehaviour
 
         if (meshRenderer == null)
         {
-            meshRenderer = GetComponent<MeshRenderer>();
+            meshRenderer = GetComponent<Renderer>();
+        }
+
+        if (meshRenderer == null)
+        {
+            meshRenderer = GetComponentInChildren<Renderer>(true);
         }
 
         if (meshRenderer != null)
