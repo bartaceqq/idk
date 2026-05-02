@@ -15,6 +15,11 @@ public class NPCDemageScript : MonoBehaviour
     public string damageStateName = "Damage";
     public string damageTriggerName = "Damage";
 
+    [Header("Sword Hit Feedback")]
+    public bool applyPracticeCapsuleHitFeedback = true;
+    public TestHitting practiceCapsuleHitTemplate;
+    public TestHitting hitFeedback;
+
     private Renderer _targetRenderer;
     private Coroutine _flashRoutine;
 
@@ -35,6 +40,8 @@ public class NPCDemageScript : MonoBehaviour
         {
             origimat = _targetRenderer.sharedMaterial;
         }
+
+        ConfigureSwordHitFeedback();
     }
 
     // Handle Take Demage.
@@ -172,5 +179,24 @@ public class NPCDemageScript : MonoBehaviour
         }
 
         _flashRoutine = null;
+    }
+
+    // Handle Configure Sword Hit Feedback.
+    private void ConfigureSwordHitFeedback()
+    {
+        if (!applyPracticeCapsuleHitFeedback)
+        {
+            return;
+        }
+
+        if (practiceCapsuleHitTemplate == null)
+        {
+            practiceCapsuleHitTemplate = TestHitting.FindPracticeTemplate();
+        }
+
+        hitFeedback = TestHitting.EnsureEnemyHitFeedback(
+            gameObject,
+            practiceCapsuleHitTemplate,
+            demagemat);
     }
 }

@@ -95,7 +95,180 @@ public class TestHitting : MonoBehaviour
     {
         _selfCollider = GetComponent<Collider>();
         _defaultFixedDeltaTime = Time.fixedDeltaTime;
+        ResolveMeshRendererIfNeeded();
+        CaptureOriginalMaterial();
+    }
 
+    public void ConfigureHitTarget(Renderer targetRenderer, Material hitMaterial)
+    {
+        if (targetRenderer != null)
+        {
+            meshRenderer = targetRenderer;
+        }
+
+        ResolveMeshRendererIfNeeded();
+        CaptureOriginalMaterial();
+
+        if (hitMaterial != null)
+        {
+            hitmat = hitMaterial;
+        }
+    }
+
+    public void ApplySettingsFrom(TestHitting template)
+    {
+        if (template == null || template == this)
+        {
+            return;
+        }
+
+        maxHistoryEntries = template.maxHistoryEntries;
+        usePollingFallback = template.usePollingFallback;
+        includeInactiveSwordObjects = template.includeInactiveSwordObjects;
+        swordScanInterval = template.swordScanInterval;
+        useNameFallback = template.useNameFallback;
+        requireActiveSwordAttackAnimation = template.requireActiveSwordAttackAnimation;
+        attackingActionScript = template.attackingActionScript;
+        actionScriptScanInterval = template.actionScriptScanInterval;
+        slowTimeWhileInside = template.slowTimeWhileInside;
+        insideTimeScale = template.insideTimeScale;
+        smoothTimeScaleTransitions = template.smoothTimeScaleTransitions;
+        timeScaleBlendSpeed = template.timeScaleBlendSpeed;
+        focusCameraOnHit = template.focusCameraOnHit;
+        focusCamera = template.focusCamera;
+        cameraFocusRotateSpeed = template.cameraFocusRotateSpeed;
+        cameraFocusPointSmoothSpeed = template.cameraFocusPointSmoothSpeed;
+        changeFovWhileFocusing = template.changeFovWhileFocusing;
+        focusedCameraFov = template.focusedCameraFov;
+        cameraFovLerpSpeed = template.cameraFovLerpSpeed;
+        cameraReturnRotateSpeed = template.cameraReturnRotateSpeed;
+        focusPointOffset = template.focusPointOffset;
+        tintHitTrails = template.tintHitTrails;
+        hitTrailColor = template.hitTrailColor;
+        drawHitStroke = template.drawHitStroke;
+        hitStrokeColor = template.hitStrokeColor;
+        hitStrokeWidth = template.hitStrokeWidth;
+        hitStrokeLifetime = template.hitStrokeLifetime;
+        hitStrokePointSpacing = template.hitStrokePointSpacing;
+        hitStrokeSurfaceOffset = template.hitStrokeSurfaceOffset;
+        hitStrokeRestartGap = template.hitStrokeRestartGap;
+
+        if (template.hitmat != null)
+        {
+            hitmat = template.hitmat;
+        }
+    }
+
+    public static TestHitting FindPracticeTemplate()
+    {
+#if UNITY_2023_1_OR_NEWER
+        TestHitting[] hitTargets = FindObjectsByType<TestHitting>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        TestHitting[] hitTargets = FindObjectsOfType<TestHitting>(true);
+#endif
+
+        for (int i = 0; i < hitTargets.Length; i++)
+        {
+            TestHitting candidate = hitTargets[i];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (candidate.GetComponentInParent<NPCDemageScript>() != null)
+            {
+                continue;
+            }
+
+            return candidate;
+        }
+
+        return null;
+    }
+
+    public static TestHitting EnsureEnemyHitFeedback(GameObject enemy, TestHitting template, Material fallbackHitMaterial)
+    {
+        if (enemy == null || !enemy.scene.IsValid())
+        {
+            return null;
+        }
+
+        Collider targetCollider = enemy.GetComponent<Collider>();
+        if (targetCollider == null)
+        {
+            targetCollider = enemy.GetComponentInChildren<Collider>(true);
+        }
+
+        if (targetCollider == null)
+        {
+            return null;
+        }
+
+        TestHitting hitFeedback = targetCollider.GetComponent<TestHitting>();
+        if (hitFeedback == null)
+        {
+            hitFeedback = enemy.GetComponentInChildren<TestHitting>(true);
+        }
+
+        if (hitFeedback == null)
+        {
+            hitFeedback = targetCollider.gameObject.AddComponent<TestHitting>();
+        }
+
+        if (template != null)
+        {
+            hitFeedback.ApplySettingsFrom(template);
+        }
+
+        Material hitMaterial = ResolveEnemyHitMaterial(enemy, template, fallbackHitMaterial);
+        hitFeedback.ConfigureHitTarget(ResolveEnemyRenderer(enemy), hitMaterial);
+        return hitFeedback;
+    }
+
+    private static Material ResolveEnemyHitMaterial(GameObject enemy, TestHitting template, Material fallbackHitMaterial)
+    {
+        if (template != null && template.hitmat != null)
+        {
+            return template.hitmat;
+        }
+
+        if (fallbackHitMaterial != null)
+        {
+            return fallbackHitMaterial;
+        }
+
+        NPCDemageScript damageScript = enemy.GetComponent<NPCDemageScript>();
+        if (damageScript == null)
+        {
+            damageScript = enemy.GetComponentInChildren<NPCDemageScript>(true);
+        }
+
+        return damageScript != null ? damageScript.demagemat : null;
+    }
+
+    private static Renderer ResolveEnemyRenderer(GameObject enemy)
+    {
+        if (enemy == null)
+        {
+            return null;
+        }
+
+        NPCDemageScript damageScript = enemy.GetComponent<NPCDemageScript>();
+        if (damageScript == null)
+        {
+            damageScript = enemy.GetComponentInChildren<NPCDemageScript>(true);
+        }
+
+        if (damageScript != null && damageScript.meshRenderer != null)
+        {
+            return damageScript.meshRenderer;
+        }
+
+        return enemy.GetComponentInChildren<Renderer>(true);
+    }
+
+    private void ResolveMeshRendererIfNeeded()
+    {
         if (meshRenderer == null)
         {
             meshRenderer = GetComponent<Renderer>();
@@ -105,7 +278,10 @@ public class TestHitting : MonoBehaviour
         {
             meshRenderer = GetComponentInChildren<Renderer>(true);
         }
+    }
 
+    private void CaptureOriginalMaterial()
+    {
         if (meshRenderer != null)
         {
             _originalMaterial = meshRenderer.material;

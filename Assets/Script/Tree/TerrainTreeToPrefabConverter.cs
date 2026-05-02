@@ -17,6 +17,11 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
     [SerializeField] private bool alignConvertedObjectsToTerrainNormal = false;
     [SerializeField] private float terrainSurfaceOffset = 0f;
     [SerializeField, Min(0f)] private float mineStoneEmbedDepth = 0.2f;
+    [Header("Prototype Rotation")]
+    [SerializeField] private bool includeBranch01WhenFilteringResources = true;
+    [SerializeField] private bool randomizeBranch01Yaw = true;
+    [SerializeField] private string branch01PrototypeName = "Branch_01";
+    [SerializeField] private int branch01RotationSeed = 9143;
     [Header("Auto Conversion")]
     [SerializeField] private bool convertPaintedTreesOnStart = true;
     [Tooltip("If enabled, converter will only convert resource prefabs (CutTree/MineStone).")]
@@ -118,8 +123,10 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
                      prototypePrefab.GetComponentInChildren<StoneColliderScript>(true) != null);
                 bool hasPickableItem = includePickableItems &&
                     prototypePrefab.GetComponentInChildren<InventoryItem>(true) != null;
+                bool isAllowedBranch01 = includeBranch01WhenFilteringResources &&
+                    MatchesPrototypeName(prototypePrefab, branch01PrototypeName);
 
-                if (!hasCutTree && !hasMineStone && !hasPickableItem)
+                if (!hasCutTree && !hasMineStone && !hasPickableItem && !isAllowedBranch01)
                 {
                     remainingInstances.Add(instance);
                     continue;
@@ -127,7 +134,7 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
             }
 
             Vector3 worldPosition = targetTerrain.transform.position + Vector3.Scale(instance.position, terrainData.size);
-            Quaternion worldRotation = Quaternion.Euler(0f, instance.rotation * Mathf.Rad2Deg, 0f);
+            Quaternion worldRotation = GetConvertedTreeRotation(instance, prototypePrefab, i);
 
             GameObject spawnedTree = Instantiate(prototypePrefab, worldPosition, worldRotation, parentForSpawnedTrees);
             AssignConvertedObjectReferences(spawnedTree);
@@ -764,6 +771,41 @@ Done:
                 treeHandler.inventoryItem = resolvedItem;
             }
         }
+    }
+
+    private Quaternion GetConvertedTreeRotation(TreeInstance instance, GameObject prototypePrefab, int instanceIndex)
+    {
+        float yawDegrees = instance.rotation * Mathf.Rad2Deg;
+        if (ShouldRandomizeBranch01Yaw(prototypePrefab))
+        {
+            int positionX = Mathf.RoundToInt(instance.position.x * 100000f);
+            int positionZ = Mathf.RoundToInt(instance.position.z * 100000f);
+            yawDegrees += HashTo01(branch01RotationSeed, instance.prototypeIndex, instanceIndex, positionX, positionZ, 0) * 360f;
+        }
+
+        return Quaternion.Euler(0f, yawDegrees, 0f);
+    }
+
+    private bool ShouldRandomizeBranch01Yaw(GameObject prototypePrefab)
+    {
+        if (!randomizeBranch01Yaw || prototypePrefab == null || string.IsNullOrWhiteSpace(branch01PrototypeName))
+        {
+            return false;
+        }
+
+        return MatchesPrototypeName(prototypePrefab, branch01PrototypeName);
+    }
+
+    private static bool MatchesPrototypeName(GameObject prototypePrefab, string prototypeName)
+    {
+        if (prototypePrefab == null || string.IsNullOrWhiteSpace(prototypeName))
+        {
+            return false;
+        }
+
+        string prefabName = NormalizePrefabName(prototypePrefab.name);
+        string targetName = NormalizePrefabName(prototypeName);
+        return prefabName == targetName || prefabName.Contains(targetName);
     }
 
     private InventoryAddHandler ResolveInventoryAddHandler()

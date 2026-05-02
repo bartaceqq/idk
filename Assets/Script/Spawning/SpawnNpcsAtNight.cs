@@ -330,23 +330,7 @@ public class SpawnNpcsAtNight : MonoBehaviour
             return;
         }
 
-        TestHitting[] hitTargets = FindObjectsByType<TestHitting>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < hitTargets.Length; i++)
-        {
-            TestHitting candidate = hitTargets[i];
-            if (candidate == null)
-            {
-                continue;
-            }
-
-            if (candidate.GetComponentInParent<NPCDemageScript>() != null)
-            {
-                continue;
-            }
-
-            practiceCapsuleHitTemplate = candidate;
-            return;
-        }
+        practiceCapsuleHitTemplate = TestHitting.FindPracticeTemplate();
     }
 
     // Handle Resolve Terrains.
@@ -630,39 +614,8 @@ public class SpawnNpcsAtNight : MonoBehaviour
             return;
         }
 
-        if (!enemy.scene.IsValid())
-        {
-            return;
-        }
-
-        Collider targetCollider = enemy.GetComponent<Collider>();
-        if (targetCollider == null)
-        {
-            targetCollider = enemy.GetComponentInChildren<Collider>(true);
-        }
-
-        if (targetCollider == null)
-        {
-            return;
-        }
-
-        TestHitting hitFeedback = targetCollider.GetComponent<TestHitting>();
-        if (hitFeedback == null)
-        {
-            hitFeedback = targetCollider.gameObject.AddComponent<TestHitting>();
-        }
-
-        Renderer targetRenderer = enemy.GetComponentInChildren<Renderer>(true);
-        if (targetRenderer != null)
-        {
-            hitFeedback.meshRenderer = targetRenderer;
-        }
-
-        Material hitMaterial = ResolveMonsterHitMaterial(enemy);
-        if (hitMaterial != null)
-        {
-            hitFeedback.hitmat = hitMaterial;
-        }
+        ResolvePracticeCapsuleHitTemplate();
+        TestHitting.EnsureEnemyHitFeedback(enemy, practiceCapsuleHitTemplate, ResolveMonsterHitMaterial(enemy));
     }
 
     // Handle Resolve Monster Hit Material.
