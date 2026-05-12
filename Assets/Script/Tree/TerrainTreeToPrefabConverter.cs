@@ -29,6 +29,9 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
     [SerializeField] private bool includeMineableStones = true;
     [SerializeField] private bool includePickableItems = true;
     [SerializeField] private bool clearConvertedTerrainTrees = true;
+    [SerializeField] private bool skipSpawnForExistingConvertedObjects = true;
+    [SerializeField, Min(0.1f)] private float existingConvertedObjectMatchRadius = 1.25f;
+    [SerializeField] private bool cloneTerrainDataForRuntimeConversion = true;
     [Header("Reverse Conversion")]
     [Tooltip("When restoring prefabs back to terrain trees, include existing terrain trees instead of replacing them.")]
     [SerializeField] private bool appendToExistingTerrainTrees = true;
@@ -50,6 +53,7 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float detailCellJitter = 0.6f;
 
     private static InventoryAddHandler cachedInventoryAddHandler;
+    private readonly Dictionary<Terrain, TerrainData> runtimeTerrainDataByTerrain = new Dictionary<Terrain, TerrainData>();
 
     private void Start()
     {
@@ -83,7 +87,13 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
             parentForSpawnedTrees = root.transform;
         }
 
-        TerrainData terrainData = targetTerrain.terrainData;
+        TerrainData terrainData = GetEditableTerrainData(targetTerrain);
+        if (terrainData == null)
+        {
+            Debug.LogWarning("TerrainTreeToPrefabConverter: Missing TerrainData reference.", this);
+            return;
+        }
+
         TreePrototype[] prototypes = terrainData.treePrototypes;
         TreeInstance[] treeInstances = terrainData.treeInstances;
 
@@ -96,7 +106,12 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
         List<TreeInstance> remainingInstances = hasTreeInstances
             ? new List<TreeInstance>(treeInstances.Length)
             : new List<TreeInstance>();
+        List<ConvertedTreeRecord> existingConvertedTrees = skipSpawnForExistingConvertedObjects
+            ? BuildExistingConvertedTreeRecords(parentForSpawnedTrees)
+            : null;
         int convertedCount = 0;
+        int spawnedCount = 0;
+        int matchedExistingCount = 0;
 
         for (int i = 0; i < (hasTreeInstances ? treeInstances.Length : 0); i++)
         {
@@ -136,18 +151,37 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
             Vector3 worldPosition = targetTerrain.transform.position + Vector3.Scale(instance.position, terrainData.size);
             Quaternion worldRotation = GetConvertedTreeRotation(instance, prototypePrefab, i);
 
-            GameObject spawnedTree = Instantiate(prototypePrefab, worldPosition, worldRotation, parentForSpawnedTrees);
-            AssignConvertedObjectReferences(spawnedTree);
+            if (TryGetExistingConvertedObject(existingConvertedTrees, prototypePrefab, worldPosition, out GameObject existingConvertedObject))
+            {
+                AssignConvertedObjectReferences(existingConvertedObject);
+                ApplyTerrainPlacement(existingConvertedObject.transform, targetTerrain);
+                matchedExistingCount++;
+                convertedCount++;
+            }
+            else
+            {
+                GameObject spawnedTree = Instantiate(prototypePrefab, worldPosition, worldRotation, parentForSpawnedTrees);
+                AssignConvertedObjectReferences(spawnedTree);
 
-            Vector3 baseScale = spawnedTree.transform.localScale;
-            spawnedTree.transform.localScale = new Vector3(
-                baseScale.x * instance.widthScale,
-                baseScale.y * instance.heightScale,
-                baseScale.z * instance.widthScale
-            );
-            ApplyTerrainPlacement(spawnedTree.transform, targetTerrain);
+                Vector3 baseScale = spawnedTree.transform.localScale;
+                spawnedTree.transform.localScale = new Vector3(
+                    baseScale.x * instance.widthScale,
+                    baseScale.y * instance.heightScale,
+                    baseScale.z * instance.widthScale
+                );
+                ApplyTerrainPlacement(spawnedTree.transform, targetTerrain);
 
-            convertedCount++;
+                if (existingConvertedTrees != null)
+                {
+                    existingConvertedTrees.Add(new ConvertedTreeRecord(
+                        NormalizePrefabName(prototypePrefab.name),
+                        spawnedTree.transform.position,
+                        spawnedTree));
+                }
+
+                spawnedCount++;
+                convertedCount++;
+            }
 
             if (!clearConvertedTerrainTrees)
             {
@@ -162,13 +196,40 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
 
         if (hasTreeInstances)
         {
-            Debug.Log($"TerrainTreeToPrefabConverter: Converted {convertedCount} tree instances.", this);
+            Debug.Log(
+                $"TerrainTreeToPrefabConverter: Converted {convertedCount} tree instances. " +
+                $"Spawned={spawnedCount}, Existing={matchedExistingCount}.",
+                this);
         }
 
         if (convertDetailMeshes)
         {
             ConvertDetailMeshesToPrefabs(targetTerrain, parentForSpawnedTrees);
         }
+    }
+
+    private TerrainData GetEditableTerrainData(Terrain terrain)
+    {
+        if (terrain == null || terrain.terrainData == null)
+        {
+            return null;
+        }
+
+        if (!Application.isPlaying || !cloneTerrainDataForRuntimeConversion)
+        {
+            return terrain.terrainData;
+        }
+
+        if (runtimeTerrainDataByTerrain.TryGetValue(terrain, out TerrainData existingRuntimeData) && existingRuntimeData != null)
+        {
+            return existingRuntimeData;
+        }
+
+        TerrainData runtimeData = Instantiate(terrain.terrainData);
+        runtimeData.name = terrain.terrainData.name + "_Runtime";
+        terrain.terrainData = runtimeData;
+        runtimeTerrainDataByTerrain[terrain] = runtimeData;
+        return runtimeData;
     }
 
     [ContextMenu("Convert Prefabs Back To Terrain Trees")]
@@ -497,6 +558,91 @@ Done:
         }
 
         return total;
+    }
+
+    private readonly struct ConvertedTreeRecord
+    {
+        public readonly string normalizedPrefabName;
+        public readonly Vector3 position;
+        public readonly GameObject gameObject;
+
+        public ConvertedTreeRecord(string normalizedPrefabName, Vector3 position, GameObject gameObject)
+        {
+            this.normalizedPrefabName = normalizedPrefabName;
+            this.position = position;
+            this.gameObject = gameObject;
+        }
+    }
+
+    private static List<ConvertedTreeRecord> BuildExistingConvertedTreeRecords(Transform parent)
+    {
+        List<ConvertedTreeRecord> records = new List<ConvertedTreeRecord>();
+        if (parent == null)
+        {
+            return records;
+        }
+
+        int childCount = parent.childCount;
+        for (int i = 0; i < childCount; i++)
+        {
+            Transform child = parent.GetChild(i);
+            if (child == null)
+            {
+                continue;
+            }
+
+            string normalizedName = NormalizePrefabName(child.name);
+            if (string.IsNullOrEmpty(normalizedName))
+            {
+                continue;
+            }
+
+            records.Add(new ConvertedTreeRecord(normalizedName, child.position, child.gameObject));
+        }
+
+        return records;
+    }
+
+    private bool TryGetExistingConvertedObject(
+        List<ConvertedTreeRecord> existingConvertedTrees,
+        GameObject prototypePrefab,
+        Vector3 worldPosition,
+        out GameObject existingConvertedObject)
+    {
+        existingConvertedObject = null;
+        if (existingConvertedTrees == null || prototypePrefab == null)
+        {
+            return false;
+        }
+
+        string prototypeName = NormalizePrefabName(prototypePrefab.name);
+        if (string.IsNullOrEmpty(prototypeName))
+        {
+            return false;
+        }
+
+        float matchRadius = Mathf.Max(0.1f, existingConvertedObjectMatchRadius);
+        float matchRadiusSqr = matchRadius * matchRadius;
+        for (int i = 0; i < existingConvertedTrees.Count; i++)
+        {
+            ConvertedTreeRecord record = existingConvertedTrees[i];
+            if (record.gameObject == null || record.normalizedPrefabName != prototypeName)
+            {
+                continue;
+            }
+
+            float dx = record.position.x - worldPosition.x;
+            float dz = record.position.z - worldPosition.z;
+            if ((dx * dx) + (dz * dz) > matchRadiusSqr)
+            {
+                continue;
+            }
+
+            existingConvertedObject = record.gameObject;
+            return true;
+        }
+
+        return false;
     }
 
     private bool ShouldConvertDetailPrefab(GameObject protoPrefab)

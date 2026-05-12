@@ -55,8 +55,23 @@ public class TreeHandler : MonoBehaviour
     }
     public void GenerateMaterial()
     {
+        if (toppart == null || materials == null || materials.Count == 0)
+        {
+            return;
+        }
+
         MeshRenderer renderer = toppart.GetComponent<MeshRenderer>();
+        if (renderer == null)
+        {
+            return;
+        }
+
         Material[] rendmatlist = (Material[])renderer.materials.Clone();
+        if (placeinlist < 0 || placeinlist >= rendmatlist.Length)
+        {
+            return;
+        }
+
         rendmatlist[placeinlist] = materials[Random.Range(0, materials.Count)];
         renderer.materials = rendmatlist;
 
@@ -101,7 +116,7 @@ public class TreeHandler : MonoBehaviour
                 Debug.LogWarning($"{name}: Missing InventoryAddHandler or InventoryItem reference.", this);
             }
 
-            TreeFall();
+            TreeFall(attacker);
             StartCoroutine(destroyaftertime());
         }
     }
@@ -145,26 +160,90 @@ public class TreeHandler : MonoBehaviour
          yield return new WaitForSeconds(timetowaittodestroy);
          Destroy(toppart);
     }
-public void TreeFall()
+    public void TreeFall()
+    {
+        TreeFall(null);
+    }
+
+    public void TreeFall(Transform attacker)
     {
         if (toppart == null)
         {
             return;
         }
 
-        Vector3 localEulerAngles = toppart.transform.localEulerAngles;
-        localEulerAngles.x = InitialFallRotationX;
-        toppart.transform.localEulerAngles = localEulerAngles;
+        Transform topTransform = toppart.transform;
+        Vector3 fallDirection = ResolveFallDirection(attacker);
+        topTransform.SetParent(null, true);
+        TiltTopPartTowardDirection(topTransform, fallDirection);
+        PrepareTopPartCollidersForFall(topTransform);
+        IgnoreOwningTreeColliders(topTransform);
 
         Rigidbody topRigidbody = toppart.GetComponent<Rigidbody>();
-        
         if (topRigidbody == null)
         {
-            
             topRigidbody = toppart.AddComponent<Rigidbody>();
         }
 
+        ConfigureTopPartRigidbody(topRigidbody);
+        AddFallImpulse(topRigidbody, fallDirection);
         ConfigureGroundDespawnOnTopPart();
+    }
+
+    private Vector3 ResolveFallDirection(Transform attacker)
+    {
+        Vector3 fallDirection = transform.forward;
+        if (attacker != null)
+        {
+            fallDirection = transform.position - attacker.position;
+        }
+        else if (Camera.main != null)
+        {
+            fallDirection = transform.position - Camera.main.transform.position;
+        }
+
+        fallDirection.y = 0f;
+        return fallDirection.sqrMagnitude > 0.0001f ? fallDirection.normalized : transform.forward;
+    }
+
+    private void TiltTopPartTowardDirection(Transform topTransform, Vector3 fallDirection)
+    {
+        if (topTransform == null)
+        {
+            return;
+        }
+
+        float tiltDegrees = Mathf.Max(InitialFallRotationX, fallTiltDegrees);
+        Vector3 tiltAxis = Vector3.Cross(Vector3.up, fallDirection);
+        if (tiltAxis.sqrMagnitude <= 0.0001f)
+        {
+            tiltAxis = topTransform.right;
+        }
+
+        topTransform.rotation = Quaternion.AngleAxis(tiltDegrees, tiltAxis.normalized) * topTransform.rotation;
+    }
+
+    private void AddFallImpulse(Rigidbody topRigidbody, Vector3 fallDirection)
+    {
+        if (topRigidbody == null)
+        {
+            return;
+        }
+
+        float topHeight = 1f;
+        if (TryGetBounds(toppart.transform, out Bounds bounds))
+        {
+            topHeight = Mathf.Max(1f, bounds.size.y);
+        }
+
+        Vector3 forcePosition = topRigidbody.worldCenterOfMass + Vector3.up * (topHeight * 0.35f);
+        topRigidbody.AddForceAtPosition(fallDirection * Mathf.Max(1f, topRigidbody.mass) * 1.25f, forcePosition, ForceMode.Impulse);
+
+        Vector3 torqueAxis = Vector3.Cross(Vector3.up, fallDirection);
+        if (torqueAxis.sqrMagnitude > 0.0001f)
+        {
+            topRigidbody.AddTorque(torqueAxis.normalized * Mathf.Max(0.5f, topRigidbody.mass), ForceMode.Impulse);
+        }
     }
     private void SpawnChopImpact(Transform attacker)
     {
@@ -449,6 +528,37 @@ public void TreeFall()
         boxCollider.material = noRollMaterial;
         boxCollider.enabled = true;
         return true;
+    }
+
+    private void IgnoreOwningTreeColliders(Transform fallingTop)
+    {
+        if (fallingTop == null)
+        {
+            return;
+        }
+
+        Collider[] topColliders = fallingTop.GetComponentsInChildren<Collider>(true);
+        Collider[] rootColliders = transform.GetComponentsInChildren<Collider>(true);
+
+        for (int i = 0; i < topColliders.Length; i++)
+        {
+            Collider topCollider = topColliders[i];
+            if (topCollider == null || !topCollider.enabled)
+            {
+                continue;
+            }
+
+            for (int j = 0; j < rootColliders.Length; j++)
+            {
+                Collider rootCollider = rootColliders[j];
+                if (rootCollider == null || !rootCollider.enabled || rootCollider == topCollider)
+                {
+                    continue;
+                }
+
+                Physics.IgnoreCollision(topCollider, rootCollider, true);
+            }
+        }
     }
 
     private void ConfigureTopPartRigidbody(Rigidbody topRigidbody)

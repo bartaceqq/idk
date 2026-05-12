@@ -170,6 +170,9 @@ MonoBehaviour:
   snapYOffset: 0
   alignRotationFromPairs: 1
   pairLengthTolerance: 0.15
+  snapSearchRadius: 8
+  snapSearchRefreshInterval: 0.12
+  restrictSnapSearchToRadius: 1
   floorPreferNearestPointY: 1
   floorHeightReference: {fileID: 310975209986426409}
   floorNearestPointRadius: 8
@@ -183,8 +186,8 @@ MonoBehaviour:
   floorExtrudeOccupyToleranceXZ: 0.05
   stairExtrudeOccupyToleranceXZ: 0.05
   extrudeOccupyToleranceY: 0.05
-  logClosestPair: 1
-  logDetectionState: 1
+  logClosestPair: 0
+  logDetectionState: 0
   logDistanceDelta: 0.005
   logInterval: 0.15
   debugLineColorA: {r: 1, g: 0, b: 0, a: 1}

@@ -61,6 +61,11 @@ public class RayCastScriptTest : MonoBehaviour
     public bool alignRotationFromPairs = true;
     public float pairLengthTolerance = 0.15f;
 
+    [Header("Snap Performance")]
+    public float snapSearchRadius = 8f;
+    public float snapSearchRefreshInterval = 0.12f;
+    public bool restrictSnapSearchToRadius = true;
+
     [Header("Floor Height Assist")]
     public bool floorPreferNearestPointY = true;
     public Transform floorHeightReference;
@@ -79,8 +84,8 @@ public class RayCastScriptTest : MonoBehaviour
     public float extrudeOccupyToleranceY = 0.05f;
 
     [Header("Debug")]
-    public bool logClosestPair = true;
-    public bool logDetectionState = true;
+    public bool logClosestPair = false;
+    public bool logDetectionState = false;
     public float logDistanceDelta = 0.005f;
     public float logInterval = 0.15f;
     public Color debugLineColorA = Color.red;
@@ -125,6 +130,16 @@ public class RayCastScriptTest : MonoBehaviour
     private bool _isDestroyMode;
 
     private readonly List<PairCandidate> _candidates = new List<PairCandidate>(64);
+    private readonly List<WallSnapPoints> _cachedWallSnapTargets = new List<WallSnapPoints>(128);
+    private readonly List<FloorScript> _cachedFloorSnapTargets = new List<FloorScript>(128);
+    private readonly List<StairScript> _cachedStairSnapTargets = new List<StairScript>(64);
+    private readonly List<SnapPoint> _cachedFloorHeightSnapPoints = new List<SnapPoint>(256);
+    private Vector3 _lastSnapSearchPosition;
+    private Vector3 _lastFloorHeightSnapSearchPosition;
+    private float _nextSnapTargetRefreshTime;
+    private float _nextFloorHeightSnapRefreshTime;
+    private bool _hasSnapTargetCache;
+    private bool _hasFloorHeightSnapPointCache;
 
     private struct PairCandidate
     {
@@ -422,6 +437,7 @@ public class RayCastScriptTest : MonoBehaviour
         GameObject created = Instantiate(activePrefab, _previewObject.transform.position, _previewObject.transform.rotation);
         ApplyScaleMultiplier(created, GetActiveBuildScale());
         ApplyPlacedObjectVisuals(created);
+        InvalidateSnapTargetCache();
     }
 
     // Handle Initialize Build Type.
@@ -630,6 +646,7 @@ public class RayCastScriptTest : MonoBehaviour
         SetPreviewMode(_previewObject, true);
         _bottomOffset = GetBottomOffset(_previewObject);
         ClearSnapLock();
+        InvalidateSnapTargetCache();
         CancelExtrudeState();
     }
 
@@ -940,6 +957,7 @@ public class RayCastScriptTest : MonoBehaviour
         GameObject destroyNow = _destroyTarget;
         ClearDestroyTargetHighlight();
         Destroy(destroyNow);
+        InvalidateSnapTargetCache();
     }
 
     // Handle Try Get Looked At Build Target.
@@ -1206,6 +1224,11 @@ public class RayCastScriptTest : MonoBehaviour
                 placedCount++;
             }
             
+        }
+
+        if (placedCount > 0)
+        {
+            InvalidateSnapTargetCache();
         }
 
         if (placedCount == 0 && skippedAsDuplicateCount > 0)
@@ -1711,12 +1734,15 @@ public class RayCastScriptTest : MonoBehaviour
         bool found = false;
         float bestScore = float.MaxValue;
 
-        WallSnapPoints[] wallTargets = FindObjectsByType<WallSnapPoints>(FindObjectsSortMode.None);
-        for (int i = 0; i < wallTargets.Length; i++)
+        Vector3 searchCenter = _previewObject != null ? _previewObject.transform.position : transform.position;
+        RefreshSnapTargetCacheIfNeeded(searchCenter);
+
+        for (int i = 0; i < _cachedWallSnapTargets.Count; i++)
         {
+            WallSnapPoints wallTarget = _cachedWallSnapTargets[i];
             EvaluateTargetPairs(
-                wallTargets[i] != null ? wallTargets[i].gameObject : null,
-                wallTargets[i] != null ? wallTargets[i].snapPoints : null,
+                wallTarget != null ? wallTarget.gameObject : null,
+                wallTarget != null ? wallTarget.snapPoints : null,
                 previewSnapPoints,
                 ref bestA,
                 ref bestB,
@@ -1727,12 +1753,12 @@ public class RayCastScriptTest : MonoBehaviour
                 ref totalCandidates);
         }
 
-        FloorScript[] floorTargets = FindObjectsByType<FloorScript>(FindObjectsSortMode.None);
-        for (int i = 0; i < floorTargets.Length; i++)
+        for (int i = 0; i < _cachedFloorSnapTargets.Count; i++)
         {
+            FloorScript floorTarget = _cachedFloorSnapTargets[i];
             EvaluateTargetPairs(
-                floorTargets[i] != null ? floorTargets[i].gameObject : null,
-                floorTargets[i] != null ? floorTargets[i].snapPoints : null,
+                floorTarget != null ? floorTarget.gameObject : null,
+                floorTarget != null ? floorTarget.snapPoints : null,
                 previewSnapPoints,
                 ref bestA,
                 ref bestB,
@@ -1743,12 +1769,12 @@ public class RayCastScriptTest : MonoBehaviour
                 ref totalCandidates);
         }
 
-        StairScript[] stairTargets = FindObjectsByType<StairScript>(FindObjectsSortMode.None);
-        for (int i = 0; i < stairTargets.Length; i++)
+        for (int i = 0; i < _cachedStairSnapTargets.Count; i++)
         {
+            StairScript stairTarget = _cachedStairSnapTargets[i];
             EvaluateTargetPairs(
-                stairTargets[i] != null ? stairTargets[i].gameObject : null,
-                stairTargets[i] != null ? stairTargets[i].snapPoints : null,
+                stairTarget != null ? stairTarget.gameObject : null,
+                stairTarget != null ? stairTarget.snapPoints : null,
                 previewSnapPoints,
                 ref bestA,
                 ref bestB,
@@ -1760,6 +1786,113 @@ public class RayCastScriptTest : MonoBehaviour
         }
 
         return found;
+    }
+
+    private void RefreshSnapTargetCacheIfNeeded(Vector3 searchCenter)
+    {
+        float radius = Mathf.Max(MinSize, snapSearchRadius);
+        float movedRefreshDistance = Mathf.Max(0.5f, radius * 0.25f);
+        bool movedEnough = !_hasSnapTargetCache ||
+            (searchCenter - _lastSnapSearchPosition).sqrMagnitude >= movedRefreshDistance * movedRefreshDistance;
+
+        if (_hasSnapTargetCache && !movedEnough && Time.unscaledTime < _nextSnapTargetRefreshTime)
+        {
+            return;
+        }
+
+        _cachedWallSnapTargets.Clear();
+        _cachedFloorSnapTargets.Clear();
+        _cachedStairSnapTargets.Clear();
+
+        CollectSnapTargets(FindObjectsByType<WallSnapPoints>(FindObjectsSortMode.None), _cachedWallSnapTargets, searchCenter, radius);
+        CollectSnapTargets(FindObjectsByType<FloorScript>(FindObjectsSortMode.None), _cachedFloorSnapTargets, searchCenter, radius);
+        CollectSnapTargets(FindObjectsByType<StairScript>(FindObjectsSortMode.None), _cachedStairSnapTargets, searchCenter, radius);
+
+        _lastSnapSearchPosition = searchCenter;
+        _nextSnapTargetRefreshTime = Time.unscaledTime + Mathf.Max(0.02f, snapSearchRefreshInterval);
+        _hasSnapTargetCache = true;
+    }
+
+    private void RefreshFloorHeightSnapPointCacheIfNeeded(Vector3 searchCenter)
+    {
+        float radius = Mathf.Max(MinSize, floorNearestPointRadius);
+        float movedRefreshDistance = Mathf.Max(0.5f, radius * 0.25f);
+        bool movedEnough = !_hasFloorHeightSnapPointCache ||
+            (searchCenter - _lastFloorHeightSnapSearchPosition).sqrMagnitude >= movedRefreshDistance * movedRefreshDistance;
+
+        if (_hasFloorHeightSnapPointCache && !movedEnough && Time.unscaledTime < _nextFloorHeightSnapRefreshTime)
+        {
+            return;
+        }
+
+        _cachedFloorHeightSnapPoints.Clear();
+        SnapPoint[] allSnapPoints = FindObjectsByType<SnapPoint>(FindObjectsSortMode.None);
+        float radiusSqr = radius * radius;
+        for (int i = 0; i < allSnapPoints.Length; i++)
+        {
+            SnapPoint snapPoint = allSnapPoints[i];
+            if (snapPoint == null || !snapPoint.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            if (_previewObject != null && snapPoint.transform.IsChildOf(_previewObject.transform))
+            {
+                continue;
+            }
+
+            if (restrictSnapSearchToRadius && !IsTransformNearSearchCenter(snapPoint.transform, searchCenter, radiusSqr))
+            {
+                continue;
+            }
+
+            _cachedFloorHeightSnapPoints.Add(snapPoint);
+        }
+
+        _lastFloorHeightSnapSearchPosition = searchCenter;
+        _nextFloorHeightSnapRefreshTime = Time.unscaledTime + Mathf.Max(0.02f, snapSearchRefreshInterval);
+        _hasFloorHeightSnapPointCache = true;
+    }
+
+    private void CollectSnapTargets<T>(T[] components, List<T> destination, Vector3 searchCenter, float radius) where T : Component
+    {
+        float radiusSqr = radius * radius;
+        for (int i = 0; i < components.Length; i++)
+        {
+            T component = components[i];
+            if (component == null || component.gameObject == _previewObject || !component.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            if (restrictSnapSearchToRadius && !IsTransformNearSearchCenter(component.transform, searchCenter, radiusSqr))
+            {
+                continue;
+            }
+
+            destination.Add(component);
+        }
+    }
+
+    private static bool IsTransformNearSearchCenter(Transform target, Vector3 searchCenter, float radiusSqr)
+    {
+        if (target == null)
+        {
+            return false;
+        }
+
+        Vector3 position = target.position;
+        float dx = position.x - searchCenter.x;
+        float dz = position.z - searchCenter.z;
+        return (dx * dx) + (dz * dz) <= radiusSqr;
+    }
+
+    private void InvalidateSnapTargetCache()
+    {
+        _hasSnapTargetCache = false;
+        _hasFloorHeightSnapPointCache = false;
+        _nextSnapTargetRefreshTime = 0f;
+        _nextFloorHeightSnapRefreshTime = 0f;
     }
 
     private void EvaluateTargetPairs(
@@ -2236,10 +2369,10 @@ public class RayCastScriptTest : MonoBehaviour
         bool found = false;
         float bestDistanceSqr = float.MaxValue;
 
-        SnapPoint[] allSnapPoints = FindObjectsByType<SnapPoint>(FindObjectsSortMode.None);
-        for (int i = 0; i < allSnapPoints.Length; i++)
+        RefreshFloorHeightSnapPointCacheIfNeeded(referencePosition);
+        for (int i = 0; i < _cachedFloorHeightSnapPoints.Count; i++)
         {
-            SnapPoint snapPoint = allSnapPoints[i];
+            SnapPoint snapPoint = _cachedFloorHeightSnapPoints[i];
             if (snapPoint == null || !snapPoint.gameObject.activeInHierarchy)
             {
                 continue;

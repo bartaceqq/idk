@@ -49,6 +49,13 @@ MonoBehaviour:
   neededResources:
   - Wood
   slotnumber: 7
+  craftingStationId: HandCrafting
+  craftedInventoryItem: {fileID: 0}
+  itemType: 3
+  itemPrefab: {fileID: 8185012695890429483, guid: 5a0351725b5ec524f9466b492e219061, type: 3}
+  buildRotationEuler: {x: -90, y: 0, z: 0}
+  buildScale: {x: 1, y: 1, z: 1}
+  craftAmount: 1
   placed: 0
   locked: 0
   minlvl: 1
