@@ -10,6 +10,7 @@ public class RayCastScriptTest : MonoBehaviour
     private const float MinSize = 0.01f;
     private const float MinTolerance = 0.001f;
     private const float RotationToleranceDegrees = 1f;
+    private const float MissingControllerResolveInterval = 1f;
 
     [Header("Placement")]
     public Camera camera;
@@ -60,6 +61,12 @@ public class RayCastScriptTest : MonoBehaviour
     public float snapYOffset = 0f;
     public bool alignRotationFromPairs = true;
     public float pairLengthTolerance = 0.15f;
+    public bool compareSnapPairLengthInXZ = true;
+    public float pairLengthToleranceRatio = 0.08f;
+    public bool constrainSnappedRotationToYaw = true;
+    public float snapVerticalDistanceWeight = 0.35f;
+    public bool enableStairSinglePointSnapFallback = true;
+    public float stairSinglePointSnapEngageDistance = 1f;
 
     [Header("Snap Performance")]
     public float snapSearchRadius = 8f;
@@ -103,6 +110,7 @@ public class RayCastScriptTest : MonoBehaviour
     private Vector3 _inventoryBuildRotationEuler = Vector3.zero;
     private Vector3 _inventoryBuildScale = Vector3.one;
     private readonly List<BuildType> _availableBuildTypes = new List<BuildType>(3);
+    private float _nextLookingControllerResolveTime;
 
     private bool _isSnapLocked;
     private SnapPoint _lockedPreviewA;
@@ -123,6 +131,10 @@ public class RayCastScriptTest : MonoBehaviour
     private Vector2 _extrudeCellSize = Vector2.one;
     private Vector2Int _extrudeCellOffset;
     private readonly Dictionary<Vector2Int, GameObject> _extrudeGhostByCell = new Dictionary<Vector2Int, GameObject>(64);
+    private readonly HashSet<Vector2Int> _neededExtrudeCells = new HashSet<Vector2Int>();
+    private readonly List<Vector2Int> _extrudeCellsToRemove = new List<Vector2Int>(64);
+    private Vector2Int _lastExtrudeGhostOffset;
+    private bool _hasExtrudeGhostLayout;
     private readonly RaycastHit[] _placementHits = new RaycastHit[64];
     private readonly List<MeshRenderer> _destroyHighlightedRenderers = new List<MeshRenderer>(16);
     private readonly List<Material[]> _destroyOriginalMaterials = new List<Material[]>(16);
@@ -134,6 +146,8 @@ public class RayCastScriptTest : MonoBehaviour
     private readonly List<FloorScript> _cachedFloorSnapTargets = new List<FloorScript>(128);
     private readonly List<StairScript> _cachedStairSnapTargets = new List<StairScript>(64);
     private readonly List<SnapPoint> _cachedFloorHeightSnapPoints = new List<SnapPoint>(256);
+    private readonly Dictionary<Collider, bool> _snapMarkerColliderCache = new Dictionary<Collider, bool>(256);
+    private readonly Dictionary<Collider, GameObject> _snapOwnerByCollider = new Dictionary<Collider, GameObject>(256);
     private Vector3 _lastSnapSearchPosition;
     private Vector3 _lastFloorHeightSnapSearchPosition;
     private float _nextSnapTargetRefreshTime;
@@ -240,15 +254,22 @@ public class RayCastScriptTest : MonoBehaviour
     }
 
     // Handle Resolve Looking Controller.
-    private LookingController ResolveLookingController()
+    private LookingController ResolveLookingController(bool forceSearch = false)
     {
         if (lookingController != null)
         {
             return lookingController;
         }
 
+        if (!forceSearch && Time.unscaledTime < _nextLookingControllerResolveTime)
+        {
+            return null;
+        }
+
+        _nextLookingControllerResolveTime = Time.unscaledTime + MissingControllerResolveInterval;
+
 #if UNITY_2023_1_OR_NEWER
-        lookingController = FindFirstObjectByType<LookingController>(FindObjectsInactive.Include);
+        lookingController = FindAnyObjectByType<LookingController>(FindObjectsInactive.Include);
 #else
         lookingController = FindObjectOfType<LookingController>(true);
 #endif
@@ -436,6 +457,7 @@ public class RayCastScriptTest : MonoBehaviour
 
         GameObject created = Instantiate(activePrefab, _previewObject.transform.position, _previewObject.transform.rotation);
         ApplyScaleMultiplier(created, GetActiveBuildScale());
+        RuntimeBuildPiece.Mark(created, GetActiveBuildPieceKind());
         ApplyPlacedObjectVisuals(created);
         InvalidateSnapTargetCache();
     }
@@ -606,7 +628,7 @@ public class RayCastScriptTest : MonoBehaviour
         Transform current = startTransform;
         while (current != null)
         {
-            if (hasTagFilter && current.CompareTag(tableTag))
+            if (hasTagFilter && string.Equals(current.tag, tableTag, System.StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -732,7 +754,7 @@ public class RayCastScriptTest : MonoBehaviour
             return true;
         }
 
-        if (IsSnapMarkerTransform(collider.transform))
+        if (IsSnapMarkerCollider(collider))
         {
             return true;
         }
@@ -856,7 +878,7 @@ public class RayCastScriptTest : MonoBehaviour
             return;
         }
 
-        LookingController controller = ResolveLookingController();
+        LookingController controller = ResolveLookingController(forceSearch: true);
         if (controller == null)
         {
             return;
@@ -890,7 +912,7 @@ public class RayCastScriptTest : MonoBehaviour
         float targetY = hit.point.y;
 
         // If we are aiming at a built object, snap to that object's level first.
-        if (TryGetSnapOwnerFromCollider(hit.collider, out GameObject owner))
+        if (TryGetSnapOwnerFromColliderCached(hit.collider, out GameObject owner))
         {
             if (owner.TryGetComponent(out FloorScript _))
             {
@@ -979,7 +1001,7 @@ public class RayCastScriptTest : MonoBehaviour
                 continue;
             }
 
-            if (!TryGetSnapOwnerFromCollider(collider, out GameObject owner))
+            if (!TryGetSnapOwnerFromColliderCached(collider, out GameObject owner))
             {
                 continue;
             }
@@ -1219,6 +1241,7 @@ public class RayCastScriptTest : MonoBehaviour
 
                 GameObject created = Instantiate(_extrudePrefab, placementPosition, _extrudeStartRotation);
                 ApplyScaleMultiplier(created, GetActiveBuildScale());
+                RuntimeBuildPiece.Mark(created, ToBuildPieceKind(_extrudeBuildType));
                 ApplyPlacedObjectVisuals(created);
                 existing.Add(created.transform);
                 placedCount++;
@@ -1257,12 +1280,20 @@ public class RayCastScriptTest : MonoBehaviour
             return;
         }
 
+        if (_hasExtrudeGhostLayout && _extrudeCellOffset == _lastExtrudeGhostOffset)
+        {
+            return;
+        }
+
+        _hasExtrudeGhostLayout = true;
+        _lastExtrudeGhostOffset = _extrudeCellOffset;
+
         int minX = Mathf.Min(0, _extrudeCellOffset.x);
         int maxX = Mathf.Max(0, _extrudeCellOffset.x);
         int minZ = Mathf.Min(0, _extrudeCellOffset.y);
         int maxZ = Mathf.Max(0, _extrudeCellOffset.y);
 
-        HashSet<Vector2Int> neededCells = new HashSet<Vector2Int>();
+        _neededExtrudeCells.Clear();
         for (int x = minX; x <= maxX; x++)
         {
             for (int z = minZ; z <= maxZ; z++)
@@ -1273,7 +1304,7 @@ public class RayCastScriptTest : MonoBehaviour
                     continue;
                 }
 
-                neededCells.Add(cell);
+                _neededExtrudeCells.Add(cell);
                 Vector3 cellPosition = GetExtrudeCellWorldPosition(x, z);
                 if (_extrudeGhostByCell.TryGetValue(cell, out GameObject ghost))
                 {
@@ -1293,10 +1324,10 @@ public class RayCastScriptTest : MonoBehaviour
             }
         }
 
-        List<Vector2Int> cellsToRemove = new List<Vector2Int>();
+        _extrudeCellsToRemove.Clear();
         foreach (KeyValuePair<Vector2Int, GameObject> pair in _extrudeGhostByCell)
         {
-            if (!neededCells.Contains(pair.Key))
+            if (!_neededExtrudeCells.Contains(pair.Key))
             {
                 if (pair.Value != null)
                 {
@@ -1304,13 +1335,13 @@ public class RayCastScriptTest : MonoBehaviour
                     Destroy(pair.Value);
                 }
 
-                cellsToRemove.Add(pair.Key);
+                _extrudeCellsToRemove.Add(pair.Key);
             }
         }
 
-        for (int i = 0; i < cellsToRemove.Count; i++)
+        for (int i = 0; i < _extrudeCellsToRemove.Count; i++)
         {
-            _extrudeGhostByCell.Remove(cellsToRemove[i]);
+            _extrudeGhostByCell.Remove(_extrudeCellsToRemove[i]);
         }
     }
 
@@ -1335,6 +1366,10 @@ public class RayCastScriptTest : MonoBehaviour
     // Handle Clear Extrude Ghosts.
     private void ClearExtrudeGhosts()
     {
+        _neededExtrudeCells.Clear();
+        _extrudeCellsToRemove.Clear();
+        _hasExtrudeGhostLayout = false;
+
         if (_extrudeGhostByCell.Count == 0)
         {
             return;
@@ -1362,22 +1397,22 @@ public class RayCastScriptTest : MonoBehaviour
         switch (type)
         {
             case BuildType.Wall:
-                AddActiveTransforms(FindObjectsByType<WallSnapPoints>(FindObjectsSortMode.None), transforms);
+                AddActiveTransforms(WallSnapPoints.Instances, transforms);
                 break;
             case BuildType.Floor:
-                AddActiveTransforms(FindObjectsByType<FloorScript>(FindObjectsSortMode.None), transforms);
+                AddActiveTransforms(FloorScript.Instances, transforms);
                 break;
             case BuildType.Stair:
-                AddActiveTransforms(FindObjectsByType<StairScript>(FindObjectsSortMode.None), transforms);
+                AddActiveTransforms(StairScript.Instances, transforms);
                 break;
         }
 
         return transforms;
     }
 
-    private void AddActiveTransforms<T>(T[] components, List<Transform> destination) where T : Component
+    private void AddActiveTransforms<T>(IReadOnlyList<T> components, List<Transform> destination) where T : Component
     {
-        for (int i = 0; i < components.Length; i++)
+        for (int i = 0; i < components.Count; i++)
         {
             T component = components[i];
             if (component == null || component.gameObject == _previewObject || !component.gameObject.activeInHierarchy)
@@ -1475,8 +1510,8 @@ public class RayCastScriptTest : MonoBehaviour
     {
         floorReference = null;
 
-        FloorScript[] floors = FindObjectsByType<FloorScript>(FindObjectsSortMode.None);
-        if (floors.Length == 0)
+        IReadOnlyList<FloorScript> floors = FloorScript.Instances;
+        if (floors.Count == 0)
         {
             floorReference = floor;
             return floorReference != null;
@@ -1484,7 +1519,7 @@ public class RayCastScriptTest : MonoBehaviour
 
         float bestDistanceSqr = float.MaxValue;
         Vector3 from = _extrudeStartPosition;
-        for (int i = 0; i < floors.Length; i++)
+        for (int i = 0; i < floors.Count; i++)
         {
             FloorScript floorScript = floors[i];
             if (floorScript == null || !floorScript.gameObject.activeInHierarchy || floorScript.gameObject == _previewObject)
@@ -1655,11 +1690,14 @@ public class RayCastScriptTest : MonoBehaviour
         if (!TryGetClosestTwoPairsOnSameObject(
             out PairCandidate pairA,
             out PairCandidate pairB,
+            out PairCandidate fallbackPair,
+            out bool foundFallbackPair,
             out int scannedTargets,
             out int validTargets,
             out int totalCandidates))
         {
             LogDetectionState($"No valid 2-point pairs. ScannedTargets={scannedTargets}, ValidTargets={validTargets}, Candidates={totalCandidates}");
+            TryApplySinglePointSnapFallback(fallbackPair, foundFallbackPair, rawRotation);
             return;
         }
 
@@ -1667,6 +1705,7 @@ public class RayCastScriptTest : MonoBehaviour
 
         if (pairA.distance > snapEngageDistance || pairB.distance > snapEngageDistance)
         {
+            TryApplySinglePointSnapFallback(fallbackPair, foundFallbackPair, rawRotation);
             return;
         }
 
@@ -1692,6 +1731,37 @@ public class RayCastScriptTest : MonoBehaviour
         }
     }
 
+    private bool TryApplySinglePointSnapFallback(PairCandidate pair, bool foundPair, Quaternion rawRotation)
+    {
+        if (!enableStairSinglePointSnapFallback || _buildType != BuildType.Stair || !foundPair || pair.preview == null || pair.target == null)
+        {
+            return false;
+        }
+
+        float engageDistance = stairSinglePointSnapEngageDistance > MinTolerance
+            ? stairSinglePointSnapEngageDistance
+            : snapEngageDistance;
+        if (pair.distance > engageDistance)
+        {
+            return false;
+        }
+
+        Vector3 previewOffset = GetScaledLocalPoint(pair.preview);
+        Vector3 snappedPosition = pair.target.transform.position - (rawRotation * previewOffset);
+        snappedPosition.y += snapYOffset;
+        _previewObject.transform.SetPositionAndRotation(snappedPosition, rawRotation);
+
+        DrawAndLogDistances(
+            pair.previewWorld,
+            pair.targetWorld,
+            pair.previewWorld,
+            pair.targetWorld,
+            pair.distance,
+            pair.distance,
+            "Closest pair(single-snap)");
+        return true;
+    }
+
     private void GetRawLockedPairDistances(
         Vector3 rawPosition,
         Quaternion rawRotation,
@@ -1708,19 +1778,23 @@ public class RayCastScriptTest : MonoBehaviour
 
         Vector3 rawWorldA = rawPosition + (rawRotation * _lockedPreviewOffsetA);
         Vector3 rawWorldB = rawPosition + (rawRotation * _lockedPreviewOffsetB);
-        rawDistanceA = Vector3.Distance(rawWorldA, _lockedTargetA.transform.position);
-        rawDistanceB = Vector3.Distance(rawWorldB, _lockedTargetB.transform.position);
+        rawDistanceA = GetSnapPointDistance(rawWorldA, _lockedTargetA.transform.position);
+        rawDistanceB = GetSnapPointDistance(rawWorldB, _lockedTargetB.transform.position);
     }
 
     private bool TryGetClosestTwoPairsOnSameObject(
         out PairCandidate bestA,
         out PairCandidate bestB,
+        out PairCandidate bestSingle,
+        out bool foundSingle,
         out int scannedTargets,
         out int validTargets,
         out int totalCandidates)
     {
         bestA = default;
         bestB = default;
+        bestSingle = default;
+        foundSingle = false;
         scannedTargets = 0;
         validTargets = 0;
         totalCandidates = 0;
@@ -1733,6 +1807,7 @@ public class RayCastScriptTest : MonoBehaviour
 
         bool found = false;
         float bestScore = float.MaxValue;
+        float bestSingleScore = float.MaxValue;
 
         Vector3 searchCenter = _previewObject != null ? _previewObject.transform.position : transform.position;
         RefreshSnapTargetCacheIfNeeded(searchCenter);
@@ -1746,8 +1821,11 @@ public class RayCastScriptTest : MonoBehaviour
                 previewSnapPoints,
                 ref bestA,
                 ref bestB,
+                ref bestSingle,
                 ref found,
+                ref foundSingle,
                 ref bestScore,
+                ref bestSingleScore,
                 ref scannedTargets,
                 ref validTargets,
                 ref totalCandidates);
@@ -1762,8 +1840,11 @@ public class RayCastScriptTest : MonoBehaviour
                 previewSnapPoints,
                 ref bestA,
                 ref bestB,
+                ref bestSingle,
                 ref found,
+                ref foundSingle,
                 ref bestScore,
+                ref bestSingleScore,
                 ref scannedTargets,
                 ref validTargets,
                 ref totalCandidates);
@@ -1778,8 +1859,11 @@ public class RayCastScriptTest : MonoBehaviour
                 previewSnapPoints,
                 ref bestA,
                 ref bestB,
+                ref bestSingle,
                 ref found,
+                ref foundSingle,
                 ref bestScore,
+                ref bestSingleScore,
                 ref scannedTargets,
                 ref validTargets,
                 ref totalCandidates);
@@ -1804,9 +1888,9 @@ public class RayCastScriptTest : MonoBehaviour
         _cachedFloorSnapTargets.Clear();
         _cachedStairSnapTargets.Clear();
 
-        CollectSnapTargets(FindObjectsByType<WallSnapPoints>(FindObjectsSortMode.None), _cachedWallSnapTargets, searchCenter, radius);
-        CollectSnapTargets(FindObjectsByType<FloorScript>(FindObjectsSortMode.None), _cachedFloorSnapTargets, searchCenter, radius);
-        CollectSnapTargets(FindObjectsByType<StairScript>(FindObjectsSortMode.None), _cachedStairSnapTargets, searchCenter, radius);
+        CollectSnapTargets(WallSnapPoints.Instances, _cachedWallSnapTargets, searchCenter, radius);
+        CollectSnapTargets(FloorScript.Instances, _cachedFloorSnapTargets, searchCenter, radius);
+        CollectSnapTargets(StairScript.Instances, _cachedStairSnapTargets, searchCenter, radius);
 
         _lastSnapSearchPosition = searchCenter;
         _nextSnapTargetRefreshTime = Time.unscaledTime + Mathf.Max(0.02f, snapSearchRefreshInterval);
@@ -1826,9 +1910,9 @@ public class RayCastScriptTest : MonoBehaviour
         }
 
         _cachedFloorHeightSnapPoints.Clear();
-        SnapPoint[] allSnapPoints = FindObjectsByType<SnapPoint>(FindObjectsSortMode.None);
+        IReadOnlyList<SnapPoint> allSnapPoints = SnapPoint.Instances;
         float radiusSqr = radius * radius;
-        for (int i = 0; i < allSnapPoints.Length; i++)
+        for (int i = 0; i < allSnapPoints.Count; i++)
         {
             SnapPoint snapPoint = allSnapPoints[i];
             if (snapPoint == null || !snapPoint.gameObject.activeInHierarchy)
@@ -1854,10 +1938,10 @@ public class RayCastScriptTest : MonoBehaviour
         _hasFloorHeightSnapPointCache = true;
     }
 
-    private void CollectSnapTargets<T>(T[] components, List<T> destination, Vector3 searchCenter, float radius) where T : Component
+    private void CollectSnapTargets<T>(IReadOnlyList<T> components, List<T> destination, Vector3 searchCenter, float radius) where T : Component
     {
         float radiusSqr = radius * radius;
-        for (int i = 0; i < components.Length; i++)
+        for (int i = 0; i < components.Count; i++)
         {
             T component = components[i];
             if (component == null || component.gameObject == _previewObject || !component.gameObject.activeInHierarchy)
@@ -1893,6 +1977,61 @@ public class RayCastScriptTest : MonoBehaviour
         _hasFloorHeightSnapPointCache = false;
         _nextSnapTargetRefreshTime = 0f;
         _nextFloorHeightSnapRefreshTime = 0f;
+        _snapMarkerColliderCache.Clear();
+        _snapOwnerByCollider.Clear();
+    }
+
+    private BuildPieceKind GetActiveBuildPieceKind()
+    {
+        return ToBuildPieceKind(_buildType);
+    }
+
+    private static BuildPieceKind ToBuildPieceKind(BuildType type)
+    {
+        switch (type)
+        {
+            case BuildType.Floor:
+                return BuildPieceKind.Floor;
+            case BuildType.Stair:
+                return BuildPieceKind.Stair;
+            default:
+                return BuildPieceKind.Wall;
+        }
+    }
+
+    private float GetSnapPointDistance(Vector3 from, Vector3 to)
+    {
+        float dx = to.x - from.x;
+        float dz = to.z - from.z;
+        float dy = (to.y - from.y) * Mathf.Clamp01(snapVerticalDistanceWeight);
+        return Mathf.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
+    }
+
+    private float GetSnapPairLength(Vector3 a, Vector3 b)
+    {
+        if (compareSnapPairLengthInXZ)
+        {
+            float horizontalLength = GetHorizontalDistance(a, b);
+            if (horizontalLength > MinSize)
+            {
+                return horizontalLength;
+            }
+        }
+
+        return Vector3.Distance(a, b);
+    }
+
+    private float GetPairLengthTolerance(float previewPairLength, float targetPairLength)
+    {
+        float ratioTolerance = Mathf.Min(previewPairLength, targetPairLength) * Mathf.Max(0f, pairLengthToleranceRatio);
+        return Mathf.Max(Mathf.Max(MinTolerance, pairLengthTolerance), ratioTolerance);
+    }
+
+    private static float GetHorizontalDistance(Vector3 a, Vector3 b)
+    {
+        float dx = b.x - a.x;
+        float dz = b.z - a.z;
+        return Mathf.Sqrt((dx * dx) + (dz * dz));
     }
 
     private void EvaluateTargetPairs(
@@ -1901,8 +2040,11 @@ public class RayCastScriptTest : MonoBehaviour
         SnapPoint[] previewSnapPoints,
         ref PairCandidate bestA,
         ref PairCandidate bestB,
+        ref PairCandidate bestSingle,
         ref bool found,
+        ref bool foundSingle,
         ref float bestScore,
+        ref float bestSingleScore,
         ref int scannedTargets,
         ref int validTargets,
         ref int totalCandidates)
@@ -1913,7 +2055,7 @@ public class RayCastScriptTest : MonoBehaviour
         }
 
         scannedTargets++;
-        if (targetSnapPoints == null || targetSnapPoints.Length < 2)
+        if (targetSnapPoints == null || targetSnapPoints.Length == 0)
         {
             return;
         }
@@ -1944,8 +2086,16 @@ public class RayCastScriptTest : MonoBehaviour
                     target = targetPoint,
                     previewWorld = previewWorld,
                     targetWorld = targetPoint.transform.position,
-                    distance = Vector3.Distance(previewWorld, targetPoint.transform.position)
+                    distance = GetSnapPointDistance(previewWorld, targetPoint.transform.position)
                 };
+
+                if (candidate.distance < bestSingleScore)
+                {
+                    bestSingleScore = candidate.distance;
+                    bestSingle = candidate;
+                    foundSingle = true;
+                }
+
                 _candidates.Add(candidate);
             }
         }
@@ -1967,14 +2117,15 @@ public class RayCastScriptTest : MonoBehaviour
                     continue;
                 }
 
-                float previewPairLength = Vector3.Distance(candidateA.previewWorld, candidateB.previewWorld);
-                float targetPairLength = Vector3.Distance(candidateA.targetWorld, candidateB.targetWorld);
-                if (Mathf.Abs(previewPairLength - targetPairLength) > pairLengthTolerance)
+                float previewPairLength = GetSnapPairLength(candidateA.previewWorld, candidateB.previewWorld);
+                float targetPairLength = GetSnapPairLength(candidateA.targetWorld, candidateB.targetWorld);
+                float lengthTolerance = GetPairLengthTolerance(previewPairLength, targetPairLength);
+                if (Mathf.Abs(previewPairLength - targetPairLength) > lengthTolerance)
                 {
                     continue;
                 }
 
-                float score = candidateA.distance + candidateB.distance;
+                float score = candidateA.distance + candidateB.distance + Mathf.Abs(previewPairLength - targetPairLength);
                 if (score >= bestScore)
                 {
                     continue;
@@ -2014,6 +2165,11 @@ public class RayCastScriptTest : MonoBehaviour
             Vector3 previewVector = _lockedPreviewOffsetB - _lockedPreviewOffsetA;
             Vector3 previewVectorWorld = rawRotation * previewVector;
             Vector3 targetVector = targetWorldB - targetWorldA;
+            if (constrainSnappedRotationToYaw)
+            {
+                previewVectorWorld = Vector3.ProjectOnPlane(previewVectorWorld, Vector3.up);
+                targetVector = Vector3.ProjectOnPlane(targetVector, Vector3.up);
+            }
 
             if (previewVectorWorld.sqrMagnitude > TinyValue && targetVector.sqrMagnitude > TinyValue)
             {
@@ -2030,8 +2186,8 @@ public class RayCastScriptTest : MonoBehaviour
 
         Vector3 solvedA = position + rotatedOffsetA;
         Vector3 solvedB = position + rotatedOffsetB;
-        distanceA = Vector3.Distance(solvedA, targetWorldA);
-        distanceB = Vector3.Distance(solvedB, targetWorldB);
+        distanceA = GetSnapPointDistance(solvedA, targetWorldA);
+        distanceB = GetSnapPointDistance(solvedB, targetWorldB);
         return true;
     }
 
@@ -2159,6 +2315,25 @@ public class RayCastScriptTest : MonoBehaviour
     }
 
     // Handle Try Get Snap Owner From Collider.
+    private bool TryGetSnapOwnerFromColliderCached(Collider hitCollider, out GameObject owner)
+    {
+        owner = null;
+        if (hitCollider == null)
+        {
+            return false;
+        }
+
+        if (_snapOwnerByCollider.TryGetValue(hitCollider, out GameObject cachedOwner))
+        {
+            owner = cachedOwner;
+            return owner != null;
+        }
+
+        bool found = TryGetSnapOwnerFromCollider(hitCollider, out owner);
+        _snapOwnerByCollider[hitCollider] = found ? owner : null;
+        return found;
+    }
+
     private static bool TryGetSnapOwnerFromCollider(Collider hitCollider, out GameObject owner)
     {
         owner = null;
@@ -2189,6 +2364,23 @@ public class RayCastScriptTest : MonoBehaviour
         }
 
         return false;
+    }
+
+    private bool IsSnapMarkerCollider(Collider collider)
+    {
+        if (collider == null)
+        {
+            return false;
+        }
+
+        if (_snapMarkerColliderCache.TryGetValue(collider, out bool cached))
+        {
+            return cached;
+        }
+
+        bool isSnapMarker = IsSnapMarkerTransform(collider.transform);
+        _snapMarkerColliderCache[collider] = isSnapMarker;
+        return isSnapMarker;
     }
 
     // Handle Get Top Y.
@@ -2290,6 +2482,15 @@ public class RayCastScriptTest : MonoBehaviour
     // Handle Set Preview Mode.
     private static void SetPreviewMode(GameObject target, bool isPreview)
     {
+        if (isPreview && target.GetComponent<BuildPreviewMarker>() == null)
+        {
+            target.AddComponent<BuildPreviewMarker>();
+        }
+        else if (!isPreview && target.TryGetComponent(out BuildPreviewMarker previewMarker))
+        {
+            UnityEngine.Object.Destroy(previewMarker);
+        }
+
         Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
         for (int i = 0; i < colliders.Length; i++)
         {

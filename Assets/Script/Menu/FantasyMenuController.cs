@@ -178,6 +178,7 @@ public sealed class FantasyMenuController : MonoBehaviour
     private RectTransform settingsFooterRow;
     private bool gameplaySettingsOpen;
     private bool isLoadingScene;
+    private bool loadSavedGameAfterSceneLoad;
     private float loadingStartedAt;
     private string loadingBaseMessage = "Loading";
 
@@ -274,7 +275,7 @@ public sealed class FantasyMenuController : MonoBehaviour
 
         BindButton(settingsBackButton, ShowMain);
         BindButton(settingsApplyButton, ApplySettings);
-        BindButton(settingsSaveButton, ApplySettings);
+        BindButton(settingsSaveButton, SaveCurrentGameFromSettings);
         BindButton(settingsExitGameButton, QuitGame);
 
         BindButton(displayTabButton, () => ShowTab(SettingsTab.Display));
@@ -1671,12 +1672,12 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private bool TryLoadSavedScene(string loadingMessage)
     {
-        string savedScene = PlayerPrefs.GetString("onemorenight.save.scene", string.Empty);
-        if (string.IsNullOrWhiteSpace(savedScene))
+        if (!GameSaveManager.TryGetSavedSceneName(out string savedScene))
         {
             return false;
         }
 
+        loadSavedGameAfterSceneLoad = true;
         LoadSceneByName(savedScene, loadingMessage);
         return true;
     }
@@ -1685,10 +1686,29 @@ public sealed class FantasyMenuController : MonoBehaviour
     {
         if (newGame)
         {
-            PlayerPrefs.DeleteKey("onemorenight.save.scene");
+            GameSaveManager.DeleteSave();
+            loadSavedGameAfterSceneLoad = false;
         }
 
         LoadSceneByName(gameplaySceneName, newGame ? "Starting new game..." : "Loading game...");
+    }
+
+    private void SaveCurrentGameFromSettings()
+    {
+        ApplySettings();
+        if (!IsInGameplayScene())
+        {
+            SetSettingsStatus("Save is only available in game.");
+            return;
+        }
+
+        if (GameSaveManager.SaveCurrentGame(out string message))
+        {
+            SetSettingsStatus(message);
+            return;
+        }
+
+        SetSettingsStatus(message);
     }
 
     private void LoadSceneByName(string sceneName, string loadingMessage)
@@ -1764,6 +1784,18 @@ public sealed class FantasyMenuController : MonoBehaviour
 
         yield return WarmupLoadedScene(loadedScene);
 
+        if (loadSavedGameAfterSceneLoad)
+        {
+            SetLoadingStage("Restoring save");
+            SetLoadingProgress(0.995f);
+            loadSavedGameAfterSceneLoad = false;
+            if (!GameSaveManager.LoadSavedGameIntoActiveScene(out string saveMessage))
+            {
+                SetStatus(saveMessage);
+            }
+            yield return null;
+        }
+
         SetLoadingProgress(1f);
         isLoadingScene = false;
         HideLoadingScreen();
@@ -1811,7 +1843,7 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private static void TouchSceneRenderers(Scene scene)
     {
-        Renderer[] renderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Renderer[] renderers = UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsInactive.Include);
         for (int i = 0; i < renderers.Length; i++)
         {
             Renderer renderer = renderers[i];
