@@ -8,6 +8,7 @@ public class FloorScript : MonoBehaviour
     private static readonly List<FloorScript> InstancesInternal = new List<FloorScript>(128);
 
     public static IReadOnlyList<FloorScript> Instances => InstancesInternal;
+    public static int Version { get; private set; }
 
     public SnapPoint[] snapPoints = new SnapPoint[4];
 
@@ -16,12 +17,16 @@ public class FloorScript : MonoBehaviour
         if (!InstancesInternal.Contains(this))
         {
             InstancesInternal.Add(this);
+            Version++;
         }
     }
 
     private void OnDisable()
     {
-        InstancesInternal.Remove(this);
+        if (InstancesInternal.Remove(this))
+        {
+            Version++;
+        }
     }
 
     // Run in the editor when values change in Inspector.
