@@ -15,7 +15,6 @@ public class XPHandler : MonoBehaviour
     private XPLevelTableLoader xpLevelTableLoader;
     private Graphic[] cachedGraphics;
     private InventoryManager inventoryManager;
-    private InventoryController inventoryController;
     private bool hasVisibilityState;
     private bool currentVisibilityState;
 
@@ -38,7 +37,6 @@ public class XPHandler : MonoBehaviour
         SetVisible(ResolveInventoryVisibility());
     }
 
-    // Handle Add XP.
     public void AddXP(int count)
     {
         if (count <= 0)
@@ -56,7 +54,6 @@ public class XPHandler : MonoBehaviour
         RefreshUI();
     }
 
-    // Handle Refresh UI.
     public void RefreshUI()
     {
         CacheDependencies();
@@ -88,21 +85,18 @@ public class XPHandler : MonoBehaviour
         }
     }
 
-    // Handle Get Current Level.
     public int GetCurrentLevel()
     {
         CacheDependencies();
         return playerXPState != null ? playerXPState.CurrentLevel : 1;
     }
 
-    // Handle Get Current XP.
     public int GetCurrentXP()
     {
         CacheDependencies();
         return playerXPState != null ? playerXPState.CurrentXP : 0;
     }
 
-    // Handle Get Max XP For Current Level.
     public int GetCurrentLevelMaxXP()
     {
         CacheDependencies();
@@ -111,7 +105,6 @@ public class XPHandler : MonoBehaviour
             : 100;
     }
 
-    // Handle Cache Dependencies.
     private void CacheDependencies()
     {
         if (playerXPState == null)
@@ -127,23 +120,14 @@ public class XPHandler : MonoBehaviour
         if (inventoryManager == null)
         {
 #if UNITY_2023_1_OR_NEWER
-            inventoryManager = FindFirstObjectByType<InventoryManager>(FindObjectsInactive.Include);
+            inventoryManager = FindAnyObjectByType<InventoryManager>(FindObjectsInactive.Include);
 #else
             inventoryManager = FindObjectOfType<InventoryManager>(true);
 #endif
         }
 
-        if (inventoryController == null)
-        {
-#if UNITY_2023_1_OR_NEWER
-            inventoryController = FindFirstObjectByType<InventoryController>(FindObjectsInactive.Include);
-#else
-            inventoryController = FindObjectOfType<InventoryController>(true);
-#endif
-        }
     }
 
-    // Handle Cache Graphics.
     private void CacheGraphics()
     {
         if (cachedGraphics == null || cachedGraphics.Length == 0)
@@ -152,7 +136,6 @@ public class XPHandler : MonoBehaviour
         }
     }
 
-    // Handle Ensure Ready.
     private bool EnsureReady()
     {
         if (playerXPState == null || xpLevelTableLoader == null)
@@ -166,7 +149,6 @@ public class XPHandler : MonoBehaviour
         return true;
     }
 
-    // Handle Set Visible.
     public void SetVisible(bool visible)
     {
         if (hasVisibilityState && currentVisibilityState == visible)
@@ -196,7 +178,6 @@ public class XPHandler : MonoBehaviour
         hasVisibilityState = true;
     }
 
-    // Handle Resolve Inventory Visibility.
     private bool ResolveInventoryVisibility()
     {
         CacheDependencies();
@@ -210,15 +191,9 @@ public class XPHandler : MonoBehaviour
             foundSource = true;
         }
 
-        if (inventoryController != null)
-        {
-            visible |= inventoryController.UIshown;
-            foundSource = true;
-        }
-
         if (!foundSource)
         {
-            visible = InventoryManager.IsInventoryOpen || InventoryController.IsInventoryOpen;
+            visible = InventoryManager.IsInventoryOpen;
         }
 
         return visible;

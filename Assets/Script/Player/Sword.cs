@@ -15,25 +15,21 @@ public class Sword : MonoBehaviour
         animationSpeed = Mathf.Max(0.01f, animationSpeed);
     }
 
-    // Handle Get Resolved Damage.
     public float GetResolvedDamage()
     {
         return Mathf.Max(0f, damage);
     }
 
-    // Handle Get Resolved Speed.
     public float GetResolvedSpeed()
     {
         return speed > 0f ? speed : 1f;
     }
 
-    // Handle Get Resolved Animation Speed.
     public float GetResolvedAnimationSpeed()
     {
         return animationSpeed > 0f ? animationSpeed : 1f;
     }
 
-    // Handle Try Resolve.
     public static bool TryResolve(Item item, out Sword sword)
     {
         sword = null;

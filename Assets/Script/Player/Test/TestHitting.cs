@@ -85,7 +85,6 @@ public class TestHitting : MonoBehaviour
     private GameObject _hitStrokeObject;
     private LineRenderer _hitStrokeRenderer;
     private Material _hitStrokeMaterial;
-    private bool _hitStrokeActive;
     private float _lastHitStrokeContactTime = float.NegativeInfinity;
     private readonly List<float> _hitStrokePointTimes = new List<float>();
     private bool _hasSmoothedFocusPoint;
@@ -162,7 +161,7 @@ public class TestHitting : MonoBehaviour
     public static TestHitting FindPracticeTemplate()
     {
 #if UNITY_2023_1_OR_NEWER
-        TestHitting[] hitTargets = FindObjectsByType<TestHitting>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        TestHitting[] hitTargets = FindObjectsByType<TestHitting>(FindObjectsInactive.Include);
 #else
         TestHitting[] hitTargets = FindObjectsOfType<TestHitting>(true);
 #endif
@@ -839,7 +838,6 @@ public class TestHitting : MonoBehaviour
         }
 
         _lastHitStrokeContactTime = now;
-        _hitStrokeActive = true;
 
         Vector3 strokePoint = ComputeHitStrokePoint(worldHitPoint);
         float minSpacing = Mathf.Max(0.001f, hitStrokePointSpacing);
@@ -898,7 +896,6 @@ public class TestHitting : MonoBehaviour
                 _hitStrokeRenderer.enabled = false;
             }
 
-            _hitStrokeActive = false;
             return;
         }
 
@@ -1001,7 +998,6 @@ public class TestHitting : MonoBehaviour
 
     private void ResetHitStroke(bool clearPoints)
     {
-        _hitStrokeActive = false;
         if (clearPoints)
         {
             _hitStrokePoints.Clear();
@@ -1294,8 +1290,7 @@ public class TestHitting : MonoBehaviour
 
 #if UNITY_2023_1_OR_NEWER
         Sword[] swords = FindObjectsByType<Sword>(
-            includeInactiveSwordObjects ? FindObjectsInactive.Include : FindObjectsInactive.Exclude,
-            FindObjectsSortMode.None);
+            includeInactiveSwordObjects ? FindObjectsInactive.Include : FindObjectsInactive.Exclude);
 #else
         Sword[] swords = FindObjectsOfType<Sword>(includeInactiveSwordObjects);
 #endif
@@ -1329,12 +1324,10 @@ public class TestHitting : MonoBehaviour
         if (useNameFallback && _swordColliders.Count == 0 && _swordRenderers.Count == 0)
         {
 #if UNITY_2023_1_OR_NEWER
-            Collider[] allColliders = FindObjectsByType<Collider>(
-                includeInactiveSwordObjects ? FindObjectsInactive.Include : FindObjectsInactive.Exclude,
-                FindObjectsSortMode.None);
-            Renderer[] allRenderers = FindObjectsByType<Renderer>(
-                includeInactiveSwordObjects ? FindObjectsInactive.Include : FindObjectsInactive.Exclude,
-                FindObjectsSortMode.None);
+        Collider[] allColliders = FindObjectsByType<Collider>(
+                includeInactiveSwordObjects ? FindObjectsInactive.Include : FindObjectsInactive.Exclude);
+        Renderer[] allRenderers = FindObjectsByType<Renderer>(
+                includeInactiveSwordObjects ? FindObjectsInactive.Include : FindObjectsInactive.Exclude);
 #else
             Collider[] allColliders = FindObjectsOfType<Collider>(includeInactiveSwordObjects);
             Renderer[] allRenderers = FindObjectsOfType<Renderer>(includeInactiveSwordObjects);
@@ -1385,7 +1378,7 @@ public class TestHitting : MonoBehaviour
         _knownActionScripts.Clear();
 
 #if UNITY_2023_1_OR_NEWER
-        ActionScript[] actions = FindObjectsByType<ActionScript>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        ActionScript[] actions = FindObjectsByType<ActionScript>(FindObjectsInactive.Exclude);
 #else
         ActionScript[] actions = FindObjectsOfType<ActionScript>(false);
 #endif

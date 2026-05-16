@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -32,7 +32,6 @@ public static class GameSaveManager
 
     public static bool SaveCurrentGame(out string message)
     {
-        message = string.Empty;
         Scene activeScene = SceneManager.GetActiveScene();
         if (!activeScene.IsValid() || string.IsNullOrWhiteSpace(activeScene.name))
         {
@@ -46,7 +45,6 @@ public static class GameSaveManager
             sceneName = activeScene.name,
             savedAtUtc = DateTime.UtcNow.ToString("O"),
             player = CapturePlayer(),
-            buildings = CaptureRuntimeBuildings(),
             inventory = CaptureInventory()
         };
 
@@ -61,7 +59,7 @@ public static class GameSaveManager
             File.WriteAllText(SavePath, JsonUtility.ToJson(data, true));
             PlayerPrefs.SetString(SavedScenePlayerPrefsKey, data.sceneName);
             PlayerPrefs.Save();
-            message = $"Game saved. Buildings: {data.buildings.Count}, inventory slots: {data.inventory.Count}.";
+            message = $"Game saved. Inventory slots: {data.inventory.Count}.";
             return true;
         }
         catch (Exception exception)
@@ -86,9 +84,8 @@ public static class GameSaveManager
         }
 
         RestorePlayer(data.player);
-        int restoredBuildings = RestoreRuntimeBuildings(data.buildings);
         int restoredInventorySlots = RestoreInventory(data.inventory);
-        message = $"Loaded save. Buildings: {restoredBuildings}, inventory slots: {restoredInventorySlots}.";
+        message = $"Loaded save. Inventory slots: {restoredInventorySlots}.";
         return true;
     }
 
@@ -122,11 +119,6 @@ public static class GameSaveManager
                 return false;
             }
 
-            if (data.buildings == null)
-            {
-                data.buildings = new List<BuildingSaveData>();
-            }
-
             if (data.inventory == null)
             {
                 data.inventory = new List<InventorySlotSaveData>();
@@ -143,7 +135,7 @@ public static class GameSaveManager
 
     private static PlayerSaveData CapturePlayer()
     {
-        Transform playerTransform = TryGetActivePlayerTransform(out LookingController lookingController);
+        Transform playerTransform = TryGetActivePlayerTransform();
         if (playerTransform == null)
         {
             return new PlayerSaveData { valid = false };
@@ -152,26 +144,22 @@ public static class GameSaveManager
         return new PlayerSaveData
         {
             valid = true,
-            buildMode = lookingController != null && lookingController.switched,
             position = playerTransform.position,
             rotation = playerTransform.rotation
         };
     }
 
-    private static Transform TryGetActivePlayerTransform(out LookingController lookingController)
+    private static Transform TryGetActivePlayerTransform()
     {
-        lookingController = FindLookingController();
+        LookingController lookingController = FindLookingController();
         if (lookingController != null)
         {
-            if (lookingController.buildingcapsule != null && lookingController.buildingcapsule.activeInHierarchy)
-            {
-                return lookingController.buildingcapsule.transform;
-            }
-
             if (lookingController.normalcapsule != null)
             {
                 return lookingController.normalcapsule.transform;
             }
+
+            return lookingController.transform;
         }
 
         GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
@@ -188,48 +176,16 @@ public static class GameSaveManager
         LookingController lookingController = FindLookingController();
         if (lookingController != null)
         {
-            SetGameObjectTransform(lookingController.normalcapsule, player.position, player.rotation);
-            SetGameObjectTransform(lookingController.buildingcapsule, player.position, player.rotation);
-
-            if (player.buildMode)
-            {
-                lookingController.SwitchToBuildingMode();
-            }
-            else
-            {
-                lookingController.SwitchToNormalMode();
-            }
-
+            GameObject playerObject = lookingController.normalcapsule != null
+                ? lookingController.normalcapsule
+                : lookingController.gameObject;
+            SetGameObjectTransform(playerObject, player.position, player.rotation);
+            lookingController.SwitchToNormalMode();
             return;
         }
 
         GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
         SetGameObjectTransform(taggedPlayer, player.position, player.rotation);
-    }
-
-    private static List<BuildingSaveData> CaptureRuntimeBuildings()
-    {
-        List<BuildingSaveData> buildings = new List<BuildingSaveData>();
-        IReadOnlyList<RuntimeBuildPiece> pieces = RuntimeBuildPiece.Instances;
-        for (int i = 0; i < pieces.Count; i++)
-        {
-            RuntimeBuildPiece piece = pieces[i];
-            if (piece == null || !piece.gameObject.activeInHierarchy || piece.GetComponentInParent<BuildPreviewMarker>() != null)
-            {
-                continue;
-            }
-
-            Transform pieceTransform = piece.transform;
-            buildings.Add(new BuildingSaveData
-            {
-                kind = piece.kind,
-                position = pieceTransform.position,
-                rotation = pieceTransform.rotation,
-                localScale = pieceTransform.localScale
-            });
-        }
-
-        return buildings;
     }
 
     private static List<InventorySlotSaveData> CaptureInventory()
@@ -250,44 +206,15 @@ public static class GameSaveManager
                 continue;
             }
 
-            string itemName = !string.IsNullOrWhiteSpace(slot.Item.nameofitem) ? slot.Item.nameofitem : slot.Item.name;
             inventory.Add(new InventorySlotSaveData
             {
                 slotId = slot.id,
-                itemName = itemName,
+                itemName = GetItemName(slot.Item),
                 count = slot.count
             });
         }
 
         return inventory;
-    }
-
-    private static int RestoreRuntimeBuildings(List<BuildingSaveData> buildings)
-    {
-        ClearRuntimeBuildings();
-        if (buildings == null || buildings.Count == 0)
-        {
-            return 0;
-        }
-
-        RayCastScriptTest builder = FindBuilder();
-        int restored = 0;
-        for (int i = 0; i < buildings.Count; i++)
-        {
-            BuildingSaveData building = buildings[i];
-            GameObject prefab = ResolveBuildPrefab(builder, building.kind);
-            if (prefab == null)
-            {
-                continue;
-            }
-
-            GameObject created = UnityEngine.Object.Instantiate(prefab, building.position, building.rotation);
-            created.transform.localScale = building.localScale;
-            RuntimeBuildPiece.Mark(created, building.kind);
-            restored++;
-        }
-
-        return restored;
     }
 
     private static int RestoreInventory(List<InventorySlotSaveData> inventory)
@@ -332,50 +259,6 @@ public static class GameSaveManager
         return restored;
     }
 
-    private static void ClearRuntimeBuildings()
-    {
-        List<RuntimeBuildPiece> piecesToDestroy = new List<RuntimeBuildPiece>(RuntimeBuildPiece.Instances.Count);
-        IReadOnlyList<RuntimeBuildPiece> pieces = RuntimeBuildPiece.Instances;
-        for (int i = 0; i < pieces.Count; i++)
-        {
-            RuntimeBuildPiece piece = pieces[i];
-            if (piece != null && piece.GetComponentInParent<BuildPreviewMarker>() == null)
-            {
-                piecesToDestroy.Add(piece);
-            }
-        }
-
-        for (int i = 0; i < piecesToDestroy.Count; i++)
-        {
-            RuntimeBuildPiece piece = piecesToDestroy[i];
-            if (piece != null)
-            {
-                piece.gameObject.SetActive(false);
-                UnityEngine.Object.Destroy(piece.gameObject);
-            }
-        }
-    }
-
-    private static GameObject ResolveBuildPrefab(RayCastScriptTest builder, BuildPieceKind kind)
-    {
-        if (builder == null)
-        {
-            return null;
-        }
-
-        switch (kind)
-        {
-            case BuildPieceKind.Wall:
-                return builder.wall;
-            case BuildPieceKind.Floor:
-                return builder.floor;
-            case BuildPieceKind.Stair:
-                return builder.stair;
-            default:
-                return null;
-        }
-    }
-
     private static void SetGameObjectTransform(GameObject target, Vector3 position, Quaternion rotation)
     {
         if (target == null)
@@ -413,15 +296,6 @@ public static class GameSaveManager
         return UnityEngine.Object.FindAnyObjectByType<InventoryManager>(FindObjectsInactive.Include);
 #else
         return UnityEngine.Object.FindObjectOfType<InventoryManager>(true);
-#endif
-    }
-
-    private static RayCastScriptTest FindBuilder()
-    {
-#if UNITY_2023_1_OR_NEWER
-        return UnityEngine.Object.FindAnyObjectByType<RayCastScriptTest>(FindObjectsInactive.Include);
-#else
-        return UnityEngine.Object.FindObjectOfType<RayCastScriptTest>(true);
 #endif
     }
 
@@ -471,13 +345,7 @@ public static class GameSaveManager
         for (int i = 0; i < items.Length; i++)
         {
             InventoryItem item = items[i];
-            if (item == null)
-            {
-                continue;
-            }
-
-            if (string.Equals(item.nameofitem, normalizedName, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(item.name, normalizedName, StringComparison.OrdinalIgnoreCase))
+            if (item != null && string.Equals(GetItemName(item), normalizedName, StringComparison.OrdinalIgnoreCase))
             {
                 return item;
             }
@@ -486,13 +354,17 @@ public static class GameSaveManager
         return null;
     }
 
-    private static void ApplyInventorySlot(
-        SlotInsideUI slot,
-        InventoryItem item,
-        string itemName,
-        int count,
-        bool occupied,
-        bool uiShown)
+    private static string GetItemName(InventoryItem item)
+    {
+        if (item == null)
+        {
+            return string.Empty;
+        }
+
+        return !string.IsNullOrWhiteSpace(item.nameofitem) ? item.nameofitem : item.name;
+    }
+
+    private static void ApplyInventorySlot(SlotInsideUI slot, InventoryItem item, string itemName, int count, bool occupied, bool uiShown)
     {
         if (slot == null)
         {
@@ -523,7 +395,6 @@ public static class GameSaveManager
         public string sceneName;
         public string savedAtUtc;
         public PlayerSaveData player;
-        public List<BuildingSaveData> buildings = new List<BuildingSaveData>();
         public List<InventorySlotSaveData> inventory = new List<InventorySlotSaveData>();
     }
 
@@ -531,18 +402,8 @@ public static class GameSaveManager
     private struct PlayerSaveData
     {
         public bool valid;
-        public bool buildMode;
         public Vector3 position;
         public Quaternion rotation;
-    }
-
-    [Serializable]
-    private struct BuildingSaveData
-    {
-        public BuildPieceKind kind;
-        public Vector3 position;
-        public Quaternion rotation;
-        public Vector3 localScale;
     }
 
     [Serializable]

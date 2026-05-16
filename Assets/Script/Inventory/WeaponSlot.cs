@@ -1,9 +1,8 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-// Controls Weapon Slot behavior.
 public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
 {
     public Image Backgroundimage;
@@ -51,36 +50,17 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         }
     }
 
-    // Handle On Drop.
     public void OnDrop(PointerEventData eventData)
     {
-        Slot sourceSlot = ResolveDraggedLegacySlot(eventData);
-        if (sourceSlot == null)
-        {
-            sourceSlot = Slot.CurrentDragSource;
-        }
-
-        if (sourceSlot != null && !sourceSlot.IsEmpty())
-        {
-            TryAssignFromSlot(sourceSlot, true);
-            return;
-        }
-
-        SlotInsideUI remakeSourceSlot = ResolveDraggedRemakeSlot(eventData);
-        if (remakeSourceSlot == null)
-        {
-            remakeSourceSlot = SlotInsideUI.CurrentDragSource;
-        }
-
-        if (remakeSourceSlot == null || !remakeSourceSlot.HasItem())
+        SlotInsideUI sourceSlot = ResolveDraggedRemakeSlot(eventData) ?? SlotInsideUI.CurrentDragSource;
+        if (sourceSlot == null || !sourceSlot.HasItem())
         {
             return;
         }
 
-        TryAssignFromRemakeSlot(remakeSourceSlot, true);
+        TryAssignFromRemakeSlot(sourceSlot, true);
     }
 
-    // Handle On Pointer Click.
     public void OnPointerClick(PointerEventData eventData)
     {
         if (eventData == null)
@@ -91,16 +71,13 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         if (eventData.button == PointerEventData.InputButton.Right)
         {
             ClearEquippedItem();
-            return;
         }
-
-        if (eventData.button == PointerEventData.InputButton.Left)
+        else if (eventData.button == PointerEventData.InputButton.Left)
         {
-            HandleLeftClickEquipToggle();
+            ToggleAssignedItem();
         }
     }
 
-    // Handle Clear Equipped Item.
     public void ClearEquippedItem()
     {
         equippedItemReference = null;
@@ -110,96 +87,51 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         SyncAllWeaponSlotsToItemSwitch();
     }
 
-    // Handle Refresh Visual.
     public void RefreshVisual()
     {
         UpdateVisual();
     }
 
-    // Handle Get Ordered Weapon Slots.
     public static List<WeaponSlot> GetOrderedWeaponSlots()
     {
         PruneNullWeaponSlots();
-
-        List<WeaponSlot> orderedSlots = new List<WeaponSlot>(ActiveWeaponSlots);
-        orderedSlots.Sort(CompareSlotsTopLeft);
-        return orderedSlots;
+        List<WeaponSlot> ordered = new List<WeaponSlot>(ActiveWeaponSlots);
+        ordered.Sort(CompareSlotsTopLeft);
+        return ordered;
     }
 
-    // Handle Get Assigned Item Name.
     public string GetAssignedItemName()
     {
-        string normalizedName = NormalizeItemName(equippedItemName);
-        if (!string.IsNullOrEmpty(normalizedName))
+        string normalized = NormalizeItemName(equippedItemName);
+        if (!string.IsNullOrEmpty(normalized))
         {
-            return normalizedName;
+            return normalized;
         }
 
-        if (equippedItemReference != null)
+        if (equippedItemReference == null)
         {
-            normalizedName = NormalizeItemName(equippedItemReference.nameofitem);
-            if (!string.IsNullOrEmpty(normalizedName))
-            {
-                return normalizedName;
-            }
-
-            return NormalizeItemName(equippedItemReference.name);
+            return string.Empty;
         }
 
-        return string.Empty;
+        normalized = NormalizeItemName(equippedItemReference.nameofitem);
+        return !string.IsNullOrEmpty(normalized) ? normalized : NormalizeItemName(equippedItemReference.name);
     }
 
-    // Handle Try Assign From Slot.
-    private bool TryAssignFromSlot(Slot sourceSlot, bool logWarnings)
-    {
-        if (sourceSlot == null || sourceSlot.IsEmpty())
-        {
-            return false;
-        }
-
-        InventoryItem sourceItem = ResolveInventoryItemFromSlot(sourceSlot);
-        string sourceName = NormalizeItemName(sourceSlot.itemName);
-        if (!CanAcceptItem(sourceItem, sourceName, out string resolvedEquipName, out string rejectReason))
-        {
-            if (logWarnings)
-            {
-                Debug.LogWarning($"WeaponSlot: {rejectReason}", this);
-            }
-
-            return false;
-        }
-
-        equippedItemReference = sourceItem;
-        equippedItemName = resolvedEquipName;
-        equippedSprite = sourceSlot.sprite;
-        UpdateVisual();
-        SyncAllWeaponSlotsToItemSwitch();
-        return true;
-    }
-
-    // Handle Try Assign From Remake Slot.
     private bool TryAssignFromRemakeSlot(SlotInsideUI sourceSlot, bool logWarnings)
     {
-        if (sourceSlot == null || !sourceSlot.HasItem())
-        {
-            return false;
-        }
-
         InventoryItem sourceItem = sourceSlot.Item;
-        string sourceName = ResolveRemakeSlotItemName(sourceSlot);
-        if (!CanAcceptItem(sourceItem, sourceName, out string resolvedEquipName, out string rejectReason))
+        string sourceName = ResolveSlotItemName(sourceSlot);
+        if (!CanAcceptItem(sourceItem, sourceName, out string resolvedEquipName, out string reason))
         {
             if (logWarnings)
             {
-                Debug.LogWarning($"WeaponSlot: {rejectReason}", this);
+                Debug.LogWarning($"WeaponSlot: {reason}", this);
             }
 
             return false;
         }
 
-        Sprite sourceSprite = sourceSlot.image != null
-            ? sourceSlot.image.sprite
-            : null;
+        Sprite sourceSprite = sourceSlot.image != null ? sourceSlot.image.sprite : null;
         if (sourceSprite == null && sourceItem != null)
         {
             sourceSprite = sourceItem.inventorysprite;
@@ -213,13 +145,12 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         return true;
     }
 
-    // Handle Can Accept Item.
     private bool CanAcceptItem(InventoryItem sourceItem, string sourceItemName, out string resolvedEquipName, out string reason)
     {
         resolvedEquipName = string.Empty;
         reason = string.Empty;
-
         ResolveReferences();
+
         if (itemSwitchScript == null)
         {
             reason = "ItemSwitchScript reference is missing.";
@@ -238,19 +169,8 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
             return false;
         }
 
-        bool typeAllowed;
-        if (sourceItem != null)
-        {
-            bool isTool = sourceItem.itemType == InventoryItemType.Tool;
-            bool isSword = sourceItem.itemType == InventoryItemType.Sword;
-            typeAllowed = (allowToolItems && isTool) || (allowSwordItems && isSword);
-        }
-        else
-        {
-            typeAllowed = IsAllowedByResolvedName(resolvedEquipName);
-        }
-
-        if (!typeAllowed)
+        bool allowed = IsAllowedItemType(sourceItem, resolvedEquipName);
+        if (!allowed)
         {
             reason = sourceItem != null
                 ? $"Only configured weapon types are allowed. Received type: {sourceItem.itemType}."
@@ -258,58 +178,23 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
             return false;
         }
 
-        if (string.IsNullOrWhiteSpace(resolvedEquipName))
-        {
-            reason = "Resolved equip name is empty.";
-            return false;
-        }
-
         return true;
     }
 
-    // Handle Resolve Inventory Item From Slot.
-    private static InventoryItem ResolveInventoryItemFromSlot(Slot sourceSlot)
+    private bool IsAllowedItemType(InventoryItem sourceItem, string resolvedName)
     {
-        if (sourceSlot == null)
+        if (sourceItem != null)
         {
-            return null;
+            return (allowToolItems && sourceItem.itemType == InventoryItemType.Tool) ||
+                   (allowSwordItems && sourceItem.itemType == InventoryItemType.Sword);
         }
 
-        if (sourceSlot.inventoryItemReference != null)
-        {
-            return sourceSlot.inventoryItemReference;
-        }
-
-        string sourceName = NormalizeItemName(sourceSlot.itemName);
-        if (string.IsNullOrEmpty(sourceName))
-        {
-            return null;
-        }
-
-#if UNITY_2023_1_OR_NEWER
-        InventoryItem[] allItems = Object.FindObjectsByType<InventoryItem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-#else
-        InventoryItem[] allItems = Object.FindObjectsOfType<InventoryItem>(true);
-#endif
-
-        for (int i = 0; i < allItems.Length; i++)
-        {
-            InventoryItem candidate = allItems[i];
-            if (candidate == null)
-            {
-                continue;
-            }
-
-            if (string.Equals(NormalizeItemName(candidate.name), sourceName, System.StringComparison.OrdinalIgnoreCase))
-            {
-                return candidate;
-            }
-        }
-
-        return null;
+        string mapped = MapCommonWeaponName(resolvedName);
+        return string.Equals(mapped, "Sword", System.StringComparison.OrdinalIgnoreCase)
+            ? allowSwordItems
+            : allowToolItems && !string.IsNullOrEmpty(mapped);
     }
 
-    // Handle Resolve References.
     private void ResolveReferences()
     {
         if (Backgroundimage == null)
@@ -325,15 +210,8 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         if (iconImage == null)
         {
             Transform preferred = transform.Find("ImagePlace");
-            if (preferred == null)
-            {
-                preferred = transform.Find("WhiteInside");
-            }
-
-            if (preferred != null)
-            {
-                iconImage = preferred.GetComponent<Image>();
-            }
+            if (preferred == null) preferred = transform.Find("WhiteInside");
+            if (preferred != null) iconImage = preferred.GetComponent<Image>();
         }
 
         if (iconImage == null)
@@ -342,18 +220,11 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
             for (int i = 0; i < images.Length; i++)
             {
                 Image candidate = images[i];
-                if (candidate == null || candidate.gameObject == gameObject)
+                if (candidate != null && candidate.gameObject != gameObject && candidate.name != "BlackBakground")
                 {
-                    continue;
+                    iconImage = candidate;
+                    break;
                 }
-
-                if (candidate.name == "BlackBakground")
-                {
-                    continue;
-                }
-
-                iconImage = candidate;
-                break;
             }
         }
 
@@ -365,32 +236,29 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         if (itemSwitchScript == null)
         {
 #if UNITY_2023_1_OR_NEWER
-            itemSwitchScript = Object.FindFirstObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
+            itemSwitchScript = Object.FindAnyObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
 #else
             itemSwitchScript = Object.FindObjectOfType<ItemSwitchScript>(true);
 #endif
         }
     }
 
-    // Handle Update Visual.
     private void UpdateVisual()
     {
         ResolveReferences();
-
-        bool inventoryVisible = IsInventoryVisible();
-        Sprite backgroundSprite = ResolveBackgroundSprite();
-        bool hasDedicatedSurface = HasDedicatedInteractionSurface();
+        bool visible = IsInventoryVisible();
         bool hasItem = equippedSprite != null;
+        bool hasDedicatedSurface = iconImage != null && iconImage.gameObject != gameObject;
 
         if (Backgroundimage != null)
         {
-            if (Backgroundimage.sprite == null && backgroundSprite != null)
+            if (Backgroundimage.sprite == null)
             {
-                Backgroundimage.sprite = backgroundSprite;
+                Backgroundimage.sprite = FindSharedBackgroundSprite(this);
             }
 
-            Backgroundimage.enabled = inventoryVisible && Backgroundimage.sprite != null;
-            Backgroundimage.raycastTarget = inventoryVisible && !hasDedicatedSurface;
+            Backgroundimage.enabled = visible && Backgroundimage.sprite != null;
+            Backgroundimage.raycastTarget = visible && !hasDedicatedSurface;
         }
 
         if (iconImage == null)
@@ -400,149 +268,40 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
 
         iconImage.sprite = equippedSprite;
         iconImage.color = hasItem ? Color.white : new Color(1f, 1f, 1f, 0f);
-        iconImage.enabled = inventoryVisible && (hasItem || hasDedicatedSurface || !hideIconWhenEmpty);
-        iconImage.raycastTarget = inventoryVisible && hasDedicatedSurface;
+        iconImage.enabled = visible && (hasItem || hasDedicatedSurface || !hideIconWhenEmpty);
+        iconImage.raycastTarget = visible && hasDedicatedSurface;
         iconImage.preserveAspect = hasItem;
         HideExtraPlaceholderImages();
     }
 
-    // Handle Hide Extra Placeholder Images.
     private void HideExtraPlaceholderImages()
     {
         Image[] images = GetComponentsInChildren<Image>(true);
         for (int i = 0; i < images.Length; i++)
         {
             Image candidate = images[i];
-            if (candidate == null || candidate == iconImage || candidate.gameObject == gameObject)
-            {
-                continue;
-            }
-
-            if (candidate.name == "BlackBakground")
-            {
-                continue;
-            }
-
-            if (candidate.sprite == null)
+            if (candidate != null && candidate != iconImage && candidate.gameObject != gameObject && candidate.name != "BlackBakground" && candidate.sprite == null)
             {
                 candidate.enabled = false;
             }
         }
     }
 
-    // Handle Sync All Weapon Slots To Item Switch.
-    private static void SyncAllWeaponSlotsToItemSwitch()
+    private void ToggleAssignedItem()
     {
-        HashSet<string> equippedNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
-        HashSet<ItemSwitchScript> switchScripts = new HashSet<ItemSwitchScript>();
-
-        PruneNullWeaponSlots();
-
-        for (int i = ActiveWeaponSlots.Count - 1; i >= 0; i--)
+        string assignedItemName = GetAssignedItemName();
+        if (string.IsNullOrEmpty(assignedItemName))
         {
-            WeaponSlot slot = ActiveWeaponSlots[i];
-            slot.ResolveReferences();
-            if (slot.itemSwitchScript != null)
-            {
-                switchScripts.Add(slot.itemSwitchScript);
-            }
-
-            string normalizedName = NormalizeItemName(slot.equippedItemName);
-            if (!string.IsNullOrEmpty(normalizedName))
-            {
-                equippedNames.Add(normalizedName);
-            }
+            return;
         }
 
-        if (switchScripts.Count == 0)
-        {
-#if UNITY_2023_1_OR_NEWER
-            ItemSwitchScript fallback = Object.FindFirstObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
-#else
-            ItemSwitchScript fallback = Object.FindObjectOfType<ItemSwitchScript>(true);
-#endif
-
-            if (fallback != null)
-            {
-                switchScripts.Add(fallback);
-            }
-        }
-
-        foreach (ItemSwitchScript switchScript in switchScripts)
-        {
-            if (switchScript != null)
-            {
-                switchScript.ApplyEquippedItemNames(equippedNames);
-            }
-        }
+        ResolveReferences();
+        itemSwitchScript?.ToggleItemByName(assignedItemName);
     }
 
-    // Handle Normalize Item Name.
-    private static string NormalizeItemName(string rawName)
-    {
-        if (string.IsNullOrWhiteSpace(rawName))
-        {
-            return string.Empty;
-        }
-
-        string normalized = rawName.Trim();
-        if (normalized.EndsWith("(Clone)", System.StringComparison.OrdinalIgnoreCase))
-        {
-            normalized = normalized.Substring(0, normalized.Length - "(Clone)".Length).Trim();
-        }
-
-        return normalized;
-    }
-
-    // Handle Resolve Remake Slot Item Name.
-    private static string ResolveRemakeSlotItemName(SlotInsideUI sourceSlot)
-    {
-        if (sourceSlot == null)
-        {
-            return string.Empty;
-        }
-
-        string slotName = NormalizeItemName(sourceSlot.nameofslot);
-        if (!string.IsNullOrEmpty(slotName))
-        {
-            return slotName;
-        }
-
-        if (sourceSlot.Item == null)
-        {
-            return string.Empty;
-        }
-
-        string itemName = NormalizeItemName(sourceSlot.Item.nameofitem);
-        if (!string.IsNullOrEmpty(itemName))
-        {
-            return itemName;
-        }
-
-        string objectName = NormalizeItemName(sourceSlot.Item.name);
-        if (!string.IsNullOrEmpty(objectName))
-        {
-            return objectName;
-        }
-
-        if (sourceSlot.Item.itemPrefab != null)
-        {
-            return NormalizeItemName(sourceSlot.Item.itemPrefab.name);
-        }
-
-        return string.Empty;
-    }
-
-    // Handle Try Resolve Equip Name.
     private bool TryResolveEquipName(InventoryItem sourceItem, string sourceItemName, out string resolvedName)
     {
         resolvedName = string.Empty;
-        ResolveReferences();
-        if (itemSwitchScript == null)
-        {
-            return false;
-        }
-
         List<string> candidates = new List<string>(8);
         AddCandidateName(candidates, sourceItemName);
 
@@ -550,7 +309,6 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         {
             AddCandidateName(candidates, sourceItem.nameofitem);
             AddCandidateName(candidates, sourceItem.name);
-
             if (sourceItem.itemPrefab != null)
             {
                 AddCandidateName(candidates, sourceItem.itemPrefab.name);
@@ -559,10 +317,9 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
 
         for (int i = 0; i < candidates.Count; i++)
         {
-            string candidate = candidates[i];
-            if (itemSwitchScript.HasItemNamed(candidate))
+            if (itemSwitchScript.HasItemNamed(candidates[i]))
             {
-                resolvedName = candidate;
+                resolvedName = candidates[i];
                 return true;
             }
         }
@@ -570,12 +327,7 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         for (int i = 0; i < candidates.Count; i++)
         {
             string mapped = MapCommonWeaponName(candidates[i]);
-            if (string.IsNullOrEmpty(mapped))
-            {
-                continue;
-            }
-
-            if (itemSwitchScript.HasItemNamed(mapped))
+            if (!string.IsNullOrEmpty(mapped) && itemSwitchScript.HasItemNamed(mapped))
             {
                 resolvedName = mapped;
                 return true;
@@ -585,81 +337,6 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         return false;
     }
 
-    // Handle Add Candidate Name.
-    private static void AddCandidateName(List<string> candidates, string rawName)
-    {
-        string normalized = NormalizeItemName(rawName);
-        if (string.IsNullOrEmpty(normalized) || candidates.Contains(normalized))
-        {
-            return;
-        }
-
-        candidates.Add(normalized);
-    }
-
-    // Handle Map Common Weapon Name.
-    private static string MapCommonWeaponName(string rawName)
-    {
-        string normalized = NormalizeItemName(rawName);
-        if (string.IsNullOrEmpty(normalized))
-        {
-            return string.Empty;
-        }
-
-        string token = normalized.Replace(" ", string.Empty).ToLowerInvariant();
-        if (token.Contains("pickaxe") || token.Contains("pick"))
-        {
-            return "Pickaxe";
-        }
-
-        if (token.Contains("sword"))
-        {
-            return "Sword";
-        }
-
-        if (token.Contains("axe"))
-        {
-            return "Axe";
-        }
-
-        return string.Empty;
-    }
-
-    // Handle Is Allowed By Resolved Name.
-    private bool IsAllowedByResolvedName(string resolvedName)
-    {
-        string mapped = MapCommonWeaponName(resolvedName);
-        if (string.IsNullOrEmpty(mapped))
-        {
-            return false;
-        }
-
-        if (string.Equals(mapped, "Sword", System.StringComparison.OrdinalIgnoreCase))
-        {
-            return allowSwordItems;
-        }
-
-        return allowToolItems;
-    }
-
-    // Handle Resolve Dragged Legacy Slot.
-    private static Slot ResolveDraggedLegacySlot(PointerEventData eventData)
-    {
-        if (eventData == null || eventData.pointerDrag == null)
-        {
-            return null;
-        }
-
-        Slot direct = eventData.pointerDrag.GetComponent<Slot>();
-        if (direct != null)
-        {
-            return direct;
-        }
-
-        return eventData.pointerDrag.GetComponentInParent<Slot>();
-    }
-
-    // Handle Resolve Dragged Remake Slot.
     private static SlotInsideUI ResolveDraggedRemakeSlot(PointerEventData eventData)
     {
         if (eventData == null || eventData.pointerDrag == null)
@@ -667,111 +344,81 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
             return null;
         }
 
-        SlotInsideUI direct = eventData.pointerDrag.GetComponent<SlotInsideUI>();
-        if (direct != null)
-        {
-            return direct;
-        }
-
-        return eventData.pointerDrag.GetComponentInParent<SlotInsideUI>();
+        return eventData.pointerDrag.GetComponent<SlotInsideUI>() ?? eventData.pointerDrag.GetComponentInParent<SlotInsideUI>();
     }
 
-    // Handle Handle Left Click Equip Toggle.
-    private void HandleLeftClickEquipToggle()
+    private static string ResolveSlotItemName(SlotInsideUI sourceSlot)
     {
-        string assignedItemName = GetAssignedItemName();
-        if (string.IsNullOrEmpty(assignedItemName))
+        if (sourceSlot == null)
         {
-            return;
+            return string.Empty;
         }
 
-        ResolveReferences();
-        if (itemSwitchScript == null)
-        {
-            return;
-        }
-
-        itemSwitchScript.ToggleItemByName(assignedItemName);
+        if (!string.IsNullOrWhiteSpace(sourceSlot.nameofslot)) return NormalizeItemName(sourceSlot.nameofslot);
+        if (sourceSlot.Item == null) return string.Empty;
+        if (!string.IsNullOrWhiteSpace(sourceSlot.Item.nameofitem)) return NormalizeItemName(sourceSlot.Item.nameofitem);
+        if (!string.IsNullOrWhiteSpace(sourceSlot.Item.name)) return NormalizeItemName(sourceSlot.Item.name);
+        return sourceSlot.Item.itemPrefab != null ? NormalizeItemName(sourceSlot.Item.itemPrefab.name) : string.Empty;
     }
 
-    // Handle Resolve Background Sprite.
-    private Sprite ResolveBackgroundSprite()
+    private static void SyncAllWeaponSlotsToItemSwitch()
     {
-        if (Backgroundimage != null && Backgroundimage.sprite != null)
+        HashSet<string> equippedNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        HashSet<ItemSwitchScript> switchScripts = new HashSet<ItemSwitchScript>();
+        PruneNullWeaponSlots();
+
+        for (int i = 0; i < ActiveWeaponSlots.Count; i++)
         {
-            return Backgroundimage.sprite;
+            WeaponSlot slot = ActiveWeaponSlots[i];
+            slot.ResolveReferences();
+            if (slot.itemSwitchScript != null)
+            {
+                switchScripts.Add(slot.itemSwitchScript);
+            }
+
+            string assignedName = slot.GetAssignedItemName();
+            if (!string.IsNullOrEmpty(assignedName))
+            {
+                equippedNames.Add(assignedName);
+            }
         }
 
-        Sprite fallbackSprite = FindSharedBackgroundSprite(this);
-        if (Backgroundimage != null && fallbackSprite != null)
+        if (switchScripts.Count == 0)
         {
-            Backgroundimage.sprite = fallbackSprite;
+#if UNITY_2023_1_OR_NEWER
+            ItemSwitchScript fallback = Object.FindAnyObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
+#else
+            ItemSwitchScript fallback = Object.FindObjectOfType<ItemSwitchScript>(true);
+#endif
+            if (fallback != null) switchScripts.Add(fallback);
         }
 
-        return fallbackSprite;
+        foreach (ItemSwitchScript switchScript in switchScripts)
+        {
+            switchScript?.ApplyEquippedItemNames(equippedNames);
+        }
     }
 
-    // Handle Find Shared Background Sprite.
     private static Sprite FindSharedBackgroundSprite(WeaponSlot requestingSlot)
     {
         PruneNullWeaponSlots();
         for (int i = 0; i < ActiveWeaponSlots.Count; i++)
         {
-            WeaponSlot candidate = ActiveWeaponSlots[i];
-            if (candidate == null || candidate == requestingSlot)
+            WeaponSlot slot = ActiveWeaponSlots[i];
+            if (slot != null && slot != requestingSlot && slot.Backgroundimage != null && slot.Backgroundimage.sprite != null)
             {
-                continue;
-            }
-
-            candidate.ResolveReferences();
-            if (candidate.Backgroundimage != null && candidate.Backgroundimage.sprite != null)
-            {
-                return candidate.Backgroundimage.sprite;
-            }
-        }
-
-#if UNITY_2023_1_OR_NEWER
-        WeaponSlot[] allSlots = Object.FindObjectsByType<WeaponSlot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-#else
-        WeaponSlot[] allSlots = Object.FindObjectsOfType<WeaponSlot>(true);
-#endif
-
-        for (int i = 0; i < allSlots.Length; i++)
-        {
-            WeaponSlot candidate = allSlots[i];
-            if (candidate == null || candidate == requestingSlot)
-            {
-                continue;
-            }
-
-            candidate.ResolveReferences();
-            if (candidate.Backgroundimage != null && candidate.Backgroundimage.sprite != null)
-            {
-                return candidate.Backgroundimage.sprite;
+                return slot.Backgroundimage.sprite;
             }
         }
 
         return null;
     }
 
-    // Handle Has Dedicated Interaction Surface.
-    private bool HasDedicatedInteractionSurface()
-    {
-        return iconImage != null && iconImage.gameObject != gameObject;
-    }
-
-    // Handle Is Inventory Visible.
     private static bool IsInventoryVisible()
     {
-        if (!Application.isPlaying)
-        {
-            return true;
-        }
-
-        return InventoryManager.IsInventoryOpen || InventoryController.IsInventoryOpen;
+        return !Application.isPlaying || InventoryManager.IsInventoryOpen;
     }
 
-    // Handle Prune Null Weapon Slots.
     private static void PruneNullWeaponSlots()
     {
         for (int i = ActiveWeaponSlots.Count - 1; i >= 0; i--)
@@ -783,7 +430,37 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         }
     }
 
-    // Handle Compare Slots Top Left.
+    private static void AddCandidateName(List<string> candidates, string rawName)
+    {
+        string normalized = NormalizeItemName(rawName);
+        if (!string.IsNullOrEmpty(normalized) && !candidates.Contains(normalized))
+        {
+            candidates.Add(normalized);
+        }
+    }
+
+    private static string NormalizeItemName(string rawName)
+    {
+        if (string.IsNullOrWhiteSpace(rawName))
+        {
+            return string.Empty;
+        }
+
+        string normalized = rawName.Trim();
+        return normalized.EndsWith("(Clone)", System.StringComparison.OrdinalIgnoreCase)
+            ? normalized.Substring(0, normalized.Length - "(Clone)".Length).Trim()
+            : normalized;
+    }
+
+    private static string MapCommonWeaponName(string rawName)
+    {
+        string token = NormalizeItemName(rawName).Replace(" ", string.Empty).ToLowerInvariant();
+        if (token.Contains("pickaxe") || token.Contains("pick")) return "Pickaxe";
+        if (token.Contains("sword")) return "Sword";
+        if (token.Contains("axe")) return "Axe";
+        return string.Empty;
+    }
+
     private static int CompareSlotsTopLeft(WeaponSlot a, WeaponSlot b)
     {
         if (a == b) return 0;
@@ -792,26 +469,9 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
 
         RectTransform rectA = a.transform as RectTransform;
         RectTransform rectB = b.transform as RectTransform;
-
-        Vector2 posA = rectA != null
-            ? rectA.anchoredPosition
-            : new Vector2(a.transform.position.x, a.transform.position.y);
-        Vector2 posB = rectB != null
-            ? rectB.anchoredPosition
-            : new Vector2(b.transform.position.x, b.transform.position.y);
-
+        Vector2 posA = rectA != null ? rectA.anchoredPosition : new Vector2(a.transform.position.x, a.transform.position.y);
+        Vector2 posB = rectB != null ? rectB.anchoredPosition : new Vector2(b.transform.position.x, b.transform.position.y);
         int yCompare = posB.y.CompareTo(posA.y);
-        if (yCompare != 0)
-        {
-            return yCompare;
-        }
-
-        int xCompare = posA.x.CompareTo(posB.x);
-        if (xCompare != 0)
-        {
-            return xCompare;
-        }
-
-        return a.transform.GetSiblingIndex().CompareTo(b.transform.GetSiblingIndex());
+        return yCompare != 0 ? yCompare : posA.x.CompareTo(posB.x);
     }
 }

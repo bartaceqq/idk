@@ -73,7 +73,6 @@ public class SwordTrailEffect : MonoBehaviour
         DestroyTrailResources();
     }
 
-    // Handle Resolve References.
     private void ResolveReferences()
     {
         if (_actionScript == null)
@@ -82,7 +81,7 @@ public class SwordTrailEffect : MonoBehaviour
             if (_actionScript == null)
             {
 #if UNITY_2023_1_OR_NEWER
-                _actionScript = FindFirstObjectByType<ActionScript>(FindObjectsInactive.Include);
+                _actionScript = FindAnyObjectByType<ActionScript>(FindObjectsInactive.Include);
 #else
                 _actionScript = FindObjectOfType<ActionScript>(true);
 #endif
@@ -95,7 +94,7 @@ public class SwordTrailEffect : MonoBehaviour
             if (_itemSwitchScript == null)
             {
 #if UNITY_2023_1_OR_NEWER
-                _itemSwitchScript = FindFirstObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
+                _itemSwitchScript = FindAnyObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
 #else
                 _itemSwitchScript = FindObjectOfType<ItemSwitchScript>(true);
 #endif
@@ -103,7 +102,6 @@ public class SwordTrailEffect : MonoBehaviour
         }
     }
 
-    // Handle Ensure Blade Anchors.
     private bool EnsureBladeAnchors()
     {
         if (bladeBaseAnchor != null && bladeTipAnchor != null)
@@ -136,7 +134,6 @@ public class SwordTrailEffect : MonoBehaviour
         return true;
     }
 
-    // Handle Try Create Default Blade Anchors.
     private bool TryCreateDefaultBladeAnchors(out Transform createdBase, out Transform createdTip)
     {
         createdBase = null;
@@ -167,7 +164,6 @@ public class SwordTrailEffect : MonoBehaviour
         return true;
     }
 
-    // Handle Try Get Renderable Local Bounds.
     private bool TryGetRenderableLocalBounds(out Bounds localBounds)
     {
         Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
@@ -215,7 +211,6 @@ public class SwordTrailEffect : MonoBehaviour
         return hasBounds;
     }
 
-    // Handle Determine Blade Endpoints.
     private static void DetermineBladeEndpoints(Bounds localBounds, out Vector3 baseLocal, out Vector3 tipLocal)
     {
         Vector3 min = localBounds.min;
@@ -265,7 +260,6 @@ public class SwordTrailEffect : MonoBehaviour
         tipLocal = endpointA;
     }
 
-    // Handle Ensure Trail Object.
     private void EnsureTrailObject()
     {
         if (_trailObject != null)
@@ -298,7 +292,6 @@ public class SwordTrailEffect : MonoBehaviour
         _meshRenderer.enabled = false;
     }
 
-    // Handle Create Trail Material.
     private Material CreateTrailMaterial()
     {
         Shader shader = Shader.Find("Sprites/Default");
@@ -352,7 +345,6 @@ public class SwordTrailEffect : MonoBehaviour
         return createdMaterial;
     }
 
-    // Handle Update Trail.
     private void UpdateTrail()
     {
         float now = Time.time;
@@ -375,7 +367,6 @@ public class SwordTrailEffect : MonoBehaviour
         RebuildTrailMesh(now);
     }
 
-    // Handle Should Emit Trail.
     private bool ShouldEmitTrail()
     {
         if (_actionScript == null || _itemSwitchScript == null)
@@ -396,7 +387,6 @@ public class SwordTrailEffect : MonoBehaviour
         return HasVisibleRenderer();
     }
 
-    // Handle Has Visible Renderer.
     private bool HasVisibleRenderer()
     {
         Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
@@ -412,7 +402,6 @@ public class SwordTrailEffect : MonoBehaviour
         return false;
     }
 
-    // Handle Should Capture Sample.
     private bool ShouldCaptureSample(float now, Vector3 currentBasePosition, Vector3 currentTipPosition)
     {
         if (!_hasLastSample)
@@ -430,7 +419,6 @@ public class SwordTrailEffect : MonoBehaviour
         return tipDistance >= minimumSampleDistance || baseDistance >= minimumSampleDistance;
     }
 
-    // Handle Add Sample.
     private void AddSample(Vector3 currentBasePosition, Vector3 currentTipPosition, float timeStamp)
     {
         TrailSample sample = new TrailSample
@@ -447,7 +435,6 @@ public class SwordTrailEffect : MonoBehaviour
         _hasLastSample = true;
     }
 
-    // Handle Prune Expired Samples.
     private void PruneExpiredSamples(float now)
     {
         float lifetime = Mathf.Max(0.02f, sampleLifetime);
@@ -462,7 +449,6 @@ public class SwordTrailEffect : MonoBehaviour
         }
     }
 
-    // Handle Rebuild Trail Mesh.
     private void RebuildTrailMesh(float now)
     {
         if (_mesh == null || _meshRenderer == null)
@@ -538,7 +524,6 @@ public class SwordTrailEffect : MonoBehaviour
         _meshRenderer.enabled = true;
     }
 
-    // Handle Clear Trail.
     private void ClearTrail()
     {
         _samples.Clear();
@@ -556,7 +541,6 @@ public class SwordTrailEffect : MonoBehaviour
         }
     }
 
-    // Handle Destroy Trail Resources.
     private void DestroyTrailResources()
     {
         if (_trailObject != null)

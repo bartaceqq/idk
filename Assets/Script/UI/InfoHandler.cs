@@ -4,7 +4,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-// Controls Info Handler behavior.
 public class InfoHandler : MonoBehaviour
 {
     public TMP_Text text;
@@ -24,7 +23,6 @@ public class InfoHandler : MonoBehaviour
         public Sprite icon;
     }
 
-    // Handle Show Info Now.
     public void ShowInfoNow(string message, Sprite icon)
     {
         texttoshow = message;
@@ -40,7 +38,6 @@ public class InfoHandler : MonoBehaviour
         showInfoCoroutine = StartCoroutine(ShowImmediateRoutine(texttoshow, toshowimage));
     }
 
-    // Handle Queue Info.
     public void QueueInfo(string message, Sprite icon)
     {
         if (string.IsNullOrWhiteSpace(message) && icon == null)
@@ -60,14 +57,12 @@ public class InfoHandler : MonoBehaviour
         }
     }
 
-    // Handle Show Immediate Routine.
     private IEnumerator ShowImmediateRoutine(string message, Sprite icon)
     {
         yield return ShowInfoRoutine(message, icon);
         showInfoCoroutine = null;
     }
 
-    // Handle Show Queue Routine.
     private IEnumerator ShowQueueRoutine()
     {
         while (queuedInfos.Count > 0)
@@ -79,7 +74,6 @@ public class InfoHandler : MonoBehaviour
         showInfoCoroutine = null;
     }
 
-    // Handle Show Info Routine.
     private IEnumerator ShowInfoRoutine(string message, Sprite icon)
     {
         if (text != null)
@@ -121,7 +115,6 @@ public class InfoHandler : MonoBehaviour
         SetEnabled(false);
     }
 
-    // Handle Set Alpha.
     private void SetAlpha(float a)
     {
         if (text != null)
@@ -146,7 +139,6 @@ public class InfoHandler : MonoBehaviour
         }
     }
 
-    // Handle Set Enabled.
     private void SetEnabled(bool enabled)
     {
         if (text != null)

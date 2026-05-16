@@ -56,7 +56,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
     private bool _spawnedThisDay;
     private bool _spawnedAtLeastOnce;
     private Transform _playerNormal;
-    private Transform _playerBuilding;
 
     // Initialize references and optional first-night spawn.
     private void Start()
@@ -125,19 +124,16 @@ public class SpawnNpcsAtNight : MonoBehaviour
         _wasNightLastFrame = isNight;
     }
 
-    // Handle Spawn Night Wave.
     public void SpawnNightWave()
     {
         SpawnWave(isNightWave: true);
     }
 
-    // Handle Spawn Day Wave.
     public void SpawnDayWave()
     {
         SpawnWave(isNightWave: false);
     }
 
-    // Handle Spawn Wave.
     private void SpawnWave(bool isNightWave)
     {
         ResolveReferences();
@@ -228,7 +224,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
         Debug.Log($"SpawnNpcsAtNight: spawned {totalSpawned} enemies for {waveName} wave.");
     }
 
-    // Handle Get Monsters Per Terrain For Wave.
     private int GetMonstersPerTerrainForWave(bool isNightWave)
     {
         int baseCount = Mathf.Max(0, monstersPerTerrain);
@@ -251,7 +246,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
         return Mathf.Max(1, Mathf.RoundToInt(baseCount * ratio));
     }
 
-    // Handle Clear Spawned Enemies.
     public void ClearSpawnedEnemies()
     {
         for (int i = _spawnedEnemies.Count - 1; i >= 0; i--)
@@ -275,7 +269,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
         _spawnedEnemies.Clear();
     }
 
-    // Handle Prune Missing Spawned Enemies.
     private void PruneMissingSpawnedEnemies()
     {
         for (int i = _spawnedEnemies.Count - 1; i >= 0; i--)
@@ -287,42 +280,35 @@ public class SpawnNpcsAtNight : MonoBehaviour
         }
     }
 
-    // Handle Resolve References.
     private void ResolveReferences()
     {
         if (lightingManager == null)
         {
-            lightingManager = FindFirstObjectByType<LightingManager>();
+            lightingManager = FindAnyObjectByType<LightingManager>();
         }
 
         if (lookingController == null)
         {
-            lookingController = FindFirstObjectByType<LookingController>();
+            lookingController = FindAnyObjectByType<LookingController>();
         }
 
         if (enemiesHandler == null)
         {
-            enemiesHandler = FindFirstObjectByType<EnemiesHandler>();
+            enemiesHandler = FindAnyObjectByType<EnemiesHandler>();
         }
 
         ResolvePracticeCapsuleHitTemplate();
 
         _playerNormal = null;
-        _playerBuilding = null;
         if (lookingController != null)
         {
             if (lookingController.normalcapsule != null)
             {
                 _playerNormal = lookingController.normalcapsule.transform;
             }
-            if (lookingController.buildingcapsule != null)
-            {
-                _playerBuilding = lookingController.buildingcapsule.transform;
-            }
         }
     }
 
-    // Handle Resolve Practice Capsule Hit Template.
     private void ResolvePracticeCapsuleHitTemplate()
     {
         if (practiceCapsuleHitTemplate != null)
@@ -333,7 +319,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
         practiceCapsuleHitTemplate = TestHitting.FindPracticeTemplate();
     }
 
-    // Handle Resolve Terrains.
     private void ResolveTerrains()
     {
         if (terrains == null || terrains.Length == 0)
@@ -342,7 +327,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
         }
     }
 
-    // Handle Ensure Spawned Parent.
     private void EnsureSpawnedParent()
     {
         if (spawnedParent != null)
@@ -354,7 +338,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
         spawnedParent = root.transform;
     }
 
-    // Handle Is Night Now.
     private bool IsNightNow()
     {
         if (lightingManager == null)
@@ -377,7 +360,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
                timePercent > lightingManager.afterNoonInterval.y;
     }
 
-    // Handle Is Hour Inside Night Window.
     private static bool IsHourInsideNightWindow(float hour, float startHour, float endHour)
     {
         float safeHour = Mathf.Repeat(hour, 24f);
@@ -400,7 +382,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
         return safeHour >= safeStart && safeHour < safeEnd;
     }
 
-    // Handle Get Random Enemy Prefab.
     private GameObject GetRandomEnemyPrefab()
     {
         if (zombie != null && skeleton != null)
@@ -411,7 +392,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
         return zombie != null ? zombie : skeleton;
     }
 
-    // Handle Try Get Spawn Position On Terrain.
     private bool TryGetSpawnPositionOnTerrain(Terrain terrain, out Vector3 spawnPosition)
     {
         spawnPosition = Vector3.zero;
@@ -447,7 +427,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
         return false;
     }
 
-    // Handle Try Project Spawn Position.
     private bool TryProjectSpawnPosition(Terrain terrain, Vector3 candidate, out Vector3 spawnPosition)
     {
         spawnPosition = candidate;
@@ -489,7 +468,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
         return true;
     }
 
-    // Handle Is Spawn Position Clear.
     private bool IsSpawnPositionClear(Vector3 spawnPosition)
     {
         float radius = Mathf.Max(0.1f, spawnClearRadius);
@@ -517,43 +495,21 @@ public class SpawnNpcsAtNight : MonoBehaviour
         return true;
     }
 
-    // Handle Get Active Player Transform.
     private Transform GetActivePlayerTransform()
     {
-        if (lookingController != null)
-        {
-            if (lookingController.switched && _playerBuilding != null)
-            {
-                return _playerBuilding;
-            }
-            if (!lookingController.switched && _playerNormal != null)
-            {
-                return _playerNormal;
-            }
-        }
-
         if (_playerNormal != null && _playerNormal.gameObject.activeInHierarchy)
         {
             return _playerNormal;
         }
-        if (_playerBuilding != null && _playerBuilding.gameObject.activeInHierarchy)
-        {
-            return _playerBuilding;
-        }
         if (_playerNormal != null)
         {
             return _playerNormal;
-        }
-        if (_playerBuilding != null)
-        {
-            return _playerBuilding;
         }
 
         GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
         return taggedPlayer != null ? taggedPlayer.transform : null;
     }
 
-    // Handle Configure Spawned Enemy.
     private void ConfigureSpawnedEnemy(GameObject enemy)
     {
         if (enemy == null)
@@ -572,10 +528,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
             {
                 zombieScript.PlayerNormal = _playerNormal.gameObject;
             }
-            if (zombieScript.PlayerBuilding == null && _playerBuilding != null)
-            {
-                zombieScript.PlayerBuilding = _playerBuilding.gameObject;
-            }
             if (zombieScript.enemiesHandler == null)
             {
                 zombieScript.enemiesHandler = enemiesHandler;
@@ -593,10 +545,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
             {
                 skeletonScript.PlayerNormal = _playerNormal.gameObject;
             }
-            if (skeletonScript.PlayerBuilding == null && _playerBuilding != null)
-            {
-                skeletonScript.PlayerBuilding = _playerBuilding.gameObject;
-            }
             if (skeletonScript.enemiesHandler == null)
             {
                 skeletonScript.enemiesHandler = enemiesHandler;
@@ -606,7 +554,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
         ApplyMonsterHitFeedback(enemy);
     }
 
-    // Handle Apply Monster Hit Feedback.
     private void ApplyMonsterHitFeedback(GameObject enemy)
     {
         if (!applyPracticeCapsuleHitFeedbackToMonsters || enemy == null)
@@ -618,7 +565,6 @@ public class SpawnNpcsAtNight : MonoBehaviour
         TestHitting.EnsureEnemyHitFeedback(enemy, practiceCapsuleHitTemplate, ResolveMonsterHitMaterial(enemy));
     }
 
-    // Handle Resolve Monster Hit Material.
     private Material ResolveMonsterHitMaterial(GameObject enemy)
     {
         if (practiceCapsuleHitTemplate != null && practiceCapsuleHitTemplate.hitmat != null)

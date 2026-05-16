@@ -3,7 +3,6 @@ using UnityEngine.InputSystem;
 using InputSystemPlayerInput = UnityEngine.InputSystem.PlayerInput;
 
 [RequireComponent(typeof(CharacterController))]
-// Controls player movement and third-person camera behavior.
 public class FPSController : MonoBehaviour
 {
     public ActionScript actionScript;
@@ -217,19 +216,7 @@ public class FPSController : MonoBehaviour
             }
 
             _isJumping = !_cc.isGrounded;
-            _isIdle = true;
-            _isForwardWalk = false;
-            _isForwardRun = false;
-            _isBackwardWalk = false;
-            _isBackwardRun = false;
-            _isLeftWalk = false;
-            _isLeftRun = false;
-            _isRightWalk = false;
-            _isRightRun = false;
-            _isForwardLeftWalk = false;
-            _isForwardLeftRun = false;
-            _isForwardRightWalk = false;
-            _isForwardRightRun = false;
+            ClearMovementFlags(idle: true);
 
             RunCallbacks();
             _cc.Move(new Vector3(0f, _velocity.y, 0f) * Time.deltaTime);
@@ -240,13 +227,9 @@ public class FPSController : MonoBehaviour
         bool swordBlockActive = actionScript != null && actionScript.IsSwordBlockActive();
         bool movementInputLocked = gameplayInputLocked || swordBlockActive;
 
-        if (!InventoryController.IsInventoryOpen &&
-            !InventoryManager.IsInventoryOpen)
-        {
-            Vector2 look = _lookAction.ReadValue<Vector2>();
-            _yaw += look.x * mouseSensitivity;
-            _pitch = Mathf.Clamp(_pitch - (look.y * mouseSensitivity), minPitch, maxPitch);
-        }
+        Vector2 look = _lookAction.ReadValue<Vector2>();
+        _yaw += look.x * mouseSensitivity;
+        _pitch = Mathf.Clamp(_pitch - (look.y * mouseSensitivity), minPitch, maxPitch);
 
         Quaternion yawRotation = Quaternion.Euler(0f, _yaw, 0f);
         if (!gameplayInputLocked)
@@ -355,7 +338,6 @@ public class FPSController : MonoBehaviour
         UpdateThirdPersonCamera(Time.deltaTime);
     }
 
-    // Handle Update Third Person Camera.
     private void UpdateThirdPersonCamera(float deltaTime)
     {
         if (playerCamera == null)
@@ -479,7 +461,6 @@ public class FPSController : MonoBehaviour
             deltaTime);
     }
 
-    // Handle Sync Look Angles From Transforms.
     private void SyncLookAnglesFromTransforms()
     {
         if (playerCamera != null)
@@ -526,7 +507,6 @@ public class FPSController : MonoBehaviour
         _lastGameplayLockBodyYaw = bodyYaw;
     }
 
-    // Handle Trigger Shot Shoulder Camera.
     public void TriggerShotShoulderCamera(float holdSeconds = -1f)
     {
         if (!enableShotShoulderCamera)
@@ -538,25 +518,21 @@ public class FPSController : MonoBehaviour
         _shotCameraActiveUntil = Mathf.Max(_shotCameraActiveUntil, Time.time + duration);
     }
 
-    // Handle Clear Shot Shoulder Camera.
     public void ClearShotShoulderCamera()
     {
         _shotCameraActiveUntil = 0f;
     }
 
-    // Handle Set Hold Shoulder Camera.
     public void SetHoldShoulderCamera(bool active)
     {
         _holdShoulderCameraActive = active;
     }
 
-    // Handle Set Aim Camera Active.
     public void SetAimCameraActive(bool active)
     {
         _aimCameraActive = active && enableAimCamera;
     }
 
-    // Handle Set Aim Camera Override.
     public void SetAimCameraOverride(
         Vector3 pivotOffset,
         float distance,
@@ -578,7 +554,6 @@ public class FPSController : MonoBehaviour
         _aimCameraAnchorLocalOffsetOverride = anchorLocalOffset;
     }
 
-    // Handle Clear Aim Camera Override.
     public void ClearAimCameraOverride()
     {
         _useAimCameraOverride = false;
@@ -586,7 +561,6 @@ public class FPSController : MonoBehaviour
         _aimCameraAnchorLocalOffsetOverride = Vector3.zero;
     }
 
-    // Handle Normalize Angle.
     private static float NormalizeAngle(float angle)
     {
         while (angle > 180f) angle -= 360f;
@@ -594,7 +568,6 @@ public class FPSController : MonoBehaviour
         return angle;
     }
 
-    // Handle Update Camera Field Of View.
     private void UpdateCameraFieldOfView(
         bool aimCameraActive,
         float resolvedAimFieldOfView,
@@ -626,7 +599,6 @@ public class FPSController : MonoBehaviour
         _playerCameraComponent.fieldOfView = Mathf.Lerp(_playerCameraComponent.fieldOfView, targetFieldOfView, t);
     }
 
-    // Handle Get Camera Shake Offset.
     private Vector3 GetCameraShakeOffset()
     {
         if (!enableCameraShake || cameraShakeAmplitude <= 0f || cameraShakeFrequency <= 0f)
@@ -641,7 +613,6 @@ public class FPSController : MonoBehaviour
         return new Vector3(x, y, z) * cameraShakeAmplitude;
     }
 
-    // Handle Update Movement Flags.
     private void UpdateMovementFlags(Vector2 moveInput, bool isRunning)
     {
         const float deadzone = 0.1f;
@@ -673,7 +644,23 @@ public class FPSController : MonoBehaviour
         _isForwardRightRun = forwardRight && isRunning;
     }
 
-    // Handle Run Callbacks.
+    private void ClearMovementFlags(bool idle)
+    {
+        _isIdle = idle;
+        _isForwardWalk = false;
+        _isForwardRun = false;
+        _isBackwardWalk = false;
+        _isBackwardRun = false;
+        _isLeftWalk = false;
+        _isLeftRun = false;
+        _isRightWalk = false;
+        _isRightRun = false;
+        _isForwardLeftWalk = false;
+        _isForwardLeftRun = false;
+        _isForwardRightWalk = false;
+        _isForwardRightRun = false;
+    }
+
     private void RunCallbacks()
     {
         if (actionScript == null)
@@ -682,33 +669,9 @@ public class FPSController : MonoBehaviour
         }
 
         bool jumpLocked = Time.time < _jumpAnimationLockUntil;
-        if (jumpLocked)
+        if (jumpLocked || actionScript.IsMovementAnimationLocked() || _isJumping)
         {
-            actionScript.Idle(false);
-            actionScript.Walk(false);
-            actionScript.WalkBackwards(false);
-            actionScript.WalkLeft(false);
-            actionScript.WalkRight(false);
-            actionScript.WalkForwardLeft(false);
-            actionScript.WalkForwardRight(false);
-            actionScript.Sprint(false, false);
-            actionScript.SprintForwardLeft(false);
-            actionScript.SprintForwardRight(false);
-            return;
-        }
-
-        if (actionScript.IsMovementAnimationLocked())
-        {
-            actionScript.Idle(false);
-            actionScript.Walk(false);
-            actionScript.WalkBackwards(false);
-            actionScript.WalkLeft(false);
-            actionScript.WalkRight(false);
-            actionScript.WalkForwardLeft(false);
-            actionScript.WalkForwardRight(false);
-            actionScript.Sprint(false, false);
-            actionScript.SprintForwardLeft(false);
-            actionScript.SprintForwardRight(false);
+            StopMovementAnimations();
             return;
         }
 
@@ -716,21 +679,6 @@ public class FPSController : MonoBehaviour
         bool forwardRun = _isForwardRun;
         bool backward = _isBackwardWalk || _isBackwardRun;
         bool anyRun = _isForwardRun || _isBackwardRun || _isLeftRun || _isRightRun || _isForwardLeftRun || _isForwardRightRun;
-
-        if (_isJumping)
-        {
-            actionScript.Idle(false);
-            actionScript.Walk(false);
-            actionScript.WalkBackwards(false);
-            actionScript.WalkLeft(false);
-            actionScript.WalkRight(false);
-            actionScript.WalkForwardLeft(false);
-            actionScript.WalkForwardRight(false);
-            actionScript.Sprint(false, false);
-            actionScript.SprintForwardLeft(false);
-            actionScript.SprintForwardRight(false);
-            return;
-        }
 
         OnJump(_isJumping);
         actionScript.Idle(_isIdle);
@@ -743,6 +691,20 @@ public class FPSController : MonoBehaviour
         actionScript.Sprint(anyRun, forwardRun);
         actionScript.SprintForwardLeft(_isForwardLeftRun);
         actionScript.SprintForwardRight(_isForwardRightRun);
+    }
+
+    private void StopMovementAnimations()
+    {
+        actionScript.Idle(false);
+        actionScript.Walk(false);
+        actionScript.WalkBackwards(false);
+        actionScript.WalkLeft(false);
+        actionScript.WalkRight(false);
+        actionScript.WalkForwardLeft(false);
+        actionScript.WalkForwardRight(false);
+        actionScript.Sprint(false, false);
+        actionScript.SprintForwardLeft(false);
+        actionScript.SprintForwardRight(false);
     }
 
     private void HandleEmoteInput(
@@ -803,7 +765,6 @@ public class FPSController : MonoBehaviour
         return !emotePressedThisFrame;
     }
 
-    // Handle On Jump.
     public void OnJump(bool active)
     {
     }
@@ -813,22 +774,18 @@ public class FPSController : MonoBehaviour
     {
     }
 
-    // Handle On Move.
     public void OnMove(InputValue value)
     {
     }
 
-    // Handle On Look.
     public void OnLook(InputValue value)
     {
     }
 
-    // Handle On Sprint.
     public void OnSprint(InputValue value)
     {
     }
 
-    // Handle Trigger Jump Animation.
     private void TriggerJumpAnimation(bool isRunning)
     {
         if (actionScript == null)
@@ -843,7 +800,6 @@ public class FPSController : MonoBehaviour
         actionScript.Jump(expectedAirTime, isRunning);
     }
 
-    // Handle Sync Jump Animation To Air Time.
     private void SyncJumpAnimationToAirTime()
     {
         if (!syncJumpAnimationToAirTime || actionScript == null || !_isJumping)
@@ -854,7 +810,6 @@ public class FPSController : MonoBehaviour
         actionScript.SyncJumpAnimationToAirTime(EstimateRemainingAirTimeSeconds(_velocity.y));
     }
 
-    // Handle Estimate Remaining Air Time Seconds.
     private float EstimateRemainingAirTimeSeconds(float verticalSpeed)
     {
         float gravityMagnitude = Mathf.Max(0.01f, gravity);
@@ -867,7 +822,6 @@ public class FPSController : MonoBehaviour
         return Mathf.Max(0.01f, remainingAirTime);
     }
 
-    // Handle Try Get Distance To Ground.
     private bool TryGetDistanceToGround(out float distanceToGround)
     {
         distanceToGround = 0f;
@@ -922,83 +876,48 @@ public class FPSController : MonoBehaviour
         return true;
     }
 
-    // Handle On Idle.
     public void OnIdle(bool active)
     {
-        if (actionScript == null)
-        {
-            return;
-        }
-
-        actionScript.Idle(active);
+        actionScript?.Idle(active);
     }
 
-    // Handle On Forward Walk.
     public void OnForwardWalk(bool active)
     {
-        if (actionScript == null)
-        {
-            return;
-        }
-
-        actionScript.Walk(active);
+        actionScript?.Walk(active);
     }
 
-    // Handle On Forward Run.
     public void OnForwardRun(bool active)
     {
-        if (actionScript == null)
-        {
-            return;
-        }
-
-        actionScript.Sprint(active, active);
+        actionScript?.Sprint(active, active);
     }
 
-    // Handle On Backward Walk.
     public void OnBackwardWalk(bool active)
     {
-        if (actionScript == null)
-        {
-            return;
-        }
-
-        actionScript.WalkBackwards(active);
+        actionScript?.WalkBackwards(active);
     }
 
-    // Handle On Backward Run.
     public void OnBackwardRun(bool active)
     {
-        if (actionScript == null)
-        {
-            return;
-        }
-
-        actionScript.WalkBackwards(active);
-        actionScript.Sprint(active, false);
+        actionScript?.WalkBackwards(active);
+        actionScript?.Sprint(active, false);
     }
 
-    // Handle On Left Walk.
     public void OnLeftWalk(bool active)
     {
     }
 
-    // Handle On Left Run.
     public void OnLeftRun(bool active)
     {
     }
 
-    // Handle On Right Walk.
     public void OnRightWalk(bool active)
     {
     }
 
-    // Handle On Right Run.
     public void OnRightRun(bool active)
     {
     }
 
-    // Handle Resolve Equipped Sword Movement Speed Multiplier.
     private float ResolveEquippedSwordMovementSpeedMultiplier()
     {
         ItemSwitchScript itemSwitchScript = ResolveItemSwitchScript();
@@ -1010,7 +929,6 @@ public class FPSController : MonoBehaviour
         return equippedSword.GetResolvedSpeed();
     }
 
-    // Handle Resolve Item Switch Script.
     private ItemSwitchScript ResolveItemSwitchScript()
     {
         if (_itemSwitchScript != null)
@@ -1031,7 +949,7 @@ public class FPSController : MonoBehaviour
         }
 
 #if UNITY_2023_1_OR_NEWER
-        _itemSwitchScript = FindFirstObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
+        _itemSwitchScript = FindAnyObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
 #else
         _itemSwitchScript = FindObjectOfType<ItemSwitchScript>(true);
 #endif
@@ -1039,13 +957,11 @@ public class FPSController : MonoBehaviour
         return _itemSwitchScript;
     }
 
-    // Handle Is UIBlocking Gameplay.
     private static bool IsUiBlockingGameplay()
     {
         return GameplayUiState.IsGameplayInputBlocked;
     }
 
-    // Handle Set Cursor State For UIBlock.
     private static void SetCursorStateForUiBlock(bool uiBlocking)
     {
         GameplayUiState.ApplyCursorState();

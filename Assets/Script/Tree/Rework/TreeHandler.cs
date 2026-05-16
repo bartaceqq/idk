@@ -28,7 +28,6 @@ public class TreeHandler : MonoBehaviour
     [SerializeField, Min(0f)] private float topPartGroundDespawnDelaySeconds = 1f;
     [SerializeField, Range(0f, 1f)] private float groundHitContactNormalY = 0.35f;
     [Header("Chop")]
-    [SerializeField] private int chopsToFall = 4;
     [SerializeField] private float hitCooldownSeconds = 0.12f;
     public GameObject chopImpactParticlePrefab;
     [SerializeField, Range(0f, 1f)] private float chopImpactBetweenFactor = 0.35f;
@@ -147,7 +146,7 @@ public class TreeHandler : MonoBehaviour
         if (cachedInventoryAddHandler == null)
         {
 #if UNITY_2023_1_OR_NEWER
-            cachedInventoryAddHandler = FindFirstObjectByType<InventoryAddHandler>(FindObjectsInactive.Include);
+            cachedInventoryAddHandler = FindAnyObjectByType<InventoryAddHandler>(FindObjectsInactive.Include);
 #else
             cachedInventoryAddHandler = FindObjectOfType<InventoryAddHandler>(true);
 #endif

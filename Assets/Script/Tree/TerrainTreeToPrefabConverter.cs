@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEditor;
 #endif
 
-// Controls Terrain Tree To Prefab Converter behavior.
 public class TerrainTreeToPrefabConverter : MonoBehaviour
 {
     [Header("Converted Resource References")]
@@ -24,7 +23,7 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
     [SerializeField] private int branch01RotationSeed = 9143;
     [Header("Auto Conversion")]
     [SerializeField] private bool convertPaintedTreesOnStart = true;
-    [Tooltip("If enabled, converter will only convert resource prefabs (CutTree/MineStone).")]
+    [Tooltip("If enabled, converter will only convert resource prefabs (TreeHandler/MineStone).")]
     [SerializeField] private bool convertOnlyCuttableTrees = true;
     [SerializeField] private bool includeMineableStones = true;
     [SerializeField] private bool includePickableItems = true;
@@ -66,7 +65,6 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
     }
 
     [ContextMenu("Convert Painted Trees To Prefabs")]
-    // Handle Convert Painted Trees To Prefabs.
     public void ConvertPaintedTreesToPrefabs()
     {
         if (targetTerrain == null)
@@ -132,7 +130,7 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
 
             if (convertOnlyCuttableTrees)
             {
-                bool hasCutTree = prototypePrefab.GetComponentInChildren<CutTree>(true) != null;
+                bool hasTreeHandler = prototypePrefab.GetComponentInChildren<TreeHandler>(true) != null;
                 bool hasMineStone = includeMineableStones &&
                     (prototypePrefab.GetComponentInChildren<MineStone>(true) != null ||
                      prototypePrefab.GetComponentInChildren<StoneColliderScript>(true) != null);
@@ -141,7 +139,7 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
                 bool isAllowedBranch01 = includeBranch01WhenFilteringResources &&
                     MatchesPrototypeName(prototypePrefab, branch01PrototypeName);
 
-                if (!hasCutTree && !hasMineStone && !hasPickableItem && !isAllowedBranch01)
+                if (!hasTreeHandler && !hasMineStone && !hasPickableItem && !isAllowedBranch01)
                 {
                     remainingInstances.Add(instance);
                     continue;
@@ -233,7 +231,6 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
     }
 
     [ContextMenu("Convert Prefabs Back To Terrain Trees")]
-    // Handle Convert Prefabs Back To Terrain Trees.
     public void ConvertPrefabsBackToTerrainTrees()
     {
         if (targetTerrain == null)
@@ -340,7 +337,6 @@ public class TerrainTreeToPrefabConverter : MonoBehaviour
     }
 
     [ContextMenu("Snap Existing Converted Objects To Terrain")]
-    // Handle Snap Existing Converted Objects To Terrain.
     public void SnapExistingConvertedObjectsToTerrain()
     {
         if (targetTerrain == null)
@@ -965,7 +961,7 @@ Done:
         if (cachedInventoryAddHandler == null)
         {
 #if UNITY_2023_1_OR_NEWER
-            cachedInventoryAddHandler = FindFirstObjectByType<InventoryAddHandler>(FindObjectsInactive.Include);
+            cachedInventoryAddHandler = FindAnyObjectByType<InventoryAddHandler>(FindObjectsInactive.Include);
 #else
             cachedInventoryAddHandler = FindObjectOfType<InventoryAddHandler>(true);
 #endif

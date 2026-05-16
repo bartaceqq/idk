@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Controls Item Switch Script behavior.
 public class ItemSwitchScript : MonoBehaviour
 {
     public List<Item> items = new List<Item>();
@@ -82,7 +81,6 @@ public class ItemSwitchScript : MonoBehaviour
         TryHandleLegacyItemHotkeys();
     }
 
-    // Handle Try Handle Weapon Slot Hotkeys.
     private bool TryHandleWeaponSlotHotkeys()
     {
         List<WeaponSlot> orderedSlots = WeaponSlot.GetOrderedWeaponSlots();
@@ -120,7 +118,6 @@ public class ItemSwitchScript : MonoBehaviour
         return false;
     }
 
-    // Handle Try Handle Legacy Item Hotkeys.
     private void TryHandleLegacyItemHotkeys()
     {
         for (int i = 0; i < items.Count; i++)
@@ -141,7 +138,6 @@ public class ItemSwitchScript : MonoBehaviour
         }
     }
 
-    // Handle Toggle Item By Name.
     public void ToggleItemByName(string itemNameToToggle)
     {
         string normalized = NormalizeItemName(itemNameToToggle);
@@ -164,7 +160,6 @@ public class ItemSwitchScript : MonoBehaviour
         SwitchToItem(resolvedItem);
     }
 
-    // Handle Apply Equipped Item Names.
     public void ApplyEquippedItemNames(IEnumerable<string> names)
     {
         equippedItemNames.Clear();
@@ -187,7 +182,6 @@ public class ItemSwitchScript : MonoBehaviour
         }
     }
 
-    // Handle Has Item Named.
     public bool HasItemNamed(string itemNameToFind)
     {
         string normalized = NormalizeItemName(itemNameToFind);
@@ -213,7 +207,6 @@ public class ItemSwitchScript : MonoBehaviour
         return false;
     }
 
-    // Handle Try Get Equipped Sword.
     public bool TryGetEquippedSword(out Sword equippedSword)
     {
         equippedSword = null;
@@ -232,7 +225,6 @@ public class ItemSwitchScript : MonoBehaviour
         return Sword.TryResolve(resolvedItem, out equippedSword);
     }
 
-    // Handle Can Use Item.
     private bool CanUseItem(Item candidate)
     {
         if (candidate == null)
@@ -254,7 +246,6 @@ public class ItemSwitchScript : MonoBehaviour
         return !string.IsNullOrEmpty(normalized) && equippedItemNames.Contains(normalized);
     }
 
-    // Handle Ensure Current Selection Is Allowed.
     private void EnsureCurrentSelectionIsAllowed()
     {
         if (item == null || CanUseItem(item))
@@ -265,7 +256,6 @@ public class ItemSwitchScript : MonoBehaviour
         UnequipCurrentItem();
     }
 
-    // Handle Switch To Item.
     private void SwitchToItem(Item targetItem)
     {
         if (targetItem == null || _isSwordTransitioning || targetItem == item)
@@ -306,7 +296,6 @@ public class ItemSwitchScript : MonoBehaviour
         RefreshInactiveItemPresentations();
     }
 
-    // Handle Unequip Current Item.
     private void UnequipCurrentItem()
     {
         if (_isSwordTransitioning)
@@ -334,7 +323,6 @@ public class ItemSwitchScript : MonoBehaviour
         RefreshInactiveItemPresentations();
     }
 
-    // Handle Set Item Object Visible.
     private static void SetItemObjectVisible(Item targetItem, bool visible)
     {
         if (targetItem == null || targetItem.itemobject == null)
@@ -352,13 +340,11 @@ public class ItemSwitchScript : MonoBehaviour
         }
     }
 
-    // Handle Ensure Current Sword Trail Effect.
     private void EnsureCurrentSwordTrailEffect()
     {
         EnsureSwordTrailEffect(item);
     }
 
-    // Handle Ensure Sword Trail Effect.
     private void EnsureSwordTrailEffect(Item targetItem)
     {
         if (targetItem == null || targetItem.itemobject == null)
@@ -377,7 +363,6 @@ public class ItemSwitchScript : MonoBehaviour
         }
     }
 
-    // Handle Start Sword Transition.
     private void StartSwordTransition(Item swordItem, Item nextItem)
     {
         if (swordItem == null)
@@ -389,7 +374,6 @@ public class ItemSwitchScript : MonoBehaviour
         _pendingSwordTransition = StartCoroutine(PlaySwordHideTransition(swordItem, nextItem));
     }
 
-    // Handle Start Sword Equip Transition.
     private void StartSwordEquipTransition(Item swordItem)
     {
         if (swordItem == null)
@@ -401,7 +385,6 @@ public class ItemSwitchScript : MonoBehaviour
         _pendingSwordTransition = StartCoroutine(PlaySwordEquipTransition(swordItem));
     }
 
-    // Handle Cancel Pending Sword Transition.
     private void CancelPendingSwordTransition()
     {
         if (_pendingSwordTransition == null)
@@ -414,7 +397,6 @@ public class ItemSwitchScript : MonoBehaviour
         _isSwordTransitioning = false;
     }
 
-    // Handle Play Sword Hide Transition.
     private IEnumerator PlaySwordHideTransition(Item swordItem, Item nextItem)
     {
         _isSwordTransitioning = true;
@@ -456,7 +438,6 @@ public class ItemSwitchScript : MonoBehaviour
         RefreshInactiveItemPresentations();
     }
 
-    // Handle Play Sword Equip Transition.
     private IEnumerator PlaySwordEquipTransition(Item swordItem)
     {
         _isSwordTransitioning = true;
@@ -485,7 +466,6 @@ public class ItemSwitchScript : MonoBehaviour
         RefreshInactiveItemPresentations();
     }
 
-    // Handle Wait For Sword Animation Lock To Finish.
     private static IEnumerator WaitForSwordAnimationLockToFinish(ActionScript actionScript)
     {
         if (actionScript == null)
@@ -500,7 +480,6 @@ public class ItemSwitchScript : MonoBehaviour
         }
     }
 
-    // Handle Wait For Sword State To Finish.
     private static IEnumerator WaitForSwordStateToFinish(ActionScript actionScript, string stateName)
     {
         if (actionScript == null || string.IsNullOrWhiteSpace(stateName))
@@ -546,7 +525,6 @@ public class ItemSwitchScript : MonoBehaviour
         }
     }
 
-    // Handle Resolve Character Animator.
     private static Animator ResolveCharacterAnimator(ActionScript actionScript)
     {
         if (actionScript == null)
@@ -575,7 +553,6 @@ public class ItemSwitchScript : MonoBehaviour
         return null;
     }
 
-    // Handle Try Get Base Layer Index.
     private static bool TryGetBaseLayerIndex(ActionScript actionScript, Animator animator, out int layerIndex)
     {
         layerIndex = -1;
@@ -597,7 +574,6 @@ public class ItemSwitchScript : MonoBehaviour
         return layerIndex >= 0 && layerIndex < animator.layerCount;
     }
 
-    // Handle Try Get Animator State Info.
     private static bool TryGetAnimatorStateInfo(
         Animator animator,
         int layerIndex,
@@ -633,7 +609,6 @@ public class ItemSwitchScript : MonoBehaviour
         return true;
     }
 
-    // Handle Matches State Name.
     private static bool MatchesStateName(AnimatorStateInfo state, string stateName, string baseLayerName)
     {
         if (string.IsNullOrWhiteSpace(stateName))
@@ -655,7 +630,6 @@ public class ItemSwitchScript : MonoBehaviour
         return false;
     }
 
-    // Handle Activate Item Immediate.
     private void ActivateItemImmediate(Item targetItem, bool applyDrawnPresentation = true)
     {
         if (targetItem == null)
@@ -676,7 +650,6 @@ public class ItemSwitchScript : MonoBehaviour
         SetItemObjectVisible(targetItem, true);
     }
 
-    // Handle Clear Current Selection.
     private void ClearCurrentSelection()
     {
         item = null;
@@ -684,7 +657,6 @@ public class ItemSwitchScript : MonoBehaviour
         currentitemname = string.Empty;
     }
 
-    // Handle Refresh Item Presentations.
     private void RefreshItemPresentations()
     {
         if (item != null && !_isSwordTransitioning)
@@ -695,7 +667,6 @@ public class ItemSwitchScript : MonoBehaviour
         RefreshInactiveItemPresentations();
     }
 
-    // Handle Refresh Inactive Item Presentations.
     private void RefreshInactiveItemPresentations()
     {
         for (int i = 0; i < items.Count; i++)
@@ -710,7 +681,6 @@ public class ItemSwitchScript : MonoBehaviour
         }
     }
 
-    // Handle Apply Active Item Presentation.
     private void ApplyActiveItemPresentation(Item targetItem)
     {
         if (targetItem == null)
@@ -722,7 +692,6 @@ public class ItemSwitchScript : MonoBehaviour
         SetItemObjectVisible(targetItem, true);
     }
 
-    // Handle Apply Holstered Item Presentation.
     private void ApplyHolsteredItemPresentation(Item targetItem)
     {
         if (targetItem == null)
@@ -734,7 +703,6 @@ public class ItemSwitchScript : MonoBehaviour
         SetItemObjectVisible(targetItem, true);
     }
 
-    // Handle Apply Inactive Item Presentation.
     private void ApplyInactiveItemPresentation(Item targetItem)
     {
         if (ShouldShowItemHolstered(targetItem))
@@ -746,7 +714,6 @@ public class ItemSwitchScript : MonoBehaviour
         SetItemObjectVisible(targetItem, false);
     }
 
-    // Handle Should Show Item Holstered.
     private bool ShouldShowItemHolstered(Item targetItem)
     {
         if (targetItem == null || !targetItem.ShouldRemainVisibleWhenHolstered())
@@ -763,7 +730,6 @@ public class ItemSwitchScript : MonoBehaviour
         return !string.IsNullOrEmpty(normalized) && equippedItemNames.Contains(normalized);
     }
 
-    // Handle Is Sword Item.
     private bool IsSwordItem(Item candidate)
     {
         if (candidate == null)
@@ -782,7 +748,6 @@ public class ItemSwitchScript : MonoBehaviour
             System.StringComparison.OrdinalIgnoreCase);
     }
 
-    // Handle Normalize Item Name.
     private static string NormalizeItemName(string rawName)
     {
         if (string.IsNullOrWhiteSpace(rawName))
@@ -799,7 +764,6 @@ public class ItemSwitchScript : MonoBehaviour
         return normalized;
     }
 
-    // Handle Try Resolve Item By Name.
     private bool TryResolveItemByName(string itemNameToResolve, out Item resolvedItem)
     {
         resolvedItem = null;
@@ -829,7 +793,6 @@ public class ItemSwitchScript : MonoBehaviour
         return false;
     }
 
-    // Handle Resolve Action Script.
     private ActionScript ResolveActionScript()
     {
         if (_actionScript != null)
@@ -850,7 +813,7 @@ public class ItemSwitchScript : MonoBehaviour
         }
 
 #if UNITY_2023_1_OR_NEWER
-        _actionScript = FindFirstObjectByType<ActionScript>(FindObjectsInactive.Include);
+        _actionScript = FindAnyObjectByType<ActionScript>(FindObjectsInactive.Include);
 #else
         _actionScript = FindObjectOfType<ActionScript>(true);
 #endif
@@ -858,7 +821,6 @@ public class ItemSwitchScript : MonoBehaviour
         return _actionScript;
     }
 
-    // Handle Should Reserve Sword Special Hotkey.
     private bool ShouldReserveSwordSpecialHotkey(KeyCode key)
     {
         if (key != KeyCode.Alpha3 &&
@@ -874,7 +836,6 @@ public class ItemSwitchScript : MonoBehaviour
         return IsSwordEquipped();
     }
 
-    // Handle Is Sword Equipped.
     public bool IsSwordEquipped()
     {
         if (TryGetEquippedSword(out _))
@@ -902,7 +863,6 @@ public class ItemSwitchScript : MonoBehaviour
         return currentitemid == 3;
     }
 
-    // Handle Map Common Weapon Name.
     private static string MapCommonWeaponName(string rawName)
     {
         string normalized = NormalizeItemName(rawName);

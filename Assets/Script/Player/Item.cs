@@ -1,11 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// Controls Item behavior.
 public class Item : MonoBehaviour
 {
     public int ID;
-    public string name;
+    public new string name;
     public KeyCode key;
     public GameObject itemobject;
 
@@ -35,13 +34,11 @@ public class Item : MonoBehaviour
         "Spine"
     };
 
-    // Handle Should Remain Visible When Holstered.
     public bool ShouldRemainVisibleWhenHolstered()
     {
         return keepVisibleWhenHolstered && itemobject != null;
     }
 
-    // Handle Apply Drawn Presentation.
     public void ApplyDrawnPresentation()
     {
         if (!EnsurePresentationTargets())
@@ -63,7 +60,6 @@ public class Item : MonoBehaviour
             drawnLocalScale);
     }
 
-    // Handle Apply Holstered Presentation.
     public void ApplyHolsteredPresentation()
     {
         if (!EnsurePresentationTargets())
@@ -84,7 +80,6 @@ public class Item : MonoBehaviour
             holsteredLocalScale);
     }
 
-    // Handle Ensure Presentation Targets.
     private bool EnsurePresentationTargets()
     {
         if (itemobject == null)
@@ -107,7 +102,6 @@ public class Item : MonoBehaviour
         return true;
     }
 
-    // Handle Resolve Holstered Parent.
     private Transform ResolveHolsteredParent(Transform itemTransform)
     {
         if (holsteredParentOverride != null)
@@ -135,7 +129,6 @@ public class Item : MonoBehaviour
         return null;
     }
 
-    // Handle Find Descendant By Name.
     private static Transform FindDescendantByName(Transform root, string targetName)
     {
         if (root == null || string.IsNullOrWhiteSpace(targetName))
@@ -168,7 +161,6 @@ public class Item : MonoBehaviour
         return null;
     }
 
-    // Handle Apply Local Transform Override.
     private void ApplyLocalTransformOverride(bool shouldApply, Vector3 localPosition, Vector3 localEulerAngles, Vector3 localScale)
     {
         if (!shouldApply || itemobject == null)

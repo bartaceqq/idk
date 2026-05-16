@@ -16,7 +16,6 @@ public class XPLevelTableLoader : MonoBehaviour
 
     [SerializeField] private List<XPLevelEntry> loadedLevels = new List<XPLevelEntry>();
 
-    // Handle Ensure Loaded.
     public void EnsureLoaded()
     {
         if (loadedLevels == null || loadedLevels.Count == 0)
@@ -25,7 +24,6 @@ public class XPLevelTableLoader : MonoBehaviour
         }
     }
 
-    // Handle Reload.
     public void Reload()
     {
         string json = ReadJsonText();
@@ -39,7 +37,6 @@ public class XPLevelTableLoader : MonoBehaviour
         loadedLevels.Sort((a, b) => a.level.CompareTo(b.level));
     }
 
-    // Handle Get Required XP For Level.
     public int GetRequiredXPForLevel(int level)
     {
         EnsureLoaded();
@@ -66,26 +63,22 @@ public class XPLevelTableLoader : MonoBehaviour
         return Mathf.Max(1, closestEntry.maxXP);
     }
 
-    // Handle Reset.
     private void Reset()
     {
         TryAssignDefaultJsonFile();
         Reload();
     }
 
-    // Handle Awake.
     private void Awake()
     {
         EnsureLoaded();
     }
 
-    // Handle On Validate.
     private void OnValidate()
     {
         TryAssignDefaultJsonFile();
     }
 
-    // Handle Read Json Text.
     private string ReadJsonText()
     {
         if (jsonFile != null && !string.IsNullOrWhiteSpace(jsonFile.text))
@@ -102,7 +95,6 @@ public class XPLevelTableLoader : MonoBehaviour
         return string.Empty;
     }
 
-    // Handle Parse Levels.
     private static List<XPLevelEntry> ParseLevels(string json)
     {
         List<XPLevelEntry> result = new List<XPLevelEntry>();
@@ -168,7 +160,6 @@ public class XPLevelTableLoader : MonoBehaviour
         return result;
     }
 
-    // Handle Try Assign Default Json File.
     private void TryAssignDefaultJsonFile()
     {
 #if UNITY_EDITOR

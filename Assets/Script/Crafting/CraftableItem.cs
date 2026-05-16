@@ -1,41 +1,33 @@
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
-// Controls Craftable Item behavior.
 public class CraftableItem : MonoBehaviour
 {
     public Sprite sprite;
-    public string name;
+    public new string name;
     public List<string> neededResources = new List<string>();
     public int slotnumber = -1;
-    [Header("Crafting Station")]
-    public string craftingStationId = "HandCrafting";
 
     [Header("Craft Result")]
     public InventoryItem craftedInventoryItem;
     public InventoryItemType itemType = InventoryItemType.Usable;
     public GameObject itemPrefab;
-    public Vector3 buildRotationEuler = Vector3.zero;
-    public Vector3 buildScale = Vector3.one;
     public int craftAmount = 1;
 
     [Header("Availability")]
-    public bool placed = false;
-    public bool locked = false;
+    public bool placed;
+    public bool locked;
     public int minlvl = 1;
 
     private InventoryItem runtimeCraftedInventoryItem;
 
-    // Run in the editor when values change in Inspector.
     private void OnValidate()
     {
         craftAmount = Mathf.Max(1, craftAmount);
-        ValidateBuildScale();
 
         if (craftedInventoryItem != null)
         {
-            SyncCraftResultToInventoryItem(craftedInventoryItem, null);
+            SyncCraftResultToInventoryItem(craftedInventoryItem);
         }
 
         if (!RequiresPrefab() || ResolveCraftPrefab() != null)
@@ -44,19 +36,14 @@ public class CraftableItem : MonoBehaviour
             return;
         }
 
-        Debug.LogWarning($"{name}: Type {itemType} requires a prefab (itemPrefab or craftedInventoryItem.itemPrefab).", this);
-        ValidateSwordPrefab();
+        Debug.LogWarning($"{name}: Type {itemType} requires a prefab.", this);
     }
 
-    // Handle Requires Prefab.
     public bool RequiresPrefab()
     {
-        return itemType == InventoryItemType.Tool ||
-               itemType == InventoryItemType.Sword ||
-               itemType == InventoryItemType.Building;
+        return itemType == InventoryItemType.Tool || itemType == InventoryItemType.Sword;
     }
 
-    // Handle Resolve Craft Prefab.
     public GameObject ResolveCraftPrefab()
     {
         if (itemPrefab != null)
@@ -64,24 +51,13 @@ public class CraftableItem : MonoBehaviour
             return itemPrefab;
         }
 
-        if (craftedInventoryItem != null)
-        {
-            return craftedInventoryItem.itemPrefab;
-        }
-
-        return null;
+        return craftedInventoryItem != null ? craftedInventoryItem.itemPrefab : null;
     }
 
-    // Handle Try Resolve Crafted Inventory Item.
-    public bool TryResolveCraftedInventoryItem(SlotManager fallbackSlotManager, out InventoryItem resolvedItem, out string reason)
+    public bool TryResolveCraftedInventoryItem(out InventoryItem resolvedItem, out string reason)
     {
-        resolvedItem = craftedInventoryItem;
+        resolvedItem = craftedInventoryItem != null ? craftedInventoryItem : GetOrCreateRuntimeCraftedInventoryItem();
         reason = string.Empty;
-
-        if (resolvedItem == null)
-        {
-            resolvedItem = GetOrCreateRuntimeCraftedInventoryItem();
-        }
 
         if (resolvedItem == null)
         {
@@ -89,7 +65,7 @@ public class CraftableItem : MonoBehaviour
             return false;
         }
 
-        SyncCraftResultToInventoryItem(resolvedItem, fallbackSlotManager);
+        SyncCraftResultToInventoryItem(resolvedItem);
 
         if (RequiresPrefab() && resolvedItem.itemPrefab == null)
         {
@@ -100,7 +76,6 @@ public class CraftableItem : MonoBehaviour
         return true;
     }
 
-    // Handle Get Or Create Runtime Crafted Inventory Item.
     private InventoryItem GetOrCreateRuntimeCraftedInventoryItem()
     {
         if (runtimeCraftedInventoryItem != null)
@@ -117,8 +92,7 @@ public class CraftableItem : MonoBehaviour
         return runtimeCraftedInventoryItem;
     }
 
-    // Handle Sync Craft Result To Inventory Item.
-    private void SyncCraftResultToInventoryItem(InventoryItem target, SlotManager fallbackSlotManager)
+    private void SyncCraftResultToInventoryItem(InventoryItem target)
     {
         if (target == null)
         {
@@ -141,44 +115,15 @@ public class CraftableItem : MonoBehaviour
         }
 
         target.itemType = itemType;
-
         if (itemPrefab != null)
         {
             target.itemPrefab = itemPrefab;
         }
 
-        target.buildRotationEuler = buildRotationEuler;
-        target.buildScale = buildScale;
-
-        target.mingain = Mathf.Max(1, target.mingain);
-        target.maxgain = Mathf.Max(target.mingain, target.maxgain);
-
-        if (fallbackSlotManager != null && target.slotManager == null)
-        {
-            target.slotManager = fallbackSlotManager;
-        }
+        target.mingain = 1;
+        target.maxgain = Mathf.Max(1, craftAmount);
     }
 
-    // Handle Validate Build Scale.
-    private void ValidateBuildScale()
-    {
-        buildScale.x = ValidateScaleAxis(buildScale.x);
-        buildScale.y = ValidateScaleAxis(buildScale.y);
-        buildScale.z = ValidateScaleAxis(buildScale.z);
-    }
-
-    // Handle Validate Scale Axis.
-    private static float ValidateScaleAxis(float axisValue)
-    {
-        if (Mathf.Abs(axisValue) < 0.0001f)
-        {
-            return 1f;
-        }
-
-        return axisValue;
-    }
-
-    // Handle Validate Sword Prefab.
     private void ValidateSwordPrefab()
     {
         if (itemType != InventoryItemType.Sword)
@@ -187,11 +132,9 @@ public class CraftableItem : MonoBehaviour
         }
 
         GameObject swordPrefab = ResolveCraftPrefab();
-        if (swordPrefab == null || swordPrefab.GetComponent<Sword>() != null)
+        if (swordPrefab != null && swordPrefab.GetComponent<Sword>() == null)
         {
-            return;
+            Debug.LogWarning($"{name}: Crafted sword prefabs should include a Sword component.", this);
         }
-
-        Debug.LogWarning($"{name}: Crafted sword prefabs should include a Sword component.", this);
     }
 }
