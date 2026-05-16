@@ -34,7 +34,6 @@ public class RadiusForAttackScript : MonoBehaviour
 
     private readonly Collider[] _overlapHits = new Collider[128];
     private readonly HashSet<NPCDemageScript> _uniqueTargets = new HashSet<NPCDemageScript>();
-    private readonly HashSet<Animalec> _uniqueAnimals = new HashSet<Animalec>();
     private readonly List<HashSet<int>> _windowHitTargetIds = new List<HashSet<int>>();
     private int _trackedSwordStateHash;
     private float _lastTrackedSwordProgress;
@@ -428,35 +427,12 @@ public class RadiusForAttackScript : MonoBehaviour
             alreadyHitTargetIds?.Add(targetId);
         }
 
-        foreach (Animalec animalTarget in _uniqueAnimals)
-        {
-            if (animalTarget == null)
-            {
-                continue;
-            }
-
-            Vector3 delta = animalTarget.transform.position - origin;
-            if (delta.sqrMagnitude > radiusSqr)
-            {
-                continue;
-            }
-
-            int targetId = animalTarget.GetInstanceID();
-            if (alreadyHitTargetIds != null && alreadyHitTargetIds.Contains(targetId))
-            {
-                continue;
-            }
-
-            animalTarget.TakeDamage(damage);
-            alreadyHitTargetIds?.Add(targetId);
-        }
     }
 
     // Handle Collect Targets.
     private void CollectTargets(Vector3 origin, float radius, float radiusSqr)
     {
         _uniqueTargets.Clear();
-        _uniqueAnimals.Clear();
 
         int hitCount = Physics.OverlapSphereNonAlloc(
             origin,
@@ -489,21 +465,6 @@ public class RadiusForAttackScript : MonoBehaviour
                 _uniqueTargets.Add(damageTarget);
             }
 
-            Animalec animalTarget = hit.GetComponent<Animalec>();
-            if (animalTarget == null)
-            {
-                animalTarget = hit.GetComponentInParent<Animalec>();
-            }
-
-            if (animalTarget == null)
-            {
-                animalTarget = hit.GetComponentInChildren<Animalec>();
-            }
-
-            if (animalTarget != null)
-            {
-                _uniqueAnimals.Add(animalTarget);
-            }
         }
 
         if (_uniqueTargets.Count == 0)
@@ -511,10 +472,6 @@ public class RadiusForAttackScript : MonoBehaviour
             CollectTargetsFromEnemyLists(origin, radiusSqr);
         }
 
-        if (_uniqueAnimals.Count == 0)
-        {
-            CollectAnimalTargetsFromScene(origin, radiusSqr);
-        }
     }
 
     // Handle Collect Targets From Enemy Lists.
@@ -569,29 +526,6 @@ public class RadiusForAttackScript : MonoBehaviour
             if (delta.sqrMagnitude <= radiusSqr)
             {
                 _uniqueTargets.Add(damageTarget);
-            }
-        }
-    }
-
-    // Handle Collect Animal Targets From Scene.
-    private void CollectAnimalTargetsFromScene(Vector3 origin, float radiusSqr)
-    {
-        Animalec[] allAnimals = FindObjectsByType<Animalec>(
-            FindObjectsInactive.Exclude,
-            FindObjectsSortMode.None);
-
-        for (int i = 0; i < allAnimals.Length; i++)
-        {
-            Animalec animal = allAnimals[i];
-            if (animal == null)
-            {
-                continue;
-            }
-
-            Vector3 delta = animal.transform.position - origin;
-            if (delta.sqrMagnitude <= radiusSqr)
-            {
-                _uniqueAnimals.Add(animal);
             }
         }
     }

@@ -12,25 +12,14 @@ public class CraftingManager : MonoBehaviour
     public bool menuShown = false;
     public GameObject craftingMenuRoot;
 
-    [Header("Station Filtering")]
-    public Transform playerTransform;
-    public string handCraftingStationId = "HandCrafting";
-    public float defaultStationRange = 5f;
-    public bool closeMenuWhenLeavingStation = true;
-    public bool logActiveStation = false;
-
     private bool _checkQueued;
     private CanvasGroup _menuCanvasGroup;
-    private CraftingStation _activeStation;
-    private string _activeStationId = string.Empty;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         MigrateLegacyToggleKey();
         EnsureMenuCanvasGroup();
-        ResolvePlayerTransform();
-        EnsureActiveContextInitialized();
         ApplyMenuVisibility();
         RefreshLists();
         ResetRuntimePlacementState();
@@ -41,21 +30,18 @@ public class CraftingManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (GameSettings.GetKeyDown(GameSettings.Key.Crafting, toggleKey))
+        if (!GameSettings.GetKeyDown(GameSettings.Key.Crafting, toggleKey))
         {
-            if (menuShown)
-            {
-                CloseMenu();
-            }
-            else
-            {
-                TryOpenMenuForCurrentContext();
-            }
+            return;
         }
 
-        if (menuShown && closeMenuWhenLeavingStation && !IsActiveContextStillValid())
+        if (menuShown)
         {
             CloseMenu();
+        }
+        else
+        {
+            OpenMenu();
         }
     }
 
@@ -64,7 +50,6 @@ public class CraftingManager : MonoBehaviour
         if (!Application.isPlaying)
         {
             MigrateLegacyToggleKey();
-            defaultStationRange = Mathf.Max(0.1f, defaultStationRange);
         }
     }
 
@@ -84,22 +69,9 @@ public class CraftingManager : MonoBehaviour
         }
     }
 
-    // Handle Try Open Menu For Current Context.
-    private void TryOpenMenuForCurrentContext()
+    // Handle Open Menu.
+    private void OpenMenu()
     {
-        ResolvePlayerTransform();
-
-        CraftingStation station = FindClosestStationInRange();
-        string stationId = station != null
-            ? station.GetNormalizedStationId()
-            : NormalizeStationId(handCraftingStationId);
-
-        if (string.IsNullOrEmpty(stationId))
-        {
-            return;
-        }
-
-        SetActiveCraftingContext(station, stationId);
         Check();
         menuShown = true;
         ApplyMenuVisibility();
@@ -110,148 +82,6 @@ public class CraftingManager : MonoBehaviour
     {
         menuShown = false;
         ApplyMenuVisibility();
-    }
-
-    // Handle Is Active Context Still Valid.
-    private bool IsActiveContextStillValid()
-    {
-        if (_activeStation == null)
-        {
-            return true;
-        }
-
-        ResolvePlayerTransform();
-        if (playerTransform == null || !_activeStation.gameObject.activeInHierarchy)
-        {
-            return false;
-        }
-
-        return _activeStation.IsInRange(playerTransform, defaultStationRange);
-    }
-
-    // Handle Resolve Player Transform.
-    private void ResolvePlayerTransform()
-    {
-        if (playerTransform != null)
-        {
-            return;
-        }
-
-        if (Camera.main != null)
-        {
-            playerTransform = Camera.main.transform;
-            return;
-        }
-
-#if UNITY_2023_1_OR_NEWER
-        LookingController lookingController = FindFirstObjectByType<LookingController>(FindObjectsInactive.Include);
-#else
-        LookingController lookingController = FindObjectOfType<LookingController>(true);
-#endif
-
-        if (lookingController != null)
-        {
-            playerTransform = lookingController.transform;
-            return;
-        }
-
-        GameObject taggedPlayer = FindPlayerTaggedObject();
-        if (taggedPlayer != null)
-        {
-            playerTransform = taggedPlayer.transform;
-        }
-    }
-
-    // Handle Find Player Tagged Object.
-    private static GameObject FindPlayerTaggedObject()
-    {
-        try
-        {
-            return GameObject.FindWithTag("Player");
-        }
-        catch (UnityException)
-        {
-            return null;
-        }
-    }
-
-    // Handle Find Closest Station In Range.
-    private CraftingStation FindClosestStationInRange()
-    {
-        if (playerTransform == null)
-        {
-            return null;
-        }
-
-#if UNITY_2023_1_OR_NEWER
-        CraftingStation[] stations = FindObjectsByType<CraftingStation>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-#else
-        CraftingStation[] stations = FindObjectsOfType<CraftingStation>(true);
-#endif
-
-        float bestDistance = float.MaxValue;
-        CraftingStation bestStation = null;
-
-        for (int i = 0; i < stations.Length; i++)
-        {
-            CraftingStation station = stations[i];
-            if (station == null || !station.gameObject.activeInHierarchy)
-            {
-                continue;
-            }
-
-            if (string.IsNullOrEmpty(station.GetNormalizedStationId()))
-            {
-                continue;
-            }
-
-            if (!station.IsInRange(playerTransform, defaultStationRange))
-            {
-                continue;
-            }
-
-            float distance = station.GetDistanceSqrTo(playerTransform);
-            if (distance >= bestDistance)
-            {
-                continue;
-            }
-
-            bestDistance = distance;
-            bestStation = station;
-        }
-
-        return bestStation;
-    }
-
-    // Handle Set Active Crafting Context.
-    private void SetActiveCraftingContext(CraftingStation station, string stationId)
-    {
-        _activeStation = station;
-        _activeStationId = NormalizeStationId(stationId);
-
-        if (!logActiveStation)
-        {
-            return;
-        }
-
-        if (_activeStation == null)
-        {
-            Debug.Log("Crafting station: " + _activeStationId);
-            return;
-        }
-
-        Debug.Log("Crafting station: " + _activeStationId + " (" + _activeStation.name + ")");
-    }
-
-    // Handle Ensure Active Context Initialized.
-    private void EnsureActiveContextInitialized()
-    {
-        if (!string.IsNullOrEmpty(_activeStationId))
-        {
-            return;
-        }
-
-        SetActiveCraftingContext(null, NormalizeStationId(handCraftingStationId));
     }
 
     private void RefreshLists()
@@ -287,7 +117,6 @@ public class CraftingManager : MonoBehaviour
 
     public void Check()
     {
-        EnsureActiveContextInitialized();
         RefreshLists();
 
         if (items.Count == 0)
@@ -314,7 +143,7 @@ public class CraftingManager : MonoBehaviour
         for (int i = 0; i < items.Count; i++)
         {
             CraftableItem item = items[i];
-            if (!IsItemVisibleInCurrentContext(item))
+            if (item == null)
             {
                 continue;
             }
@@ -331,28 +160,6 @@ public class CraftingManager : MonoBehaviour
         }
 
         UpdateSlotVisibility();
-    }
-
-    // Handle Is Item Visible In Current Context.
-    private bool IsItemVisibleInCurrentContext(CraftableItem item)
-    {
-        if (item == null)
-        {
-            return false;
-        }
-
-        string itemStationId = NormalizeStationId(item.craftingStationId);
-        if (string.IsNullOrEmpty(itemStationId))
-        {
-            itemStationId = NormalizeStationId(handCraftingStationId);
-        }
-
-        if (string.Equals(itemStationId, "Any", System.StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return string.Equals(itemStationId, _activeStationId, System.StringComparison.OrdinalIgnoreCase);
     }
 
     private CraftableSlot GetLowestAvailableSlot()
@@ -487,16 +294,5 @@ public class CraftingManager : MonoBehaviour
     private static void ApplyCursorState()
     {
         GameplayUiState.ApplyCursorState();
-    }
-
-    // Handle Normalize Station Id.
-    private static string NormalizeStationId(string rawId)
-    {
-        if (string.IsNullOrWhiteSpace(rawId))
-        {
-            return string.Empty;
-        }
-
-        return rawId.Trim();
     }
 }

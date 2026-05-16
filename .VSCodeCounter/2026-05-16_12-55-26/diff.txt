@@ -1,0 +1,37 @@
+Date : 2026-05-16 12:55:26
+Directory : c:\Users\adam1\UnityProjects\idk\Assets\Script\InventoryRemake
+Total : 10 files,  -1222 codes, -75 comments, -257 blanks, all -1554 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| C#       |         10 |     -1,222 |        -75 |       -257 |     -1,554 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                               | files      | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                  |         10 |     -1,222 |        -75 |       -257 |     -1,554 |
+| . (Files)                                                                          |          3 |        440 |         26 |         79 |        545 |
+| ..                                                                                 |          7 |     -1,662 |       -101 |       -336 |     -2,099 |
+| ..\Inventory                                                                       |          7 |     -1,662 |       -101 |       -336 |     -2,099 |
++------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                           | language | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\InventoryRemake\InventoryManager.cs | C#       |        201 |          8 |         31 |        240 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\InventoryRemake\Item.cs             | C#       |         19 |          2 |          6 |         27 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\InventoryRemake\SlotInsideUI.cs     | C#       |        220 |         16 |         42 |        278 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\InventoryAddHandler.cs    | C#       |        -23 |         -4 |        -10 |        -37 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\InventoryController.cs    | C#       |       -105 |         -7 |        -23 |       -135 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\InventoryItem.cs          | C#       |       -115 |        -11 |        -23 |       -149 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\InventoryListHandler.cs   | C#       |       -125 |         -8 |        -27 |       -160 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\Slot.cs                   | C#       |       -369 |        -21 |        -72 |       -462 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\SlotManager.cs            | C#       |       -267 |        -20 |        -51 |       -338 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\WeaponSlot.cs             | C#       |       -658 |        -30 |       -130 |       -818 |
+| Total                                                                              |          |     -1,222 |        -75 |       -257 |     -1,554 |
++------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+

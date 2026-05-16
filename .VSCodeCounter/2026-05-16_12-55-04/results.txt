@@ -1,0 +1,31 @@
+Date : 2026-05-16 12:55:04
+Directory : c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies
+Total : 7 files,  1270 codes, 34 comments, 231 blanks, all 1535 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| C#       |          7 |      1,270 |         34 |        231 |      1,535 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                              | files      | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                 |          7 |      1,270 |         34 |        231 |      1,535 |
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-----------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                          | language | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\EnemiesHandler.cs          | C#       |          7 |          1 |          3 |         11 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\NPCDemageScript.cs         | C#       |        159 |         11 |         33 |        203 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\NPCHealthScript.cs         | C#       |        114 |          9 |         19 |        142 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\RandomSkeletonScript.cs    | C#       |         40 |          2 |          8 |         50 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\RandomZombieScript.cs      | C#       |        924 |          5 |        162 |      1,091 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\SkeletonAnimatopmScript.cs | C#       |         13 |          3 |          3 |         19 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\ZombieAnimationScript.cs   | C#       |         13 |          3 |          3 |         19 |
+| Total                                                                             |          |      1,270 |         34 |        231 |      1,535 |
++-----------------------------------------------------------------------------------+----------+------------+------------+------------+------------+

@@ -1,0 +1,16 @@
+"filename", "language", "C#", "comment", "blank", "total"
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\EnemiesHandler.cs", "C#", -7, -1, -3, -11
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\NPCDemageScript.cs", "C#", -159, -11, -33, -203
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\NPCHealthScript.cs", "C#", -114, -9, -19, -142
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\RandomSkeletonScript.cs", "C#", -40, -2, -8, -50
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\RandomZombieScript.cs", "C#", -924, -5, -162, -1091
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\SkeletonAnimatopmScript.cs", "C#", -13, -3, -3, -19
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\ZombieAnimationScript.cs", "C#", -13, -3, -3, -19
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\InventoryAddHandler.cs", "C#", 23, 4, 10, 37
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\InventoryController.cs", "C#", 105, 7, 23, 135
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\InventoryItem.cs", "C#", 115, 11, 23, 149
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\InventoryListHandler.cs", "C#", 125, 8, 27, 160
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\Slot.cs", "C#", 369, 21, 72, 462
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\SlotManager.cs", "C#", 267, 20, 51, 338
+"c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\WeaponSlot.cs", "C#", 658, 30, 130, 818
+"Total", "-", 392, 67, 105, 564

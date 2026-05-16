@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 using InputSystemPlayerInput = UnityEngine.InputSystem.PlayerInput;
 
 // Controls Looking Controller behavior.
@@ -17,102 +16,110 @@ public class LookingController : MonoBehaviour
     // Run setup once before the first frame.
     private void Start()
     {
-        SyncSwitchStateFromActiveCapsule();
+        SwitchToNormalMode();
     }
 
     // Run this logic every frame.
     private void Update()
     {
-        bool uiBlocking = IsUiBlockingGameplay();
-        SetCursorStateForUiBlock(uiBlocking);
+        GameplayUiState.ApplyCursorState();
 
-        if (uiBlocking)
+        // Build mode is removed: always keep normal gameplay capsule active.
+        if (switched || (buildingcapsule != null && buildingcapsule.activeSelf))
         {
-            return;
-        }
-
-        if (GameSettings.GetKeyDown(GameSettings.Key.BuildMode, keycode))
-        {
-            Switch();
+            SwitchToNormalMode();
         }
     }
 
     // Handle Switch.
     public void Switch()
     {
-        if (normalcapsule == null || buildingcapsule == null)
-        {
-            Debug.LogWarning("LookingController: assign normalcapsule and buildingcapsule.");
-            return;
-        }
-
-        SyncSwitchStateFromActiveCapsule();
-
-        bool switchToBuilding = !switched;
-        GameObject sourceCapsule = switchToBuilding ? normalcapsule : buildingcapsule;
-        GameObject targetCapsule = switchToBuilding ? buildingcapsule : normalcapsule;
-        Transform sourceLook = ResolveLookTransform(sourceCapsule, switchToBuilding ? normalLookTransform : buildingLookTransform);
-        Transform targetLook = ResolveLookTransform(targetCapsule, switchToBuilding ? buildingLookTransform : normalLookTransform);
-
-        Vector3 sharedPosition = sourceCapsule.transform.position;
-        Quaternion sharedRotation = sourceCapsule.transform.rotation;
-        Quaternion sharedLookRotation = sourceLook != null ? sourceLook.rotation : sharedRotation;
-
-        if (position != null)
-        {
-            position.position = sharedPosition;
-            position.rotation = sharedRotation;
-        }
-
-        targetCapsule.transform.position = sharedPosition;
-        targetCapsule.transform.rotation = sharedRotation;
-        if (targetLook != null)
-        {
-            targetLook.rotation = sharedLookRotation;
-        }
-
-        // Disable source first so its OnDisable runs before target OnEnable.
-        sourceCapsule.SetActive(false);
-        targetCapsule.SetActive(true);
-        switched = switchToBuilding;
-
-        if (switched)
-        {
-            if (animator != null) animator.enabled = false;
-        }
-        else
-        {
-            if (animator != null) animator.enabled = true;
-        }
-
-        ActivatePrimaryPlayerInput(targetCapsule);
-        bool uiOpen = IsUiBlockingGameplay();
-        Cursor.lockState = uiOpen ? CursorLockMode.None : CursorLockMode.Locked;
-        Cursor.visible = uiOpen;
+        SwitchToNormalMode();
     }
 
     // Handle Switch To Building Mode.
     public void SwitchToBuildingMode()
     {
-        SyncSwitchStateFromActiveCapsule();
-        if (switched)
-        {
-            return;
-        }
-
-        Switch();
+        SwitchToNormalMode();
     }
 
     // Handle Switch To Normal Mode.
     public void SwitchToNormalMode()
     {
-        SyncSwitchStateFromActiveCapsule();
-        if (!switched)
+        GameObject activeCapsule = ResolveActiveCapsule();
+        Vector3 sharedPosition = activeCapsule != null ? activeCapsule.transform.position : transform.position;
+        Quaternion sharedRotation = activeCapsule != null ? activeCapsule.transform.rotation : transform.rotation;
+        Quaternion sharedLookRotation = ResolveLookRotation(activeCapsule, sharedRotation);
+
+        if (position != null)
         {
-            return;
+            position.SetPositionAndRotation(sharedPosition, sharedRotation);
         }
 
-        Switch();
+        if (normalcapsule != null)
+        {
+            normalcapsule.transform.SetPositionAndRotation(sharedPosition, sharedRotation);
+            Transform normalLook = ResolveLookTransform(normalcapsule, normalLookTransform);
+            if (normalLook != null)
+            {
+                normalLook.rotation = sharedLookRotation;
+            }
+
+            normalcapsule.SetActive(true);
+            ActivatePrimaryPlayerInput(normalcapsule);
+        }
+
+        if (buildingcapsule != null)
+        {
+            buildingcapsule.transform.SetPositionAndRotation(sharedPosition, sharedRotation);
+            Transform buildingLook = ResolveLookTransform(buildingcapsule, buildingLookTransform);
+            if (buildingLook != null)
+            {
+                buildingLook.rotation = sharedLookRotation;
+            }
+
+            buildingcapsule.SetActive(false);
+        }
+
+        if (animator != null)
+        {
+            animator.enabled = true;
+        }
+
+        switched = false;
+    }
+
+    // Handle Resolve Active Capsule.
+    private GameObject ResolveActiveCapsule()
+    {
+        if (normalcapsule != null && normalcapsule.activeInHierarchy)
+        {
+            return normalcapsule;
+        }
+
+        if (buildingcapsule != null && buildingcapsule.activeInHierarchy)
+        {
+            return buildingcapsule;
+        }
+
+        if (normalcapsule != null)
+        {
+            return normalcapsule;
+        }
+
+        return buildingcapsule;
+    }
+
+    // Handle Resolve Look Rotation.
+    private Quaternion ResolveLookRotation(GameObject sourceCapsule, Quaternion fallbackRotation)
+    {
+        Transform sourceLook = ResolveLookTransform(sourceCapsule, sourceCapsule == normalcapsule ? normalLookTransform : buildingLookTransform);
+        if (sourceLook != null)
+        {
+            return sourceLook.rotation;
+        }
+
+        return fallbackRotation;
     }
 
     // Handle Resolve Look Transform.
@@ -137,24 +144,6 @@ public class LookingController : MonoBehaviour
         return capsule.transform;
     }
 
-    // Handle Sync Switch State From Active Capsule.
-    private void SyncSwitchStateFromActiveCapsule()
-    {
-        bool normalActive = normalcapsule != null && normalcapsule.activeInHierarchy;
-        bool buildingActive = buildingcapsule != null && buildingcapsule.activeInHierarchy;
-
-        if (normalActive && !buildingActive)
-        {
-            switched = false;
-            return;
-        }
-
-        if (buildingActive && !normalActive)
-        {
-            switched = true;
-        }
-    }
-
     // Handle Activate Primary Player Input.
     private static void ActivatePrimaryPlayerInput(GameObject capsule)
     {
@@ -168,17 +157,5 @@ public class LookingController : MonoBehaviour
         {
             playerInput.ActivateInput();
         }
-    }
-
-    // Handle Is UIBlocking Gameplay.
-    private static bool IsUiBlockingGameplay()
-    {
-        return GameplayUiState.IsGameplayInputBlocked;
-    }
-
-    // Handle Set Cursor State For UIBlock.
-    private static void SetCursorStateForUiBlock(bool uiBlocking)
-    {
-        GameplayUiState.ApplyCursorState();
     }
 }
