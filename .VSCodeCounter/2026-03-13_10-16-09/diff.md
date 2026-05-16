@@ -1,0 +1,24 @@
+# Diff Summary
+
+Date : 2026-03-13 10:16:09
+
+Directory c:\\Users\\adamb\\Documents\\GitHub\\idk\\Assets\\Script
+
+Total : 2 files,  385 codes, 16 comments, 54 blanks, all 455 lines
+
+[Summary](results.md) / [Details](details.md) / Diff Summary / [Diff Details](diff-details.md)
+
+## Languages
+| language | files | code | comment | blank | total |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| C# | 2 | 385 | 16 | 54 | 455 |
+
+## Directories
+| path | files | code | comment | blank | total |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| . | 2 | 385 | 16 | 54 | 455 |
+| Player | 2 | 385 | 16 | 54 | 455 |
+| Player (Files) | 1 | 118 | 4 | 8 | 130 |
+| Player\\Gun | 1 | 267 | 12 | 46 | 325 |
+
+[Summary](results.md) / [Details](details.md) / Diff Summary / [Diff Details](diff-details.md)

@@ -9,6 +9,8 @@ public class CraftableItem : MonoBehaviour
     public string name;
     public List<string> neededResources = new List<string>();
     public int slotnumber = -1;
+    [Header("Crafting Station")]
+    public string craftingStationId = "HandCrafting";
 
     [Header("Craft Result")]
     public InventoryItem craftedInventoryItem;
@@ -50,7 +52,8 @@ public class CraftableItem : MonoBehaviour
     public bool RequiresPrefab()
     {
         return itemType == InventoryItemType.Tool ||
-               itemType == InventoryItemType.Sword;
+               itemType == InventoryItemType.Sword ||
+               itemType == InventoryItemType.Building;
     }
 
     // Handle Resolve Craft Prefab.

@@ -125,6 +125,8 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         {
             return;
         }
+
+        TryActivateInventoryBuilding();
     }
 
     // Handle Has Item.
@@ -196,6 +198,70 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         }
 
         return string.Equals(thisName.Trim(), otherName.Trim(), System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Handle Try Activate Inventory Building.
+    private void TryActivateInventoryBuilding()
+    {
+        if (!InventoryManager.IsInventoryOpen || !HasItem())
+        {
+            return;
+        }
+
+        Item.ResolveReferences();
+        if (Item.itemType != InventoryItemType.Building)
+        {
+            return;
+        }
+
+        if (Item.itemPrefab == null)
+        {
+            Debug.LogWarning($"SlotInsideUI: Building item '{GetItemDisplayName(Item)}' is missing itemPrefab.", this);
+            return;
+        }
+
+        RayCastScriptTest buildController = FindBuildController();
+        if (buildController == null)
+        {
+            Debug.LogWarning("SlotInsideUI: RayCastScriptTest was not found, cannot enter build mode from inventory.", this);
+            return;
+        }
+
+        if (!buildController.TrySelectInventoryBuildingItem(Item))
+        {
+            return;
+        }
+
+        if (inventoryManager != null)
+        {
+            inventoryManager.EnableInventory(false);
+        }
+    }
+
+    // Handle Find Build Controller.
+    private static RayCastScriptTest FindBuildController()
+    {
+#if UNITY_2023_1_OR_NEWER
+        return Object.FindFirstObjectByType<RayCastScriptTest>(FindObjectsInactive.Include);
+#else
+        return Object.FindObjectOfType<RayCastScriptTest>(true);
+#endif
+    }
+
+    // Handle Get Item Display Name.
+    private static string GetItemDisplayName(InventoryItem item)
+    {
+        if (item == null)
+        {
+            return string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.nameofitem))
+        {
+            return item.nameofitem;
+        }
+
+        return item.name;
     }
 
     // Handle Refresh View.

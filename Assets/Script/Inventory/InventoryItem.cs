@@ -73,7 +73,8 @@ public class InventoryItem : MonoBehaviour
     public bool RequiresPrefab()
     {
         return itemType == InventoryItemType.Tool ||
-               itemType == InventoryItemType.Sword;
+               itemType == InventoryItemType.Sword ||
+               itemType == InventoryItemType.Building;
     }
 
     // Handle Has Required Prefab.

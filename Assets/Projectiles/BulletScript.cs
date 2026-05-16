@@ -49,6 +49,11 @@ public class BulletScript : MonoBehaviour
             return;
         }
 
+        Animalec animal = FindTarget<Animalec>(hitCollider);
+        if (animal != null)
+        {
+            animal.TakeDamage(damage);
+        }
     }
 
     private static T FindTarget<T>(Component source) where T : Component
