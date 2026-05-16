@@ -30,9 +30,6 @@ public class ResHandler : MonoBehaviour
     [SerializeField, Min(128)] private int maxObjectsProcessedPerTick = 3500;
     [SerializeField, Min(128)] private int maxRenderersProcessedPerTick = 2000;
     [SerializeField, Min(256)] private int initialCullBatchSize = 8000;
-    [SerializeField, Min(1)] private int maxGameObjectStateChangesPerTick = 12;
-    [SerializeField, Min(1)] private int maxRendererStateChangesPerTick = 80;
-    [SerializeField, Range(0.1f, 8f)] private float maxCullingWorkMilliseconds = 1.2f;
 
     [Header("Safety Caps")]
     [SerializeField] private bool enforceDistanceCaps = true;
@@ -57,8 +54,6 @@ public class ResHandler : MonoBehaviour
     [SerializeField, Min(10f)] private float nonDirectionalLightDistance = 55f;
     [SerializeField, Min(5f)] private float nonDirectionalShadowDistance = 18f;
     [SerializeField, Min(0)] private int maxShadowedNonDirectionalLights = 1;
-    [SerializeField, Min(1)] private int maxLightsProcessedPerTick = 80;
-    [SerializeField, Min(1)] private int maxLightStateChangesPerTick = 16;
     [SerializeField] private bool disableShadowsOnDisabledLights = true;
 
     [Header("Adaptive Runtime")]
@@ -82,7 +77,6 @@ public class ResHandler : MonoBehaviour
     private float _nextAdaptiveCheckTime;
     private int _objectRoundRobinIndex;
     private int _rendererRoundRobinIndex;
-    private int _lightRoundRobinIndex;
     private int _fpsFrameCount;
     private float _fpsAccumTime;
 
@@ -385,9 +379,6 @@ public class ResHandler : MonoBehaviour
         Vector3 camPos = targetCamera.transform.position;
         float renderDistSqr = treeRenderDistance * treeRenderDistance;
         int batchSize = Mathf.Max(128, initialCullBatchSize);
-        int changedInBatch = 0;
-        int processedInBatch = 0;
-        int stateChangeBudget = Mathf.Max(1, maxGameObjectStateChangesPerTick);
 
         for (int i = 0; i < _managedObjects.Count; i++)
         {
@@ -401,14 +392,10 @@ public class ResHandler : MonoBehaviour
             if (item.gameObject.activeSelf != shouldBeActive)
             {
                 item.gameObject.SetActive(shouldBeActive);
-                changedInBatch++;
             }
 
-            processedInBatch++;
-            if (processedInBatch >= batchSize || changedInBatch >= stateChangeBudget)
+            if ((i + 1) % batchSize == 0)
             {
-                processedInBatch = 0;
-                changedInBatch = 0;
                 yield return null;
                 if (targetCamera != null)
                 {
@@ -460,17 +447,9 @@ public class ResHandler : MonoBehaviour
         Vector3 camPos = targetCamera.transform.position;
         float renderDistSqr = treeRenderDistance * treeRenderDistance;
         int budget = Mathf.Max(1, maxObjectsProcessedPerTick);
-        int stateChangeBudget = Mathf.Max(1, maxGameObjectStateChangesPerTick);
-        int stateChanges = 0;
-        float startTime = Time.realtimeSinceStartup;
 
         for (int i = 0; i < budget; i++)
         {
-            if (IsCullingBudgetExpired(startTime, i))
-            {
-                break;
-            }
-
             if (_objectRoundRobinIndex >= _managedObjects.Count)
             {
                 _objectRoundRobinIndex = 0;
@@ -488,11 +467,6 @@ public class ResHandler : MonoBehaviour
             if (item.gameObject.activeSelf != shouldBeActive)
             {
                 item.gameObject.SetActive(shouldBeActive);
-                stateChanges++;
-                if (stateChanges >= stateChangeBudget)
-                {
-                    break;
-                }
             }
         }
     }
@@ -508,17 +482,9 @@ public class ResHandler : MonoBehaviour
         float renderDistSqr = treeRenderDistance * treeRenderDistance;
         float shadowDistSqr = treeShadowDistance * treeShadowDistance;
         int budget = Mathf.Max(1, maxRenderersProcessedPerTick);
-        int stateChangeBudget = Mathf.Max(1, maxRendererStateChangesPerTick);
-        int stateChanges = 0;
-        float startTime = Time.realtimeSinceStartup;
 
         for (int i = 0; i < budget; i++)
         {
-            if (IsCullingBudgetExpired(startTime, i))
-            {
-                break;
-            }
-
             if (_rendererRoundRobinIndex >= _managedRenderers.Count)
             {
                 _rendererRoundRobinIndex = 0;
@@ -537,7 +503,6 @@ public class ResHandler : MonoBehaviour
             if (item.renderer.enabled != shouldRender)
             {
                 item.renderer.enabled = shouldRender;
-                stateChanges++;
             }
 
             if (shouldRender)
@@ -549,25 +514,9 @@ public class ResHandler : MonoBehaviour
                 if (item.renderer.shadowCastingMode != desired)
                 {
                     item.renderer.shadowCastingMode = desired;
-                    stateChanges++;
                 }
             }
-
-            if (stateChanges >= stateChangeBudget)
-            {
-                break;
-            }
         }
-    }
-
-    private bool IsCullingBudgetExpired(float startTime, int processedCount)
-    {
-        if (maxCullingWorkMilliseconds <= 0f || processedCount < 32 || (processedCount & 31) != 0)
-        {
-            return false;
-        }
-
-        return (Time.realtimeSinceStartup - startTime) * 1000f >= maxCullingWorkMilliseconds;
     }
 
     private void CollectLights()
@@ -613,26 +562,11 @@ public class ResHandler : MonoBehaviour
         float lightDistSqr = nonDirectionalLightDistance * nonDirectionalLightDistance;
         float shadowDistSqr = nonDirectionalShadowDistance * nonDirectionalShadowDistance;
         int shadowBudget = Mathf.Max(0, maxShadowedNonDirectionalLights);
-        int processBudget = Mathf.Max(1, maxLightsProcessedPerTick);
-        int stateChangeBudget = Mathf.Max(1, maxLightStateChangesPerTick);
         int shadowedCount = 0;
-        int stateChanges = 0;
-        float startTime = Time.realtimeSinceStartup;
 
-        for (int i = 0; i < processBudget; i++)
+        for (int i = 0; i < _managedLights.Count; i++)
         {
-            if (IsCullingBudgetExpired(startTime, i))
-            {
-                break;
-            }
-
-            if (_lightRoundRobinIndex >= _managedLights.Count)
-            {
-                _lightRoundRobinIndex = 0;
-            }
-
-            ManagedLight item = _managedLights[_lightRoundRobinIndex];
-            _lightRoundRobinIndex++;
+            ManagedLight item = _managedLights[i];
             Light light = item.light;
             if (light == null)
             {
@@ -657,7 +591,6 @@ public class ResHandler : MonoBehaviour
             if (light.enabled != shouldEnable)
             {
                 light.enabled = shouldEnable;
-                stateChanges++;
             }
 
             if (!shouldEnable)
@@ -665,13 +598,7 @@ public class ResHandler : MonoBehaviour
                 if (disableShadowsOnDisabledLights && light.shadows != LightShadows.None)
                 {
                     light.shadows = LightShadows.None;
-                    stateChanges++;
                 }
-                if (stateChanges >= stateChangeBudget)
-                {
-                    break;
-                }
-
                 continue;
             }
 
@@ -683,17 +610,11 @@ public class ResHandler : MonoBehaviour
             if (light.shadows != desired)
             {
                 light.shadows = desired;
-                stateChanges++;
             }
 
             if (canCast)
             {
                 shadowedCount++;
-            }
-
-            if (stateChanges >= stateChangeBudget)
-            {
-                break;
             }
         }
     }

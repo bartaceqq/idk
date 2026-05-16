@@ -7,7 +7,6 @@ public class SnapPoint : MonoBehaviour
     private static readonly List<SnapPoint> InstancesInternal = new List<SnapPoint>(512);
 
     public static IReadOnlyList<SnapPoint> Instances => InstancesInternal;
-    public static int Version { get; private set; }
 
     private void OnEnable()
     {
@@ -16,16 +15,12 @@ public class SnapPoint : MonoBehaviour
         if (!InstancesInternal.Contains(this))
         {
             InstancesInternal.Add(this);
-            Version++;
         }
     }
 
     private void OnDisable()
     {
-        if (InstancesInternal.Remove(this))
-        {
-            Version++;
-        }
+        InstancesInternal.Remove(this);
     }
 
     private void DisableMarkerColliders()
