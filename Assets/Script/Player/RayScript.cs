@@ -254,119 +254,113 @@ public class RayScript : MonoBehaviour
         return swingCooldown;
     }
 
+    private delegate T ColliderTargetResolver<T>(Collider hit) where T : Component;
+    private delegate T[] SceneTargetFinder<T>() where T : Component;
+
     private bool TryGetClosestTreeHandlerTarget(out TreeHandler closestTreeHandler)
     {
-        if (TryGetClosestTreeHandlerTargetInternal(triggerInteraction, out closestTreeHandler))
+        return TryGetClosestTarget(
+            axeInteractionRadius,
+            allowTreeHandlerWithoutColliderFallback,
+            ResolveTreeHandlerFromCollider,
+            FindTreeHandlersInScene,
+            out closestTreeHandler);
+    }
+
+    private bool TryGetClosestTarget<T>(
+        float radius,
+        bool allowNoColliderFallback,
+        ColliderTargetResolver<T> resolveFromCollider,
+        SceneTargetFinder<T> findAll,
+        out T closestTarget) where T : Component
+    {
+        if (TryGetClosestTargetFromColliders(radius, triggerInteraction, resolveFromCollider, out closestTarget))
         {
             return true;
         }
 
-        // Fallback: some tree colliders may be marked as trigger colliders.
-        if (triggerInteraction == QueryTriggerInteraction.Ignore)
+        // Some old prefabs use trigger colliders even when triggerInteraction says to ignore them.
+        if (triggerInteraction == QueryTriggerInteraction.Ignore &&
+            TryGetClosestTargetFromColliders(radius, QueryTriggerInteraction.Collide, resolveFromCollider, out closestTarget))
         {
-            if (TryGetClosestTreeHandlerTargetInternal(QueryTriggerInteraction.Collide, out closestTreeHandler))
-            {
-                return true;
-            }
+            return true;
         }
 
-        if (allowTreeHandlerWithoutColliderFallback)
-        {
-            return TryGetClosestTreeHandlerWithoutCollider(out closestTreeHandler);
-        }
-
-        return false;
+        return allowNoColliderFallback && TryGetClosestTargetWithoutCollider(radius, findAll, out closestTarget);
     }
 
-    private bool TryGetClosestTreeHandlerTargetInternal(QueryTriggerInteraction queryMode, out TreeHandler closestTreeHandler)
+    private bool TryGetClosestTargetFromColliders<T>(
+        float radius,
+        QueryTriggerInteraction queryMode,
+        ColliderTargetResolver<T> resolveFromCollider,
+        out T closestTarget) where T : Component
     {
-        closestTreeHandler = null;
-        ResolveInteractionOrigin();
-        if (interactionOrigin == null)
+        closestTarget = null;
+        if (!TryGetInteractionContext(out Vector3 origin, out Transform playerRoot))
         {
             return false;
         }
 
-        float radius = Mathf.Max(0.01f, axeInteractionRadius);
-        Vector3 origin = interactionOrigin.position;
-        Transform playerRoot = interactionOrigin.root;
-        float bestDistanceSqr = float.MaxValue;
-
         int hitCount = Physics.OverlapSphereNonAlloc(
             origin,
-            radius,
+            Mathf.Max(0.01f, radius),
             _proximityHits,
             proximityMask,
             queryMode);
 
+        float bestDistanceSqr = float.MaxValue;
         for (int i = 0; i < hitCount; i++)
         {
             Collider hit = _proximityHits[i];
-            if (hit == null)
+            if (hit == null || IsPlayerOwned(hit.transform, playerRoot))
             {
                 continue;
             }
 
-            if (playerRoot != null && hit.transform.IsChildOf(playerRoot))
+            T target = resolveFromCollider(hit);
+            if (target == null)
             {
                 continue;
             }
 
-            TreeHandler treeHandlerTarget = hit.GetComponent<TreeHandler>();
-            if (treeHandlerTarget == null)
-            {
-                treeHandlerTarget = hit.GetComponentInParent<TreeHandler>();
-            }
-
-            if (treeHandlerTarget == null)
-            {
-                continue;
-            }
-
-            Vector3 closestPoint = hit.ClosestPoint(origin);
-            float distanceSqr = (closestPoint - origin).sqrMagnitude;
+            float distanceSqr = (hit.ClosestPoint(origin) - origin).sqrMagnitude;
             if (distanceSqr >= bestDistanceSqr)
             {
                 continue;
             }
 
             bestDistanceSqr = distanceSqr;
-            closestTreeHandler = treeHandlerTarget;
+            closestTarget = target;
         }
 
-        return closestTreeHandler != null;
+        return closestTarget != null;
     }
 
-    private bool TryGetClosestTreeHandlerWithoutCollider(out TreeHandler closestTreeHandler)
+    private bool TryGetClosestTargetWithoutCollider<T>(
+        float radius,
+        SceneTargetFinder<T> findAll,
+        out T closestTarget) where T : Component
     {
-        closestTreeHandler = null;
-        ResolveInteractionOrigin();
-        if (interactionOrigin == null)
+        closestTarget = null;
+        if (!TryGetInteractionContext(out Vector3 origin, out Transform playerRoot))
         {
             return false;
         }
 
-        float radiusSqr = Mathf.Max(0.01f, axeInteractionRadius);
+        T[] targets = findAll != null ? findAll() : null;
+        if (targets == null || targets.Length == 0)
+        {
+            return false;
+        }
+
+        float radiusSqr = Mathf.Max(0.01f, radius);
         radiusSqr *= radiusSqr;
-        Vector3 origin = interactionOrigin.position;
-        Transform playerRoot = interactionOrigin.root;
         float bestDistanceSqr = float.MaxValue;
 
-#if UNITY_2023_1_OR_NEWER
-        TreeHandler[] allTreeHandlers = FindObjectsByType<TreeHandler>(FindObjectsInactive.Exclude);
-#else
-        TreeHandler[] allTreeHandlers = FindObjectsOfType<TreeHandler>(false);
-#endif
-
-        for (int i = 0; i < allTreeHandlers.Length; i++)
+        for (int i = 0; i < targets.Length; i++)
         {
-            TreeHandler candidate = allTreeHandlers[i];
-            if (candidate == null)
-            {
-                continue;
-            }
-
-            if (playerRoot != null && candidate.transform.IsChildOf(playerRoot))
+            T candidate = targets[i];
+            if (candidate == null || IsPlayerOwned(candidate.transform, playerRoot))
             {
                 continue;
             }
@@ -378,10 +372,43 @@ public class RayScript : MonoBehaviour
             }
 
             bestDistanceSqr = distanceSqr;
-            closestTreeHandler = candidate;
+            closestTarget = candidate;
         }
 
-        return closestTreeHandler != null;
+        return closestTarget != null;
+    }
+
+    private bool TryGetInteractionContext(out Vector3 origin, out Transform playerRoot)
+    {
+        ResolveInteractionOrigin();
+        origin = interactionOrigin != null ? interactionOrigin.position : Vector3.zero;
+        playerRoot = interactionOrigin != null ? interactionOrigin.root : null;
+        return interactionOrigin != null;
+    }
+
+    private static bool IsPlayerOwned(Transform candidate, Transform playerRoot)
+    {
+        return candidate != null && playerRoot != null && candidate.IsChildOf(playerRoot);
+    }
+
+    private static TreeHandler ResolveTreeHandlerFromCollider(Collider hit)
+    {
+        if (hit == null)
+        {
+            return null;
+        }
+
+        TreeHandler tree = hit.GetComponent<TreeHandler>();
+        return tree != null ? tree : hit.GetComponentInParent<TreeHandler>();
+    }
+
+    private static TreeHandler[] FindTreeHandlersInScene()
+    {
+#if UNITY_2023_1_OR_NEWER
+        return FindObjectsByType<TreeHandler>(FindObjectsInactive.Exclude);
+#else
+        return FindObjectsOfType<TreeHandler>(false);
+#endif
     }
 
     private float HandlePickaxeAction()
@@ -1068,127 +1095,12 @@ public class RayScript : MonoBehaviour
 
     private bool TryGetClosestStoneTarget(out MineStone closestStone)
     {
-        if (TryGetClosestStoneTargetInternal(triggerInteraction, out closestStone))
-        {
-            return true;
-        }
-
-        // Fallback: some stone colliders may be marked as trigger colliders.
-        if (triggerInteraction == QueryTriggerInteraction.Ignore)
-        {
-            if (TryGetClosestStoneTargetInternal(QueryTriggerInteraction.Collide, out closestStone))
-            {
-                return true;
-            }
-        }
-
-        if (allowStoneWithoutColliderFallback)
-        {
-            return TryGetClosestStoneTargetWithoutCollider(out closestStone);
-        }
-
-        return false;
-    }
-
-    private bool TryGetClosestStoneTargetInternal(QueryTriggerInteraction queryMode, out MineStone closestStone)
-    {
-        closestStone = null;
-        ResolveInteractionOrigin();
-        if (interactionOrigin == null)
-        {
-            return false;
-        }
-
-        float radius = Mathf.Max(0.01f, pickaxeInteractionRadius);
-        Vector3 origin = interactionOrigin.position;
-        Transform playerRoot = interactionOrigin.root;
-        float bestDistanceSqr = float.MaxValue;
-
-        int hitCount = Physics.OverlapSphereNonAlloc(
-            origin,
-            radius,
-            _proximityHits,
-            proximityMask,
-            queryMode);
-
-        for (int i = 0; i < hitCount; i++)
-        {
-            Collider hit = _proximityHits[i];
-            if (hit == null)
-            {
-                continue;
-            }
-
-            if (playerRoot != null && hit.transform.IsChildOf(playerRoot))
-            {
-                continue;
-            }
-
-            MineStone mineStone = ResolveMineStoneFromCollider(hit);
-            if (mineStone == null)
-            {
-                continue;
-            }
-
-            Vector3 closestPoint = hit.ClosestPoint(origin);
-            float distanceSqr = (closestPoint - origin).sqrMagnitude;
-            if (distanceSqr >= bestDistanceSqr)
-            {
-                continue;
-            }
-
-            bestDistanceSqr = distanceSqr;
-            closestStone = mineStone;
-        }
-
-        return closestStone != null;
-    }
-
-    private bool TryGetClosestStoneTargetWithoutCollider(out MineStone closestStone)
-    {
-        closestStone = null;
-        ResolveInteractionOrigin();
-        if (interactionOrigin == null)
-        {
-            return false;
-        }
-
-        float radiusSqr = Mathf.Max(0.01f, pickaxeInteractionRadius);
-        radiusSqr *= radiusSqr;
-        Vector3 origin = interactionOrigin.position;
-        Transform playerRoot = interactionOrigin.root;
-        float bestDistanceSqr = float.MaxValue;
-
-#if UNITY_2023_1_OR_NEWER
-        MineStone[] allMineStones = FindObjectsByType<MineStone>(FindObjectsInactive.Exclude);
-#else
-        MineStone[] allMineStones = FindObjectsOfType<MineStone>(false);
-#endif
-
-        for (int i = 0; i < allMineStones.Length; i++)
-        {
-            MineStone candidate = allMineStones[i];
-            if (candidate == null)
-            {
-                continue;
-            }
-
-            if (playerRoot != null && candidate.transform.IsChildOf(playerRoot))
-            {
-                continue;
-            }
-
-            float distanceSqr = (candidate.transform.position - origin).sqrMagnitude;
-            if (distanceSqr > radiusSqr || distanceSqr >= bestDistanceSqr)
-            {
-                continue;
-            }
-
-            bestDistanceSqr = distanceSqr;
-            closestStone = candidate;
-        }
-
-        return closestStone != null;
+        return TryGetClosestTarget(
+            pickaxeInteractionRadius,
+            allowStoneWithoutColliderFallback,
+            ResolveMineStoneFromCollider,
+            FindMineStonesInScene,
+            out closestStone);
     }
 
     private static MineStone ResolveMineStoneFromCollider(Collider hit)
@@ -1216,6 +1128,15 @@ public class RayScript : MonoBehaviour
         }
 
         return mineStone;
+    }
+
+    private static MineStone[] FindMineStonesInScene()
+    {
+#if UNITY_2023_1_OR_NEWER
+        return FindObjectsByType<MineStone>(FindObjectsInactive.Exclude);
+#else
+        return FindObjectsOfType<MineStone>(false);
+#endif
     }
 
     private IEnumerator TriggerAfterDelayTreeHandler(TreeHandler treeHandler, Transform attacker, float delaySeconds)

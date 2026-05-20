@@ -273,33 +273,13 @@ public class ActionScript : MonoBehaviour
 
     public bool TryAttackLight()
     {
-        CancelEmoteIfActive();
-
-        if (IsUpperBodyActionLocked() || IsGameplayInputLocked())
-        {
-            return false;
-        }
-
-        ApplyConfiguredActionAnimationSpeeds();
-        bool played = TryPlayNextFullBodyState(lightAttackStateNames, ref _nextLightAttackIndex);
-        if (!played)
-        {
-            ActivateUpperBodyLayer(swordMovementAnimationLockSeconds);
-            played = TryPlayUpperBodyState(upperBodyLightAttackStateName);
-        }
-
-        if (!played && swordAnimationScript != null)
-        {
-            swordAnimationScript.AttackLight();
-            played = true;
-        }
-
-        if (played)
-        {
-            ForceStopMovementAnimations();
-        }
-
-        return played;
+        return TrySwordAttack(
+            lightAttackStateNames,
+            ref _nextLightAttackIndex,
+            upperBodyLightAttackStateName,
+            swordMovementAnimationLockSeconds,
+            false,
+            0);
     }
 
     public void AttackHeavy()
@@ -309,36 +289,33 @@ public class ActionScript : MonoBehaviour
 
     public bool TryAttackHeavy()
     {
-        CancelEmoteIfActive();
-
-        if (IsUpperBodyActionLocked() || IsGameplayInputLocked())
-        {
-            return false;
-        }
-
-        ApplyConfiguredActionAnimationSpeeds();
-        bool played = TryPlayNextFullBodyState(heavyAttackStateNames, ref _nextHeavyAttackIndex);
-        if (!played)
-        {
-            ActivateUpperBodyLayer(swordHeavyMovementAnimationLockSeconds);
-            played = TryPlayUpperBodyState(upperBodyHeavyAttackStateName);
-        }
-
-        if (!played && swordAnimationScript != null)
-        {
-            swordAnimationScript.AttackHeavy();
-            played = true;
-        }
-
-        if (played)
-        {
-            ForceStopMovementAnimations();
-        }
-
-        return played;
+        return TrySwordAttack(
+            heavyAttackStateNames,
+            ref _nextHeavyAttackIndex,
+            upperBodyHeavyAttackStateName,
+            swordHeavyMovementAnimationLockSeconds,
+            false,
+            0);
     }
 
     public bool TryAttackSpecial(int specialIndex)
+    {
+        return TrySwordAttack(
+            heavyAttackStateNames,
+            ref _nextHeavyAttackIndex,
+            upperBodyHeavyAttackStateName,
+            swordHeavyMovementAnimationLockSeconds,
+            true,
+            specialIndex);
+    }
+
+    private bool TrySwordAttack(
+        string[] fullBodyStates,
+        ref int nextStateIndex,
+        string fallbackUpperBodyState,
+        float upperBodyLockSeconds,
+        bool useExactFullBodyIndex,
+        int exactFullBodyIndex)
     {
         CancelEmoteIfActive();
 
@@ -348,16 +325,27 @@ public class ActionScript : MonoBehaviour
         }
 
         ApplyConfiguredActionAnimationSpeeds();
-        bool played = TryPlayIndexedFullBodyState(heavyAttackStateNames, specialIndex, ref _nextHeavyAttackIndex);
+        bool played = useExactFullBodyIndex
+            ? TryPlayIndexedFullBodyState(fullBodyStates, exactFullBodyIndex, ref nextStateIndex)
+            : TryPlayNextFullBodyState(fullBodyStates, ref nextStateIndex);
+
         if (!played)
         {
-            ActivateUpperBodyLayer(swordHeavyMovementAnimationLockSeconds);
-            played = TryPlayUpperBodyState(upperBodyHeavyAttackStateName);
+            ActivateUpperBodyLayer(upperBodyLockSeconds);
+            played = TryPlayUpperBodyState(fallbackUpperBodyState);
         }
 
         if (!played && swordAnimationScript != null)
         {
-            swordAnimationScript.AttackHeavy();
+            if (fallbackUpperBodyState == upperBodyLightAttackStateName)
+            {
+                swordAnimationScript.AttackLight();
+            }
+            else
+            {
+                swordAnimationScript.AttackHeavy();
+            }
+
             played = true;
         }
 
@@ -1021,40 +1009,10 @@ public class ActionScript : MonoBehaviour
 
     private bool TryPlayAnimatorState(Animator animator, int layerIndex, string stateName, float blendTime)
     {
-        if (animator == null || string.IsNullOrWhiteSpace(stateName))
-        {
-            return false;
-        }
-
-        string layerName = animator.GetLayerName(layerIndex);
-        int fullPathHash = Animator.StringToHash($"{layerName}.{stateName}");
-        int shortNameHash = Animator.StringToHash(stateName);
-        int stateHash;
-
-        if (animator.HasState(layerIndex, fullPathHash))
-        {
-            stateHash = fullPathHash;
-        }
-        else if (animator.HasState(layerIndex, shortNameHash))
-        {
-            stateHash = shortNameHash;
-        }
-        else
-        {
-            return false;
-        }
-
-        float resolvedBlendTime = Mathf.Max(0f, blendTime);
-        if (resolvedBlendTime > 0f)
-        {
-            animator.CrossFadeInFixedTime(stateHash, resolvedBlendTime, layerIndex);
-        }
-        else
-        {
-            animator.Play(stateHash, layerIndex, 0f);
-        }
-
-        return true;
+        string layerName = animator != null && layerIndex >= 0 && layerIndex < animator.layerCount
+            ? animator.GetLayerName(layerIndex)
+            : string.Empty;
+        return TryPlayState(animator, layerIndex, layerName, stateName, blendTime);
     }
 
     private bool TryPlayUpperBodyState(string stateName)
@@ -1066,34 +1024,7 @@ public class ActionScript : MonoBehaviour
             return false;
         }
 
-        int fullPathHash = Animator.StringToHash($"{upperBodyLayerName}.{stateName}");
-        int shortNameHash = Animator.StringToHash(stateName);
-        int stateHash;
-
-        if (animator.HasState(layerIndex, fullPathHash))
-        {
-            stateHash = fullPathHash;
-        }
-        else if (animator.HasState(layerIndex, shortNameHash))
-        {
-            stateHash = shortNameHash;
-        }
-        else
-        {
-            return false;
-        }
-
-        float blendTime = Mathf.Max(0f, upperBodyStateBlendTime);
-        if (blendTime > 0f)
-        {
-            animator.CrossFadeInFixedTime(stateHash, blendTime, layerIndex);
-        }
-        else
-        {
-            animator.Play(stateHash, layerIndex, 0f);
-        }
-
-        return true;
+        return TryPlayState(animator, layerIndex, upperBodyLayerName, stateName, upperBodyStateBlendTime);
     }
 
     private void TryForceCompletedUpperBodyActionToIdle(Animator animator, int layerIndex)
@@ -1125,38 +1056,49 @@ public class ActionScript : MonoBehaviour
 
     private bool TryPlayUpperBodyIdle(Animator animator, int layerIndex, float blendTime)
     {
-        if (animator == null || layerIndex < 0 || string.IsNullOrWhiteSpace(upperBodyIdleStateName))
+        return TryPlayState(animator, layerIndex, upperBodyLayerName, upperBodyIdleStateName, blendTime);
+    }
+
+    private static bool TryPlayState(Animator animator, int layerIndex, string layerName, string stateName, float blendTime)
+    {
+        if (animator == null ||
+            layerIndex < 0 ||
+            layerIndex >= animator.layerCount ||
+            string.IsNullOrWhiteSpace(stateName))
         {
             return false;
         }
 
-        int fullPathHash = Animator.StringToHash($"{upperBodyLayerName}.{upperBodyIdleStateName}");
-        int shortNameHash = Animator.StringToHash(upperBodyIdleStateName);
-        int stateHash;
+        int stateHash = 0;
+        bool foundState = false;
+        if (!string.IsNullOrWhiteSpace(layerName))
+        {
+            int fullPathHash = Animator.StringToHash($"{layerName}.{stateName}");
+            foundState = animator.HasState(layerIndex, fullPathHash);
+            if (foundState)
+            {
+                stateHash = fullPathHash;
+            }
+        }
 
-        if (animator.HasState(layerIndex, fullPathHash))
+        if (!foundState)
         {
-            stateHash = fullPathHash;
+            int shortNameHash = Animator.StringToHash(stateName);
+            foundState = animator.HasState(layerIndex, shortNameHash);
+            if (foundState)
+            {
+                stateHash = shortNameHash;
+            }
         }
-        else if (animator.HasState(layerIndex, shortNameHash))
-        {
-            stateHash = shortNameHash;
-        }
-        else
+
+        if (!foundState)
         {
             return false;
         }
 
         float resolvedBlend = Mathf.Max(0f, blendTime);
-        if (resolvedBlend > 0f)
-        {
-            animator.CrossFadeInFixedTime(stateHash, resolvedBlend, layerIndex);
-        }
-        else
-        {
-            animator.Play(stateHash, layerIndex, 0f);
-        }
-
+        if (resolvedBlend > 0f) animator.CrossFadeInFixedTime(stateHash, resolvedBlend, layerIndex);
+        else animator.Play(stateHash, layerIndex, 0f);
         return true;
     }
 
@@ -1452,32 +1394,7 @@ public class ActionScript : MonoBehaviour
 
     private bool TryGetActiveFullBodyActionStateInfo(Animator animator, out AnimatorStateInfo stateInfo)
     {
-        stateInfo = default;
-        if (!TryGetBaseLayerIndex(animator, out int layerIndex) || !animator.isActiveAndEnabled)
-        {
-            return false;
-        }
-
-        AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
-        if (IsFullBodyActionState(current))
-        {
-            stateInfo = current;
-            return true;
-        }
-
-        if (!animator.IsInTransition(layerIndex))
-        {
-            return false;
-        }
-
-        AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
-        if (!IsFullBodyActionState(next))
-        {
-            return false;
-        }
-
-        stateInfo = next;
-        return true;
+        return TryGetActiveBaseLayerStateInfo(animator, IsFullBodyActionState, out stateInfo);
     }
 
     private bool TryGetActiveSwordAttackStateInfo(Animator animator, out AnimatorStateInfo stateInfo, out bool isHeavyAttack)
@@ -1513,14 +1430,43 @@ public class ActionScript : MonoBehaviour
 
     private bool TryGetActiveSwordBlockStateInfo(Animator animator, out AnimatorStateInfo stateInfo)
     {
+        return TryGetActiveBaseLayerStateInfo(animator, IsSwordBlockState, out stateInfo);
+    }
+
+    private delegate bool StateMatcher(AnimatorStateInfo state);
+
+    private bool TryGetActiveBaseLayerStateInfo(
+        Animator animator,
+        StateMatcher matcher,
+        out AnimatorStateInfo stateInfo)
+    {
         stateInfo = default;
-        if (!TryGetBaseLayerIndex(animator, out int layerIndex) || !animator.isActiveAndEnabled)
+        if (matcher == null || !TryGetBaseLayerIndex(animator, out int layerIndex))
+        {
+            return false;
+        }
+
+        return TryGetActiveLayerStateInfo(animator, layerIndex, matcher, out stateInfo);
+    }
+
+    private static bool TryGetActiveLayerStateInfo(
+        Animator animator,
+        int layerIndex,
+        StateMatcher matcher,
+        out AnimatorStateInfo stateInfo)
+    {
+        stateInfo = default;
+        if (animator == null ||
+            matcher == null ||
+            layerIndex < 0 ||
+            layerIndex >= animator.layerCount ||
+            !animator.isActiveAndEnabled)
         {
             return false;
         }
 
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
-        if (IsSwordBlockState(current))
+        if (matcher(current))
         {
             stateInfo = current;
             return true;
@@ -1532,7 +1478,7 @@ public class ActionScript : MonoBehaviour
         }
 
         AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
-        if (!IsSwordBlockState(next))
+        if (!matcher(next))
         {
             return false;
         }
@@ -1573,32 +1519,7 @@ public class ActionScript : MonoBehaviour
 
     private bool TryGetActiveActionStateInfo(Animator animator, int layerIndex, out AnimatorStateInfo stateInfo)
     {
-        stateInfo = default;
-        if (animator == null || layerIndex < 0 || layerIndex >= animator.layerCount || !animator.isActiveAndEnabled)
-        {
-            return false;
-        }
-
-        AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
-        if (IsActionState(current))
-        {
-            stateInfo = current;
-            return true;
-        }
-
-        if (!animator.IsInTransition(layerIndex))
-        {
-            return false;
-        }
-
-        AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
-        if (!IsActionState(next))
-        {
-            return false;
-        }
-
-        stateInfo = next;
-        return true;
+        return TryGetActiveLayerStateInfo(animator, layerIndex, IsActionState, out stateInfo);
     }
 
     private bool IsAnimatorLayerBlockingNewAction(Animator animator, int layerIndex)
@@ -1661,29 +1582,30 @@ public class ActionScript : MonoBehaviour
 
     private static bool TrySetAnimatorFloatParameter(Animator animator, string parameterName, float value)
     {
-        if (animator == null || string.IsNullOrWhiteSpace(parameterName))
+        if (!HasAnimatorParameter(animator, parameterName, AnimatorControllerParameterType.Float))
         {
             return false;
         }
 
-        AnimatorControllerParameter[] parameters = animator.parameters;
-        for (int i = 0; i < parameters.Length; i++)
-        {
-            AnimatorControllerParameter parameter = parameters[i];
-            if (parameter.type != AnimatorControllerParameterType.Float ||
-                !string.Equals(parameter.name, parameterName, System.StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            animator.SetFloat(parameterName, Mathf.Max(0.01f, value));
-            return true;
-        }
-
-        return false;
+        animator.SetFloat(parameterName, Mathf.Max(0.01f, value));
+        return true;
     }
 
     private static bool TrySetAnimatorBoolParameter(Animator animator, string parameterName, bool value)
+    {
+        if (!HasAnimatorParameter(animator, parameterName, AnimatorControllerParameterType.Bool))
+        {
+            return false;
+        }
+
+        animator.SetBool(parameterName, value);
+        return true;
+    }
+
+    private static bool HasAnimatorParameter(
+        Animator animator,
+        string parameterName,
+        AnimatorControllerParameterType parameterType)
     {
         if (animator == null || string.IsNullOrWhiteSpace(parameterName))
         {
@@ -1694,14 +1616,11 @@ public class ActionScript : MonoBehaviour
         for (int i = 0; i < parameters.Length; i++)
         {
             AnimatorControllerParameter parameter = parameters[i];
-            if (parameter.type != AnimatorControllerParameterType.Bool ||
-                !string.Equals(parameter.name, parameterName, System.StringComparison.Ordinal))
+            if (parameter.type == parameterType &&
+                string.Equals(parameter.name, parameterName, System.StringComparison.Ordinal))
             {
-                continue;
+                return true;
             }
-
-            animator.SetBool(parameterName, value);
-            return true;
         }
 
         return false;

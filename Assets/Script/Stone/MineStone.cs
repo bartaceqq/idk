@@ -1023,35 +1023,10 @@ public class MineStone : MonoBehaviour
 
     private static bool HasDirectBreakableGeometry(Transform target)
     {
-        if (target == null)
-        {
-            return false;
-        }
-
-        if (target.GetComponent<MeshFilter>() != null)
-        {
-            return true;
-        }
-
-        Renderer[] directRenderers = target.GetComponents<Renderer>();
-        for (int i = 0; i < directRenderers.Length; i++)
-        {
-            if (directRenderers[i] != null)
-            {
-                return true;
-            }
-        }
-
-        Collider[] directColliders = target.GetComponents<Collider>();
-        for (int i = 0; i < directColliders.Length; i++)
-        {
-            if (directColliders[i] != null)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return target != null &&
+               (target.GetComponent<MeshFilter>() != null ||
+                target.GetComponent<Renderer>() != null ||
+                target.GetComponent<Collider>() != null);
     }
 
     private static bool TryGetWorldBounds(Transform target, out Bounds bounds)

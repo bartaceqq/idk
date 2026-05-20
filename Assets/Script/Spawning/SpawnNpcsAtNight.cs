@@ -311,12 +311,10 @@ public class SpawnNpcsAtNight : MonoBehaviour
 
     private void ResolvePracticeCapsuleHitTemplate()
     {
-        if (practiceCapsuleHitTemplate != null)
+        if (practiceCapsuleHitTemplate == null)
         {
-            return;
+            practiceCapsuleHitTemplate = TestHitting.FindPracticeTemplate();
         }
-
-        practiceCapsuleHitTemplate = TestHitting.FindPracticeTemplate();
     }
 
     private void ResolveTerrains()

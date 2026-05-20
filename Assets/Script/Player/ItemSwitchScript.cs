@@ -347,12 +347,7 @@ public class ItemSwitchScript : MonoBehaviour
 
     private void EnsureSwordTrailEffect(Item targetItem)
     {
-        if (targetItem == null || targetItem.itemobject == null)
-        {
-            return;
-        }
-
-        if (!IsSwordItem(targetItem))
+        if (targetItem == null || targetItem.itemobject == null || !IsSwordItem(targetItem))
         {
             return;
         }

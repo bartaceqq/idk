@@ -147,21 +147,19 @@ public class SwordTrailEffect : MonoBehaviour
         Vector3 tipLocal;
         DetermineBladeEndpoints(localBounds, out baseLocal, out tipLocal);
 
-        GameObject baseAnchorObject = new GameObject("BladeTrailBase");
-        baseAnchorObject.transform.SetParent(transform, false);
-        baseAnchorObject.transform.localPosition = baseLocal;
-        baseAnchorObject.transform.localRotation = Quaternion.identity;
-        baseAnchorObject.transform.localScale = Vector3.one;
-
-        GameObject tipAnchorObject = new GameObject("BladeTrailTip");
-        tipAnchorObject.transform.SetParent(transform, false);
-        tipAnchorObject.transform.localPosition = tipLocal;
-        tipAnchorObject.transform.localRotation = Quaternion.identity;
-        tipAnchorObject.transform.localScale = Vector3.one;
-
-        createdBase = baseAnchorObject.transform;
-        createdTip = tipAnchorObject.transform;
+        createdBase = CreateLocalAnchor("BladeTrailBase", baseLocal);
+        createdTip = CreateLocalAnchor("BladeTrailTip", tipLocal);
         return true;
+    }
+
+    private Transform CreateLocalAnchor(string anchorName, Vector3 localPosition)
+    {
+        GameObject anchorObject = new GameObject(anchorName);
+        anchorObject.transform.SetParent(transform, false);
+        anchorObject.transform.localPosition = localPosition;
+        anchorObject.transform.localRotation = Quaternion.identity;
+        anchorObject.transform.localScale = Vector3.one;
+        return anchorObject.transform;
     }
 
     private bool TryGetRenderableLocalBounds(out Bounds localBounds)
@@ -233,31 +231,11 @@ public class SwordTrailEffect : MonoBehaviour
 
         Vector3 endpointA = center;
         Vector3 endpointB = center;
-        if (dominantAxis == 0)
-        {
-            endpointA.x = min.x;
-            endpointB.x = max.x;
-        }
-        else if (dominantAxis == 1)
-        {
-            endpointA.y = min.y;
-            endpointB.y = max.y;
-        }
-        else
-        {
-            endpointA.z = min.z;
-            endpointB.z = max.z;
-        }
+        endpointA[dominantAxis] = min[dominantAxis];
+        endpointB[dominantAxis] = max[dominantAxis];
 
-        if (endpointA.sqrMagnitude <= endpointB.sqrMagnitude)
-        {
-            baseLocal = endpointA;
-            tipLocal = endpointB;
-            return;
-        }
-
-        baseLocal = endpointB;
-        tipLocal = endpointA;
+        baseLocal = endpointA.sqrMagnitude <= endpointB.sqrMagnitude ? endpointA : endpointB;
+        tipLocal = endpointA.sqrMagnitude <= endpointB.sqrMagnitude ? endpointB : endpointA;
     }
 
     private void EnsureTrailObject()
@@ -294,21 +272,7 @@ public class SwordTrailEffect : MonoBehaviour
 
     private Material CreateTrailMaterial()
     {
-        Shader shader = Shader.Find("Sprites/Default");
-        if (shader == null)
-        {
-            shader = Shader.Find("Particles/Standard Unlit");
-        }
-
-        if (shader == null)
-        {
-            shader = Shader.Find("Unlit/Transparent");
-        }
-
-        if (shader == null)
-        {
-            shader = Shader.Find("Standard");
-        }
+        Shader shader = FindFirstShader("Sprites/Default", "Particles/Standard Unlit", "Unlit/Transparent", "Standard");
 
         Material createdMaterial = new Material(shader)
         {
@@ -316,33 +280,52 @@ public class SwordTrailEffect : MonoBehaviour
             hideFlags = HideFlags.DontSave
         };
 
-        if (createdMaterial.HasProperty("_MainTex"))
-        {
-            createdMaterial.SetTexture("_MainTex", Texture2D.whiteTexture);
-        }
-
-        if (createdMaterial.HasProperty("_BaseMap"))
-        {
-            createdMaterial.SetTexture("_BaseMap", Texture2D.whiteTexture);
-        }
-
-        if (createdMaterial.HasProperty("_Color"))
-        {
-            createdMaterial.SetColor("_Color", trailColor);
-        }
-
-        if (createdMaterial.HasProperty("_BaseColor"))
-        {
-            createdMaterial.SetColor("_BaseColor", trailColor);
-        }
-
-        if (createdMaterial.HasProperty("_Cull"))
-        {
-            createdMaterial.SetInt("_Cull", (int)CullMode.Off);
-        }
+        SetTextureIfPresent(createdMaterial, "_MainTex", Texture2D.whiteTexture);
+        SetTextureIfPresent(createdMaterial, "_BaseMap", Texture2D.whiteTexture);
+        SetColorIfPresent(createdMaterial, "_Color", trailColor);
+        SetColorIfPresent(createdMaterial, "_BaseColor", trailColor);
+        SetIntIfPresent(createdMaterial, "_Cull", (int)CullMode.Off);
 
         createdMaterial.renderQueue = 3000;
         return createdMaterial;
+    }
+
+    private static Shader FindFirstShader(params string[] shaderNames)
+    {
+        for (int i = 0; i < shaderNames.Length; i++)
+        {
+            Shader shader = Shader.Find(shaderNames[i]);
+            if (shader != null)
+            {
+                return shader;
+            }
+        }
+
+        return null;
+    }
+
+    private static void SetTextureIfPresent(Material material, string propertyName, Texture texture)
+    {
+        if (material != null && material.HasProperty(propertyName))
+        {
+            material.SetTexture(propertyName, texture);
+        }
+    }
+
+    private static void SetColorIfPresent(Material material, string propertyName, Color color)
+    {
+        if (material != null && material.HasProperty(propertyName))
+        {
+            material.SetColor(propertyName, color);
+        }
+    }
+
+    private static void SetIntIfPresent(Material material, string propertyName, int value)
+    {
+        if (material != null && material.HasProperty(propertyName))
+        {
+            material.SetInt(propertyName, value);
+        }
     }
 
     private void UpdateTrail()
