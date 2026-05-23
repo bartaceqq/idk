@@ -15,13 +15,11 @@ public class ChestItemGenerator : MonoBehaviour
     public InventoryAddHandler inventoryAddHandler;
     public InfoHandler infoHandler;
     public bool rolling =false;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         ResolveReferences();
     }
 
-    // Update is called once per frame
     void Update()
     {
         
@@ -120,7 +118,6 @@ public class ChestItemGenerator : MonoBehaviour
         }
     }
 
-    // Handle Resolve References.
     private void ResolveReferences()
     {
         if (infoHandler == null)
@@ -138,17 +135,15 @@ public class ChestItemGenerator : MonoBehaviour
         }
     }
 
-    // Handle Find Info Handler In Scene.
     private static InfoHandler FindInfoHandlerInScene()
     {
 #if UNITY_2023_1_OR_NEWER
-        return FindFirstObjectByType<InfoHandler>(FindObjectsInactive.Include);
+        return FindAnyObjectByType<InfoHandler>(FindObjectsInactive.Include);
 #else
         return FindObjectOfType<InfoHandler>(true);
 #endif
     }
 
-    // Handle To Display Name.
     private static string ToDisplayName(string rawName)
     {
         if (string.IsNullOrWhiteSpace(rawName))

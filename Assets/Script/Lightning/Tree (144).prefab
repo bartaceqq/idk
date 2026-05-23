@@ -463,4 +463,3 @@ MonoBehaviour:
   name: Wood
   mingain: 3
   maxgain: 5
-  slotManager: {fileID: 0}

@@ -1,7 +1,6 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
-// Controls Get Random Ore Type behavior.
 public class GetRandomOreType : MonoBehaviour
 {
     private readonly List<Ore> orelist = new List<Ore>();
@@ -33,7 +32,6 @@ public class GetRandomOreType : MonoBehaviour
         InitializeOreList();
     }
 
-    // Handle Initialize Ore List.
     private void InitializeOreList()
     {
         orelist.Clear();
@@ -46,7 +44,6 @@ public class GetRandomOreType : MonoBehaviour
         noore = new Ore("noore", null, basicstonesprite);
     }
 
-    // Handle Get Ore By Name.
     private Ore GetOreByName(string oreName)
     {
         foreach (Ore ore in orelist)
@@ -60,7 +57,6 @@ public class GetRandomOreType : MonoBehaviour
         return noore;
     }
 
-    // Handle Get Ore Type.
     public Ore GetOreType()
     {
         if (orelist.Count == 0 || noore == null)

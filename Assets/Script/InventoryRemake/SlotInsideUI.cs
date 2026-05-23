@@ -1,9 +1,9 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler, IPointerClickHandler
+public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler
 {
     private static SlotInsideUI draggedSlot;
     public static SlotInsideUI CurrentDragSource => draggedSlot;
@@ -12,8 +12,8 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
     public int count;
     public string nameofslot;
     public Image image;
-     public Image background;
-     public TMP_Text text;
+    public Image background;
+    public TMP_Text text;
     public int id;
     public bool occupied;
     public InventoryItem Item;
@@ -21,14 +21,13 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
     private Canvas rootCanvas;
     private GameObject dragGhost;
     private RectTransform dragGhostRect;
-    private Image dragGhostImage;
-   
-    void Awake()
+
+    private void Awake()
     {
         if (inventoryManager == null)
         {
 #if UNITY_2023_1_OR_NEWER
-            inventoryManager = FindFirstObjectByType<InventoryManager>(FindObjectsInactive.Include);
+            inventoryManager = FindAnyObjectByType<InventoryManager>(FindObjectsInactive.Include);
 #else
             inventoryManager = FindObjectOfType<InventoryManager>(true);
 #endif
@@ -37,22 +36,16 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         rootCanvas = GetComponentInParent<Canvas>();
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    private void Start()
     {
         if (inventoryManager != null && !inventoryManager.slotlist.Contains(this))
         {
             inventoryManager.slotlist.Add(this);
         }
+
+        RefreshView();
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
-    // Handle On Begin Drag.
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (!InventoryManager.IsInventoryOpen || !HasItem())
@@ -65,18 +58,14 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         UpdateDragGhostPosition(eventData);
     }
 
-    // Handle On Drag.
     public void OnDrag(PointerEventData eventData)
     {
-        if (draggedSlot != this || dragGhostRect == null)
+        if (draggedSlot == this && dragGhostRect != null)
         {
-            return;
+            UpdateDragGhostPosition(eventData);
         }
-
-        UpdateDragGhostPosition(eventData);
     }
 
-    // Handle On End Drag.
     public void OnEndDrag(PointerEventData eventData)
     {
         if (draggedSlot == this)
@@ -87,7 +76,6 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         DestroyDragGhost();
     }
 
-    // Handle On Drop.
     public void OnDrop(PointerEventData eventData)
     {
         if (!InventoryManager.IsInventoryOpen)
@@ -118,24 +106,11 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         SwapWith(source);
     }
 
-    // Handle On Pointer Click.
-    public void OnPointerClick(PointerEventData eventData)
-    {
-        if (eventData == null || eventData.button != PointerEventData.InputButton.Right)
-        {
-            return;
-        }
-
-        TryActivateInventoryBuilding();
-    }
-
-    // Handle Has Item.
     public bool HasItem()
     {
         return occupied && Item != null && count > 0;
     }
 
-    // Handle Move From.
     private void MoveFrom(SlotInsideUI source)
     {
         Item = source.Item;
@@ -146,7 +121,6 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         source.ClearSlot();
     }
 
-    // Handle Swap With.
     private void SwapWith(SlotInsideUI source)
     {
         InventoryItem oldItem = Item;
@@ -167,7 +141,6 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         source.RefreshView();
     }
 
-    // Handle Clear Slot.
     private void ClearSlot()
     {
         Item = null;
@@ -177,7 +150,6 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         RefreshView();
     }
 
-    // Handle Is Same Item.
     private bool IsSameItem(SlotInsideUI other)
     {
         if (other == null || other.Item == null || Item == null)
@@ -192,95 +164,32 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
 
         string thisName = !string.IsNullOrWhiteSpace(nameofslot) ? nameofslot : Item.nameofitem;
         string otherName = !string.IsNullOrWhiteSpace(other.nameofslot) ? other.nameofslot : other.Item.nameofitem;
-        if (string.IsNullOrWhiteSpace(thisName) || string.IsNullOrWhiteSpace(otherName))
-        {
-            return false;
-        }
-
-        return string.Equals(thisName.Trim(), otherName.Trim(), System.StringComparison.OrdinalIgnoreCase);
+        return !string.IsNullOrWhiteSpace(thisName) &&
+               !string.IsNullOrWhiteSpace(otherName) &&
+               string.Equals(thisName.Trim(), otherName.Trim(), System.StringComparison.OrdinalIgnoreCase);
     }
 
-    // Handle Try Activate Inventory Building.
-    private void TryActivateInventoryBuilding()
-    {
-        if (!InventoryManager.IsInventoryOpen || !HasItem())
-        {
-            return;
-        }
-
-        Item.ResolveReferences();
-        if (Item.itemType != InventoryItemType.Building)
-        {
-            return;
-        }
-
-        if (Item.itemPrefab == null)
-        {
-            Debug.LogWarning($"SlotInsideUI: Building item '{GetItemDisplayName(Item)}' is missing itemPrefab.", this);
-            return;
-        }
-
-        RayCastScriptTest buildController = FindBuildController();
-        if (buildController == null)
-        {
-            Debug.LogWarning("SlotInsideUI: RayCastScriptTest was not found, cannot enter build mode from inventory.", this);
-            return;
-        }
-
-        if (!buildController.TrySelectInventoryBuildingItem(Item))
-        {
-            return;
-        }
-
-        if (inventoryManager != null)
-        {
-            inventoryManager.EnableInventory(false);
-        }
-    }
-
-    // Handle Find Build Controller.
-    private static RayCastScriptTest FindBuildController()
-    {
-#if UNITY_2023_1_OR_NEWER
-        return Object.FindFirstObjectByType<RayCastScriptTest>(FindObjectsInactive.Include);
-#else
-        return Object.FindObjectOfType<RayCastScriptTest>(true);
-#endif
-    }
-
-    // Handle Get Item Display Name.
-    private static string GetItemDisplayName(InventoryItem item)
-    {
-        if (item == null)
-        {
-            return string.Empty;
-        }
-
-        if (!string.IsNullOrWhiteSpace(item.nameofitem))
-        {
-            return item.nameofitem;
-        }
-
-        return item.name;
-    }
-
-    // Handle Refresh View.
     private void RefreshView()
     {
+        bool visible = inventoryManager != null && inventoryManager.UIShown;
         if (image != null)
         {
             image.sprite = Item != null ? Item.inventorysprite : null;
-            image.enabled = inventoryManager != null && inventoryManager.UIShown && occupied && Item != null;
+            image.enabled = visible && occupied && Item != null;
+        }
+
+        if (background != null)
+        {
+            background.enabled = visible;
         }
 
         if (text != null)
         {
             text.text = count > 0 ? count.ToString() : "0";
-            text.enabled = inventoryManager != null && inventoryManager.UIShown;
+            text.enabled = visible;
         }
     }
 
-    // Handle Create Drag Ghost.
     private void CreateDragGhost()
     {
         if (rootCanvas == null || Item == null || Item.inventorysprite == null)
@@ -294,17 +203,16 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         dragGhostRect = dragGhost.GetComponent<RectTransform>();
         dragGhostRect.sizeDelta = new Vector2(64f, 64f);
 
-        CanvasGroup cg = dragGhost.GetComponent<CanvasGroup>();
-        cg.blocksRaycasts = false;
-        cg.alpha = 0.9f;
+        CanvasGroup canvasGroup = dragGhost.GetComponent<CanvasGroup>();
+        canvasGroup.blocksRaycasts = false;
+        canvasGroup.alpha = 0.9f;
 
-        dragGhostImage = dragGhost.GetComponent<Image>();
-        dragGhostImage.sprite = Item.inventorysprite;
-        dragGhostImage.raycastTarget = false;
-        dragGhostImage.preserveAspect = true;
+        Image ghostImage = dragGhost.GetComponent<Image>();
+        ghostImage.sprite = Item.inventorysprite;
+        ghostImage.raycastTarget = false;
+        ghostImage.preserveAspect = true;
     }
 
-    // Handle Update Drag Ghost Position.
     private void UpdateDragGhostPosition(PointerEventData eventData)
     {
         if (dragGhostRect == null || rootCanvas == null)
@@ -313,22 +221,12 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         }
 
         RectTransform canvasRect = rootCanvas.transform as RectTransform;
-        if (canvasRect == null)
-        {
-            return;
-        }
-
-        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvasRect,
-                eventData.position,
-                eventData.pressEventCamera,
-                out Vector2 localPos))
+        if (canvasRect != null && RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, eventData.position, eventData.pressEventCamera, out Vector2 localPos))
         {
             dragGhostRect.anchoredPosition = localPos;
         }
     }
 
-    // Handle Destroy Drag Ghost.
     private void DestroyDragGhost()
     {
         if (dragGhost != null)
@@ -338,6 +236,5 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
 
         dragGhost = null;
         dragGhostRect = null;
-        dragGhostImage = null;
     }
 }

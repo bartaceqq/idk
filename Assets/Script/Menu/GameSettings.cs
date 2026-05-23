@@ -21,7 +21,6 @@ public static class GameSettings
         public const string Inventory = "Inventory";
         public const string Crafting = "Crafting";
         public const string Upgrade = "Upgrade";
-        public const string BuildMode = "BuildMode";
         public const string Emote = "Emote";
         public const string WeaponSlot1 = "WeaponSlot1";
         public const string WeaponSlot2 = "WeaponSlot2";
@@ -56,7 +55,6 @@ public static class GameSettings
         { Key.Inventory, KeyCode.I },
         { Key.Crafting, KeyCode.T },
         { Key.Upgrade, KeyCode.K },
-        { Key.BuildMode, KeyCode.B },
         { Key.Emote, KeyCode.H },
         { Key.WeaponSlot1, KeyCode.Alpha1 },
         { Key.WeaponSlot2, KeyCode.Alpha2 },
@@ -354,7 +352,7 @@ public static class GameSettings
         EnsureDefaults();
         AudioListener.volume = Muted ? 0f : 1f;
 
-        AudioSource[] sources = UnityEngine.Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        AudioSource[] sources = UnityEngine.Object.FindObjectsByType<AudioSource>(FindObjectsInactive.Include);
         for (int i = 0; i < sources.Length; i++)
         {
             AudioSource source = sources[i];
@@ -376,7 +374,7 @@ public static class GameSettings
 
     public static void ApplyInputOverridesToScene()
     {
-        UnityEngine.InputSystem.PlayerInput[] inputs = UnityEngine.Object.FindObjectsByType<UnityEngine.InputSystem.PlayerInput>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        UnityEngine.InputSystem.PlayerInput[] inputs = UnityEngine.Object.FindObjectsByType<UnityEngine.InputSystem.PlayerInput>(FindObjectsInactive.Include);
         for (int i = 0; i < inputs.Length; i++)
         {
             ApplyInputOverrides(inputs[i]);
@@ -861,7 +859,7 @@ public static class GameSettings
 
     private static void ApplyCameraSettingsToScene()
     {
-        Camera[] cameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Camera[] cameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsInactive.Include);
         float farClip = Mathf.Lerp(180f, 900f, Mathf.InverseLerp(0.45f, 2f, ViewDistance));
         for (int i = 0; i < cameras.Length; i++)
         {
@@ -875,7 +873,7 @@ public static class GameSettings
 
     private static void ApplyVolumeComponentState(string componentName, bool enabled)
     {
-        Volume[] volumes = UnityEngine.Object.FindObjectsByType<Volume>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Volume[] volumes = UnityEngine.Object.FindObjectsByType<Volume>(FindObjectsInactive.Include);
         for (int i = 0; i < volumes.Length; i++)
         {
             Volume volume = volumes[i];

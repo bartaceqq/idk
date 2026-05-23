@@ -103,4 +103,3 @@ MonoBehaviour:
   itemPrefab: {fileID: 0}
   mingain: 1
   maxgain: 1
-  slotManager: {fileID: 0}

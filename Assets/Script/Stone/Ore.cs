@@ -1,7 +1,6 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 [System.Serializable]
-// Controls Ore behavior.
 public class Ore
 {
     public string oreName;

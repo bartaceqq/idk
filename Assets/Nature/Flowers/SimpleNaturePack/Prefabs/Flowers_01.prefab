@@ -221,11 +221,8 @@ MonoBehaviour:
   nameofitem: RedFlower
   itemType: 0
   itemPrefab: {fileID: 0}
-  buildRotationEuler: {x: 0, y: 0, z: 0}
-  buildScale: {x: 1, y: 1, z: 1}
   mingain: 1
   maxgain: 1
-  slotManager: {fileID: 0}
 --- !u!1 &5440194995934546347
 GameObject:
   m_ObjectHideFlags: 0

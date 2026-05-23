@@ -416,7 +416,6 @@ MonoBehaviour:
   name: Wood
   mingain: 3
   maxgain: 5
-  slotManager: {fileID: 0}
 --- !u!205 &1212168320918815049
 LODGroup:
   m_ObjectHideFlags: 0

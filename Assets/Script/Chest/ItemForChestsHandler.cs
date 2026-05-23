@@ -4,118 +4,57 @@ using UnityEngine;
 public class ItemForChestsHandler : MonoBehaviour
 {
     public List<InventoryItem> common = new List<InventoryItem>();
-     public List<InventoryItem> uncommon = new List<InventoryItem>();
-      public List<InventoryItem> rare = new List<InventoryItem>();
-       public List<InventoryItem> epic = new List<InventoryItem>();
-        public List<InventoryItem> legendary = new List<InventoryItem>();
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public List<InventoryItem> uncommon = new List<InventoryItem>();
+    public List<InventoryItem> rare = new List<InventoryItem>();
+    public List<InventoryItem> epic = new List<InventoryItem>();
+    public List<InventoryItem> legendary = new List<InventoryItem>();
+
+    public List<InventoryItem> returnrandomthree(string type)
     {
-        
+        return GetRandomItems(GetRarityList(type), 3);
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-    public List<InventoryItem> returnrandomthree(string type)
+    private List<InventoryItem> GetRarityList(string type)
     {
         switch (type)
         {
             case "common":
-            List<int> numberscom = new List<int>();
-                for(int i =0;i <3; i++)
-                {
-                    int number = Random.Range(0, common.Count);
-                    while (numberscom.Contains(number))
-                    {
-                        number = Random.Range(0, common.Count);
-                    }
-                    numberscom.Add(number);
-                }
-            List<InventoryItem> returnlistcom = new List<InventoryItem>();
-            foreach(int num in numberscom)
-                {
-                    returnlistcom.Add(common[num]);
-                }
-                return returnlistcom;
-            break;
-             case "uncommon":
-            List<int> numbersuncom = new List<int>();
-                for(int i =0;i <3; i++)
-                {
-                    int number = Random.Range(0, uncommon.Count);
-                    while (numbersuncom.Contains(number))
-                    {
-                        number = Random.Range(0, uncommon.Count);
-                    }
-                    numbersuncom.Add(number);
-                }
-            List<InventoryItem> returnlistuncom = new List<InventoryItem>();
-            foreach(int num in numbersuncom)
-                {
-                    returnlistuncom.Add(uncommon[num]);
-                }
-                return returnlistuncom;
-            break;
+                return common;
+            case "uncommon":
+                return uncommon;
             case "rare":
-            List<int> numbersare = new List<int>();
-                for(int i =0;i <3; i++)
-                {
-                    int number = Random.Range(0, rare.Count);
-                    while (numbersare.Contains(number))
-                    {
-                        number = Random.Range(0, rare.Count);
-                    }
-                    numbersare.Add(number);
-                }
-            List<InventoryItem> returnlistrare = new List<InventoryItem>();
-            foreach(int num in numbersare)
-                {
-                    returnlistrare.Add(rare[num]);
-                }
-                return returnlistrare;
-            break;
+                return rare;
             case "epic":
-            List<int> numbersepic = new List<int>();
-                for(int i =0;i <3; i++)
-                {
-                    int number = Random.Range(0, epic.Count);
-                    while (numbersepic.Contains(number))
-                    {
-                        number = Random.Range(0, epic.Count);
-                    }
-                    numbersepic.Add(number);
-                }
-            List<InventoryItem> returnlistepic = new List<InventoryItem>();
-            foreach(int num in numbersepic)
-                {
-                    returnlistepic.Add(epic[num]);
-                }
-                return returnlistepic;
-            break;
-             case "legendary":
-            List<int> numberslegendary = new List<int>();
-                for(int i =0;i <3; i++)
-                {
-                    int number = Random.Range(0, legendary.Count);
-                    while (numberslegendary.Contains(number))
-                    {
-                        number = Random.Range(0, legendary.Count);
-                    }
-                    numberslegendary.Add(number);
-                }
-            List<InventoryItem> returnlislegendary = new List<InventoryItem>();
-            foreach(int num in numberslegendary)
-                {
-                    returnlislegendary.Add(legendary[num]);
-                }
-                return returnlislegendary;
-            break;
+                return epic;
+            case "legendary":
+                return legendary;
             default:
-            return null;
-            break;
+                return null;
         }
+    }
+
+    private static List<InventoryItem> GetRandomItems(List<InventoryItem> source, int requestedCount)
+    {
+        List<InventoryItem> result = new List<InventoryItem>();
+        if (source == null || source.Count == 0 || requestedCount <= 0)
+        {
+            return result;
+        }
+
+        List<int> pickedIndexes = new List<int>();
+        int itemCount = Mathf.Min(requestedCount, source.Count);
+        while (result.Count < itemCount)
+        {
+            int index = Random.Range(0, source.Count);
+            if (pickedIndexes.Contains(index))
+            {
+                continue;
+            }
+
+            pickedIndexes.Add(index);
+            result.Add(source[index]);
+        }
+
+        return result;
     }
 }

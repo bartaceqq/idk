@@ -1,9 +1,8 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Playables;
 
-// Controls Start Cut Scene Script behavior.
 public class StartCutSceneScript : MonoBehaviour
 {
     [Header("Cutscenes")]
@@ -23,11 +22,9 @@ public class StartCutSceneScript : MonoBehaviour
     public UnityEvent onCutscenesFinished;
     public LookingController lookingController;
     public GameObject capsnorm;
-    public GameObject capsbuild;
     public GameObject canvas;
     public AudioSource backgroundMusic;
 
-    // Run setup once before the first frame.
     private void Start()
     {
         if (skipAllCutscenes)
@@ -40,7 +37,6 @@ public class StartCutSceneScript : MonoBehaviour
         StartCoroutine(PlayCutscenesInOrder());
     }
 
-    // Handle Play Cutscenes In Order.
     private IEnumerator PlayCutscenesInOrder()
     {
         if (!skipFirstCutscene)
@@ -57,7 +53,6 @@ public class StartCutSceneScript : MonoBehaviour
         OnCutscenesFinished();
     }
 
-    // Handle Play Cutscene.
     private IEnumerator PlayCutscene(PlayableDirector director)
     {
         if (director == null || director.playableAsset == null)
@@ -73,7 +68,6 @@ public class StartCutSceneScript : MonoBehaviour
         }
     }
 
-    // Handle Unparent Camera For Second Cutscene.
     private void UnparentCameraForSecondCutscene()
     {
         if (cameraToUnparentBeforeSecondTimeline == null || cameraToUnparentBeforeSecondTimeline.parent == null)
@@ -84,7 +78,6 @@ public class StartCutSceneScript : MonoBehaviour
         cameraToUnparentBeforeSecondTimeline.SetParent(null, true);
     }
 
-    // Handle On Cutscenes Finished.
     public void OnCutscenesFinished()
     {
         if (AirPlaneToDisable != null)
@@ -111,17 +104,11 @@ public class StartCutSceneScript : MonoBehaviour
         }
     }
 
-    // Handle Set Cutscene Mode.
     private void SetCutsceneMode()
     {
         if (capsnorm != null)
         {
             capsnorm.SetActive(false);
-        }
-
-        if (capsbuild != null)
-        {
-            capsbuild.SetActive(false);
         }
 
         if (lookingController != null)
@@ -130,24 +117,17 @@ public class StartCutSceneScript : MonoBehaviour
         }
     }
 
-    // Handle Set Gameplay Mode.
     private void SetGameplayMode()
     {
-        // Back to normal gameplay: normal capsule on, build capsule off.
         if (capsnorm != null)
         {
             capsnorm.SetActive(true);
         }
 
-        if (capsbuild != null)
-        {
-            capsbuild.SetActive(false);
-        }
-
         if (lookingController != null)
         {
             lookingController.enabled = true;
-            lookingController.switched = false;
+            lookingController.SwitchToNormalMode();
         }
     }
 }

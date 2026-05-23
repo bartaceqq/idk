@@ -19,13 +19,11 @@ public class StartCommunication : MonoBehaviour
 
     private bool _stopRequestedDueToRange;
 
-    // Run setup once before the first frame.
     private void Awake()
     {
         ResolveDialogueRunner();
     }
 
-    // Run this logic every frame.
     private void Update()
     {
         bool inRange = GetDistance() <= Range;
@@ -51,7 +49,6 @@ public class StartCommunication : MonoBehaviour
         }
     }
 
-    // Handle Interact Pressed.
     private void HandleInteractPressed()
     {
         if (!ResolveDialogueRunner())
@@ -75,7 +72,6 @@ public class StartCommunication : MonoBehaviour
         _ = dialogueRunner.StartDialogue(nodeName);
     }
 
-    // Handle Handle Out Of Range.
     private void HandleOutOfRange()
     {
         if (stopDialogueWhenOutOfRange && !_stopRequestedDueToRange && IsDialogueRunning() && dialogueRunner != null)
@@ -88,7 +84,6 @@ public class StartCommunication : MonoBehaviour
         FaceTarget(tree);
     }
 
-    // Handle Resolve Dialogue Runner.
     private bool ResolveDialogueRunner()
     {
         if (dialogueRunner == null)
@@ -104,13 +99,11 @@ public class StartCommunication : MonoBehaviour
         return dialogueRunner != null;
     }
 
-    // Handle Is Dialogue Running.
     private bool IsDialogueRunning()
     {
         return dialogueRunner != null && dialogueRunner.IsDialogueRunning;
     }
 
-    // Handle Set Talking Animation.
     private void SetTalkingAnimation(bool status)
     {
         if (animator != null)
@@ -119,7 +112,6 @@ public class StartCommunication : MonoBehaviour
         }
     }
 
-    // Handle Face Target.
     private void FaceTarget(GameObject target)
     {
         if (target == null)
@@ -133,13 +125,11 @@ public class StartCommunication : MonoBehaviour
         transform.eulerAngles = rot;
     }
 
-    // Handle Disable.
     private void OnDisable()
     {
         SetTalkingAnimation(false);
     }
 
-    // Handle Distance.
     public float GetDistance()
     {
         if (player == null)

@@ -59,7 +59,7 @@ public class StarterItems : MonoBehaviour
     private static InventoryAddHandler FindInventoryAddHandler()
     {
 #if UNITY_2023_1_OR_NEWER
-        return FindFirstObjectByType<InventoryAddHandler>(FindObjectsInactive.Include);
+        return FindAnyObjectByType<InventoryAddHandler>(FindObjectsInactive.Include);
 #else
         return FindObjectOfType<InventoryAddHandler>(true);
 #endif

@@ -288,17 +288,8 @@ public sealed class FantasyMenuController : MonoBehaviour
         BindButton(resolutionPreviousButton, () => StepResolution(-1));
         BindButton(resolutionNextButton, () => StepResolution(1));
 
-        if (fullscreenToggle != null)
-        {
-            fullscreenToggle.onValueChanged.RemoveAllListeners();
-            fullscreenToggle.onValueChanged.AddListener(OnFullscreenChanged);
-        }
-
-        if (vSyncToggle != null)
-        {
-            vSyncToggle.onValueChanged.RemoveAllListeners();
-            vSyncToggle.onValueChanged.AddListener(OnVSyncChanged);
-        }
+        BindToggle(fullscreenToggle, OnFullscreenChanged);
+        BindToggle(vSyncToggle, OnVSyncChanged);
 
         if (brightnessSlider != null)
         {
@@ -484,11 +475,7 @@ public sealed class FantasyMenuController : MonoBehaviour
         BindSlider(sfxVolumeSlider, OnSfxVolumeChanged);
         BindSlider(ambienceVolumeSlider, OnAmbienceVolumeChanged);
 
-        if (mutedToggle != null)
-        {
-            mutedToggle.onValueChanged.RemoveAllListeners();
-            mutedToggle.onValueChanged.AddListener(OnMutedChanged);
-        }
+        BindToggle(mutedToggle, OnMutedChanged);
     }
 
     private void BindGraphicsUi()
@@ -508,23 +495,9 @@ public sealed class FantasyMenuController : MonoBehaviour
         BindSlider(shadowDistanceSlider, OnShadowDistanceChanged);
         BindSlider(viewDistanceSlider, OnViewDistanceChanged);
 
-        if (anisotropicFilteringToggle != null)
-        {
-            anisotropicFilteringToggle.onValueChanged.RemoveAllListeners();
-            anisotropicFilteringToggle.onValueChanged.AddListener(OnAnisotropicFilteringChanged);
-        }
-
-        if (bloomToggle != null)
-        {
-            bloomToggle.onValueChanged.RemoveAllListeners();
-            bloomToggle.onValueChanged.AddListener(OnBloomChanged);
-        }
-
-        if (motionBlurToggle != null)
-        {
-            motionBlurToggle.onValueChanged.RemoveAllListeners();
-            motionBlurToggle.onValueChanged.AddListener(OnMotionBlurChanged);
-        }
+        BindToggle(anisotropicFilteringToggle, OnAnisotropicFilteringChanged);
+        BindToggle(bloomToggle, OnBloomChanged);
+        BindToggle(motionBlurToggle, OnMotionBlurChanged);
     }
 
     private void BindKeybindUi()
@@ -550,6 +523,30 @@ public sealed class FantasyMenuController : MonoBehaviour
 
         slider.onValueChanged.RemoveAllListeners();
         slider.onValueChanged.AddListener(action);
+    }
+
+    private static void BindToggle(Toggle toggle, UnityAction<bool> action)
+    {
+        if (toggle == null)
+        {
+            return;
+        }
+
+        toggle.onValueChanged.RemoveAllListeners();
+        toggle.onValueChanged.AddListener(action);
+    }
+
+    private static void SetupSlider(Slider slider, float min, float max, float value, bool wholeNumbers = false)
+    {
+        if (slider == null)
+        {
+            return;
+        }
+
+        slider.minValue = min;
+        slider.maxValue = max;
+        slider.wholeNumbers = wholeNumbers;
+        slider.value = value;
     }
 
     private void BindKeybindButton(Button button, string keyId, KeyCode fallback)
@@ -630,21 +627,8 @@ public sealed class FantasyMenuController : MonoBehaviour
             vSyncToggle.isOn = GameSettings.VSync;
         }
 
-        if (brightnessSlider != null)
-        {
-            brightnessSlider.minValue = 0.45f;
-            brightnessSlider.maxValue = 1.45f;
-            brightnessSlider.wholeNumbers = false;
-            brightnessSlider.value = GameSettings.Brightness;
-        }
-
-        if (uiScaleSlider != null)
-        {
-            uiScaleSlider.minValue = 0.75f;
-            uiScaleSlider.maxValue = 1.35f;
-            uiScaleSlider.wholeNumbers = false;
-            uiScaleSlider.value = GameSettings.UIScale;
-        }
+        SetupSlider(brightnessSlider, 0.45f, 1.45f, GameSettings.Brightness);
+        SetupSlider(uiScaleSlider, 0.75f, 1.35f, GameSettings.UIScale);
 
         UpdateBrightnessLabel(GameSettings.Brightness);
         UpdateUiScaleLabel(GameSettings.UIScale);
@@ -710,25 +694,10 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void SetPanelState(bool showMain, bool showSettings, bool showCredits)
     {
-        if (menuShellRoot != null)
-        {
-            menuShellRoot.SetActive(showMain || showCredits);
-        }
-
-        if (mainScreen != null)
-        {
-            mainScreen.SetActive(showMain);
-        }
-
-        if (settingsScreen != null)
-        {
-            settingsScreen.SetActive(showSettings);
-        }
-
-        if (creditsScreen != null)
-        {
-            creditsScreen.SetActive(showCredits);
-        }
+        SetActive(menuShellRoot, showMain || showCredits);
+        SetActive(mainScreen, showMain);
+        SetActive(settingsScreen, showSettings);
+        SetActive(creditsScreen, showCredits);
     }
 
     private void SetBackground(Sprite sprite, Color tint)
@@ -751,27 +720,20 @@ public sealed class FantasyMenuController : MonoBehaviour
     {
         currentTab = tab;
 
-        if (displayTabContent != null)
-        {
-            displayTabContent.SetActive(tab == SettingsTab.Display);
-        }
-
-        if (keybindTabContent != null)
-        {
-            keybindTabContent.SetActive(tab == SettingsTab.Keybind);
-        }
-
-        if (audioTabContent != null)
-        {
-            audioTabContent.SetActive(tab == SettingsTab.Audio);
-        }
-
-        if (graphicsTabContent != null)
-        {
-            graphicsTabContent.SetActive(tab == SettingsTab.Graphics);
-        }
+        SetActive(displayTabContent, tab == SettingsTab.Display);
+        SetActive(keybindTabContent, tab == SettingsTab.Keybind);
+        SetActive(audioTabContent, tab == SettingsTab.Audio);
+        SetActive(graphicsTabContent, tab == SettingsTab.Graphics);
 
         UpdateTabVisuals();
+    }
+
+    private static void SetActive(GameObject target, bool active)
+    {
+        if (target != null)
+        {
+            target.SetActive(active);
+        }
     }
 
     private void UpdateTabVisuals()
@@ -926,37 +888,10 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void LoadAudioSettingsToUi()
     {
-        if (masterVolumeSlider != null)
-        {
-            masterVolumeSlider.minValue = 0f;
-            masterVolumeSlider.maxValue = 1f;
-            masterVolumeSlider.wholeNumbers = false;
-            masterVolumeSlider.value = GameSettings.MasterVolume;
-        }
-
-        if (musicVolumeSlider != null)
-        {
-            musicVolumeSlider.minValue = 0f;
-            musicVolumeSlider.maxValue = 1f;
-            musicVolumeSlider.wholeNumbers = false;
-            musicVolumeSlider.value = GameSettings.MusicVolume;
-        }
-
-        if (sfxVolumeSlider != null)
-        {
-            sfxVolumeSlider.minValue = 0f;
-            sfxVolumeSlider.maxValue = 1f;
-            sfxVolumeSlider.wholeNumbers = false;
-            sfxVolumeSlider.value = GameSettings.SfxVolume;
-        }
-
-        if (ambienceVolumeSlider != null)
-        {
-            ambienceVolumeSlider.minValue = 0f;
-            ambienceVolumeSlider.maxValue = 1f;
-            ambienceVolumeSlider.wholeNumbers = false;
-            ambienceVolumeSlider.value = GameSettings.AmbienceVolume;
-        }
+        SetupSlider(masterVolumeSlider, 0f, 1f, GameSettings.MasterVolume);
+        SetupSlider(musicVolumeSlider, 0f, 1f, GameSettings.MusicVolume);
+        SetupSlider(sfxVolumeSlider, 0f, 1f, GameSettings.SfxVolume);
+        SetupSlider(ambienceVolumeSlider, 0f, 1f, GameSettings.AmbienceVolume);
 
         if (mutedToggle != null)
         {
@@ -978,29 +913,9 @@ public sealed class FantasyMenuController : MonoBehaviour
         shadowQualityOptionIndex = Mathf.Clamp(GameSettings.ShadowQuality, 0, shadowQualityLabels.Length - 1);
         textureQualityOptionIndex = Mathf.Clamp(GameSettings.TextureQuality, 0, textureQualityLabels.Length - 1);
 
-        if (renderScaleSlider != null)
-        {
-            renderScaleSlider.minValue = 0.5f;
-            renderScaleSlider.maxValue = 1.5f;
-            renderScaleSlider.wholeNumbers = false;
-            renderScaleSlider.value = GameSettings.RenderScale;
-        }
-
-        if (shadowDistanceSlider != null)
-        {
-            shadowDistanceSlider.minValue = 0f;
-            shadowDistanceSlider.maxValue = 500f;
-            shadowDistanceSlider.wholeNumbers = false;
-            shadowDistanceSlider.value = GameSettings.ShadowDistance;
-        }
-
-        if (viewDistanceSlider != null)
-        {
-            viewDistanceSlider.minValue = 0.45f;
-            viewDistanceSlider.maxValue = 2f;
-            viewDistanceSlider.wholeNumbers = false;
-            viewDistanceSlider.value = GameSettings.ViewDistance;
-        }
+        SetupSlider(renderScaleSlider, 0.5f, 1.5f, GameSettings.RenderScale);
+        SetupSlider(shadowDistanceSlider, 0f, 500f, GameSettings.ShadowDistance);
+        SetupSlider(viewDistanceSlider, 0.45f, 2f, GameSettings.ViewDistance);
 
         if (anisotropicFilteringToggle != null)
         {
@@ -1029,71 +944,41 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void OnMasterVolumeChanged(float value)
     {
-        UpdateVolumeLabel(masterVolumeValueText, value);
-        if (suppressCallbacks)
-        {
-            return;
-        }
-
-        GameSettings.MasterVolume = value;
-        GameSettings.ApplyAudioSettings();
-        GameSettings.NotifyChanged();
-        MarkSettingsDirty($"Master volume {Mathf.RoundToInt(value * 100f)}%.");
+        OnVolumeChanged(value, masterVolumeValueText, v => GameSettings.MasterVolume = v, "Master volume");
     }
 
     private void OnMusicVolumeChanged(float value)
     {
-        UpdateVolumeLabel(musicVolumeValueText, value);
-        if (suppressCallbacks)
-        {
-            return;
-        }
-
-        GameSettings.MusicVolume = value;
-        GameSettings.ApplyAudioSettings();
-        GameSettings.NotifyChanged();
-        MarkSettingsDirty($"Music volume {Mathf.RoundToInt(value * 100f)}%.");
+        OnVolumeChanged(value, musicVolumeValueText, v => GameSettings.MusicVolume = v, "Music volume");
     }
 
     private void OnSfxVolumeChanged(float value)
     {
-        UpdateVolumeLabel(sfxVolumeValueText, value);
-        if (suppressCallbacks)
-        {
-            return;
-        }
-
-        GameSettings.SfxVolume = value;
-        GameSettings.ApplyAudioSettings();
-        GameSettings.NotifyChanged();
-        MarkSettingsDirty($"SFX volume {Mathf.RoundToInt(value * 100f)}%.");
+        OnVolumeChanged(value, sfxVolumeValueText, v => GameSettings.SfxVolume = v, "SFX volume");
     }
 
     private void OnAmbienceVolumeChanged(float value)
     {
-        UpdateVolumeLabel(ambienceVolumeValueText, value);
+        OnVolumeChanged(value, ambienceVolumeValueText, v => GameSettings.AmbienceVolume = v, "Ambience volume");
+    }
+
+    private void OnVolumeChanged(float value, TMP_Text label, Action<float> applyValue, string labelName)
+    {
+        UpdateVolumeLabel(label, value);
         if (suppressCallbacks)
         {
             return;
         }
 
-        GameSettings.AmbienceVolume = value;
+        applyValue?.Invoke(value);
         GameSettings.ApplyAudioSettings();
         GameSettings.NotifyChanged();
-        MarkSettingsDirty($"Ambience volume {Mathf.RoundToInt(value * 100f)}%.");
+        MarkSettingsDirty($"{labelName} {Mathf.RoundToInt(value * 100f)}%.");
     }
 
     private void OnMutedChanged(bool value)
     {
-        if (suppressCallbacks)
-        {
-            return;
-        }
-
-        GameSettings.Muted = value;
-        GameSettings.ApplyAudioSettings();
-        GameSettings.NotifyChanged();
-        MarkSettingsDirty(value ? "Audio muted." : "Audio unmuted.");
+        OnSettingToggleChanged(value, v => GameSettings.Muted = v, GameSettings.ApplyAudioSettings, "Audio muted.", "Audio unmuted.");
     }
 
     private void StepQuality(int delta)
@@ -1197,41 +1082,45 @@ public sealed class FantasyMenuController : MonoBehaviour
 
     private void OnAnisotropicFilteringChanged(bool value)
     {
-        if (suppressCallbacks)
-        {
-            return;
-        }
-
-        GameSettings.AnisotropicFiltering = value;
-        GameSettings.ApplyGraphicsSettings();
-        GameSettings.NotifyChanged();
-        MarkSettingsDirty(value ? "Anisotropic filtering enabled." : "Anisotropic filtering disabled.");
+        OnSettingToggleChanged(
+            value,
+            v => GameSettings.AnisotropicFiltering = v,
+            GameSettings.ApplyGraphicsSettings,
+            "Anisotropic filtering enabled.",
+            "Anisotropic filtering disabled.");
     }
 
     private void OnBloomChanged(bool value)
     {
-        if (suppressCallbacks)
-        {
-            return;
-        }
-
-        GameSettings.Bloom = value;
-        GameSettings.ApplyGraphicsSettings();
-        GameSettings.NotifyChanged();
-        MarkSettingsDirty(value ? "Bloom enabled." : "Bloom disabled.");
+        OnSettingToggleChanged(value, v => GameSettings.Bloom = v, GameSettings.ApplyGraphicsSettings, "Bloom enabled.", "Bloom disabled.");
     }
 
     private void OnMotionBlurChanged(bool value)
+    {
+        OnSettingToggleChanged(
+            value,
+            v => GameSettings.MotionBlur = v,
+            GameSettings.ApplyGraphicsSettings,
+            "Motion blur enabled.",
+            "Motion blur disabled.");
+    }
+
+    private void OnSettingToggleChanged(
+        bool value,
+        Action<bool> applyValue,
+        Action applySettings,
+        string enabledMessage,
+        string disabledMessage)
     {
         if (suppressCallbacks)
         {
             return;
         }
 
-        GameSettings.MotionBlur = value;
-        GameSettings.ApplyGraphicsSettings();
+        applyValue?.Invoke(value);
+        applySettings?.Invoke();
         GameSettings.NotifyChanged();
-        MarkSettingsDirty(value ? "Motion blur enabled." : "Motion blur disabled.");
+        MarkSettingsDirty(value ? enabledMessage : disabledMessage);
     }
 
     private void BeginKeybindCapture(string keyId, KeyCode fallback, Button button, TMP_Text label)
