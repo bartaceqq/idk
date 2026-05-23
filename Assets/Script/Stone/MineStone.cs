@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// Controls Mine Stone behavior.
 public class MineStone : MonoBehaviour
 {
     private const string DefaultStoneItemName = "stone";
@@ -79,6 +80,7 @@ public class MineStone : MonoBehaviour
         CacheFragmentDefaults();
     }
 
+    // Run in the editor when values change in Inspector.
     private void OnValidate()
     {
         if (!Application.isPlaying)
@@ -106,6 +108,7 @@ public class MineStone : MonoBehaviour
         InitializeStoneState();
     }
 
+    // Handle Resolve References.
     private void ResolveReferences()
     {
         if (fullstone == null)
@@ -157,19 +160,21 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Find Info Handler In Scene.
     private static InfoHandler FindInfoHandlerInScene()
     {
 #if UNITY_2023_1_OR_NEWER
-        return FindAnyObjectByType<InfoHandler>(FindObjectsInactive.Include);
+        return FindFirstObjectByType<InfoHandler>(FindObjectsInactive.Include);
 #else
         return FindObjectOfType<InfoHandler>(true);
 #endif
     }
 
+    // Handle Find Ore Type Provider In Scene.
     private static GetRandomOreType FindOreTypeProviderInScene()
     {
 #if UNITY_2023_1_OR_NEWER
-        return FindAnyObjectByType<GetRandomOreType>(FindObjectsInactive.Include);
+        return FindFirstObjectByType<GetRandomOreType>(FindObjectsInactive.Include);
 #else
         return FindObjectOfType<GetRandomOreType>(true);
 #endif
@@ -233,12 +238,14 @@ public class MineStone : MonoBehaviour
         chosen.Clear();
     }
 
+    // Handle Initialize Stone State.
     private void InitializeStoneState()
     {
         ApplyMaterialToTargets(parts, greymat);
         ApplyOreSelectionAndVisuals();
     }
 
+    // Handle Apply Ore Selection And Visuals.
     private void ApplyOreSelectionAndVisuals()
     {
         ResolveReferences();
@@ -292,6 +299,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Mine.
     public void Mine()
     {
         ResolveReferences();
@@ -338,6 +346,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Handle Stone Break And Rebuild.
     private IEnumerator HandleStoneBreakAndRebuild()
     {
         isRebuilding = true;
@@ -350,6 +359,7 @@ public class MineStone : MonoBehaviour
         isRebuilding = false;
     }
 
+    // Handle Rebuild Stone.
     private void RebuildStone()
     {
         ResolveReferences();
@@ -361,19 +371,16 @@ public class MineStone : MonoBehaviour
         ApplyOreSelectionAndVisuals();
     }
 
+    // Handle Give Stone Reward.
     private void GiveStoneReward()
     {
-        InventoryManager inventoryManager = FindInventoryManagerInScene();
-        if (inventoryItem != null && inventoryManager != null)
+        if (inventoryItem != null && inventoryItem.slotManager != null)
         {
-            int min = Mathf.Min(inventoryItem.mingain, inventoryItem.maxgain);
-            int max = Mathf.Max(inventoryItem.mingain, inventoryItem.maxgain);
-            int amount = min == max ? min : UnityEngine.Random.Range(min, max + 1);
-            inventoryManager.AddItem(inventoryItem, amount);
+            inventoryItem.slotManager.AddItem(inventoryItem);
         }
         else
         {
-            Debug.LogWarning($"{name}: Missing InventoryItem or InventoryManager reference.", this);
+            Debug.LogWarning($"{name}: Missing InventoryItem or SlotManager reference.", this);
         }
 
         if (infoHandler != null)
@@ -389,15 +396,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
-    private static InventoryManager FindInventoryManagerInScene()
-    {
-#if UNITY_2023_1_OR_NEWER
-        return FindAnyObjectByType<InventoryManager>(FindObjectsInactive.Include);
-#else
-        return FindObjectOfType<InventoryManager>(true);
-#endif
-    }
-
+    // Handle Break Stone Apart.
     private void BreakStoneApart()
     {
         Vector3 explosionCenter = ResolveStoneCenter();
@@ -442,6 +441,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Restore Fragments From Break.
     private void RestoreFragmentsFromBreak()
     {
         for (int i = 0; i < addedRigidbodies.Count; i++)
@@ -506,6 +506,7 @@ public class MineStone : MonoBehaviour
         addedColliders.Clear();
     }
 
+    // Handle Ensure Stone Structure Ready.
     private void EnsureStoneStructureReady()
     {
         bool needsAutoPopulate = autoPopulateFromChildren &&
@@ -526,6 +527,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Cache Fragment Defaults.
     private void CacheFragmentDefaults()
     {
         breakFragments.Clear();
@@ -573,6 +575,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Add Break Fragment.
     private void AddBreakFragment(GameObject fragment, HashSet<int> seenFragmentIds)
     {
         if (fragment == null)
@@ -609,6 +612,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Set Stone Visible.
     private void SetStoneVisible(bool visible)
     {
         GameObject target = fullstone != null ? fullstone : gameObject;
@@ -642,6 +646,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Ensure Fragment Collider.
     private void EnsureFragmentCollider(GameObject fragment)
     {
         if (fragment == null)
@@ -671,6 +676,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Create Fragment Collider.
     private Collider CreateFragmentCollider(GameObject fragment)
     {
         MeshFilter meshFilter = fragment.GetComponent<MeshFilter>();
@@ -700,6 +706,7 @@ public class MineStone : MonoBehaviour
         return boxCollider;
     }
 
+    // Handle Configure Fragment Rigidbody.
     private void ConfigureFragmentRigidbody(Rigidbody rigidbody)
     {
         if (rigidbody == null)
@@ -721,6 +728,7 @@ public class MineStone : MonoBehaviour
         rigidbody.ResetInertiaTensor();
     }
 
+    // Handle Capture Rigidbody Snapshot.
     private static RigidbodySnapshot CaptureRigidbodySnapshot(Rigidbody rigidbody)
     {
         return new RigidbodySnapshot
@@ -735,6 +743,7 @@ public class MineStone : MonoBehaviour
         };
     }
 
+    // Handle Resolve Stone Center.
     private Vector3 ResolveStoneCenter()
     {
         GameObject target = fullstone != null ? fullstone : gameObject;
@@ -746,6 +755,7 @@ public class MineStone : MonoBehaviour
         return transform.position;
     }
 
+    // Handle Get Inventory Item Name.
     private static string GetInventoryItemName(Ore ore)
     {
         if (ore == null || ore.oreName == "noore")
@@ -756,6 +766,7 @@ public class MineStone : MonoBehaviour
         return ore.oreName;
     }
 
+    // Handle To Display Name.
     private static string ToDisplayName(string itemName)
     {
         if (string.IsNullOrWhiteSpace(itemName))
@@ -779,6 +790,7 @@ public class MineStone : MonoBehaviour
         return string.Join(" ", splitParts);
     }
 
+    // Handle Apply Material To Targets.
     private static void ApplyMaterialToTargets(List<GameObject> targets, Material material)
     {
         if (targets == null || material == null)
@@ -792,6 +804,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Apply Material To Object.
     private static void ApplyMaterialToObject(GameObject target, Material material)
     {
         if (target == null || material == null)
@@ -809,6 +822,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Set Object Renderers Enabled.
     private static void SetObjectRenderersEnabled(GameObject target, bool enabled)
     {
         if (target == null)
@@ -826,6 +840,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Get Random Available Part Index.
     private int GetRandomAvailablePartIndex()
     {
         if (parts == null || parts.Count == 0)
@@ -850,6 +865,7 @@ public class MineStone : MonoBehaviour
         return availableIndices[UnityEngine.Random.Range(0, availableIndices.Count)];
     }
 
+    // Handle Has Breakable Ancestor.
     private static bool HasBreakableAncestor(Transform target, HashSet<Transform> mainStonePartTransforms)
     {
         if (target == null || mainStonePartTransforms == null || mainStonePartTransforms.Count == 0)
@@ -871,6 +887,7 @@ public class MineStone : MonoBehaviour
         return false;
     }
 
+    // Handle Name Contains.
     private static bool NameContains(string source, string pattern)
     {
         if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(pattern))
@@ -881,6 +898,7 @@ public class MineStone : MonoBehaviour
         return source.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
+    // Handle Sort By Name.
     private static void SortByName(List<GameObject> targets)
     {
         if (targets == null)
@@ -909,6 +927,7 @@ public class MineStone : MonoBehaviour
         });
     }
 
+    // Handle Collect Fallback Stone Parts.
     private static void CollectFallbackStoneParts(
         Transform root,
         Transform[] descendants,
@@ -951,6 +970,7 @@ public class MineStone : MonoBehaviour
         }
     }
 
+    // Handle Is Valid Fallback Stone Part.
     private static bool IsValidFallbackStonePart(Transform target, Transform root, HashSet<Transform> detectedOreTransforms)
     {
         if (target == null || target == root)
@@ -966,6 +986,7 @@ public class MineStone : MonoBehaviour
         return HasDirectBreakableGeometry(target);
     }
 
+    // Handle Has Child Fallback Stone Part Candidate.
     private static bool HasChildFallbackStonePartCandidate(Transform target, HashSet<Transform> detectedOreTransforms)
     {
         if (target == null)
@@ -1000,6 +1021,7 @@ public class MineStone : MonoBehaviour
         return false;
     }
 
+    // Handle Is Ore Transform Or Child Of Ore.
     private static bool IsOreTransformOrChildOfOre(Transform target, HashSet<Transform> detectedOreTransforms)
     {
         if (target == null || detectedOreTransforms == null || detectedOreTransforms.Count == 0)
@@ -1021,14 +1043,41 @@ public class MineStone : MonoBehaviour
         return false;
     }
 
+    // Handle Has Direct Breakable Geometry.
     private static bool HasDirectBreakableGeometry(Transform target)
     {
-        return target != null &&
-               (target.GetComponent<MeshFilter>() != null ||
-                target.GetComponent<Renderer>() != null ||
-                target.GetComponent<Collider>() != null);
+        if (target == null)
+        {
+            return false;
+        }
+
+        if (target.GetComponent<MeshFilter>() != null)
+        {
+            return true;
+        }
+
+        Renderer[] directRenderers = target.GetComponents<Renderer>();
+        for (int i = 0; i < directRenderers.Length; i++)
+        {
+            if (directRenderers[i] != null)
+            {
+                return true;
+            }
+        }
+
+        Collider[] directColliders = target.GetComponents<Collider>();
+        for (int i = 0; i < directColliders.Length; i++)
+        {
+            if (directColliders[i] != null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
+    // Handle Try Get World Bounds.
     private static bool TryGetWorldBounds(Transform target, out Bounds bounds)
     {
         bounds = default;
@@ -1086,6 +1135,7 @@ public class MineStone : MonoBehaviour
         return hasBounds;
     }
 
+    // Handle Try Get Local Bounds.
     private static bool TryGetLocalBounds(Transform target, out Bounds localBounds)
     {
         localBounds = default;
@@ -1127,6 +1177,7 @@ public class MineStone : MonoBehaviour
         return hasBounds;
     }
 
+    // Handle Encapsulate World Bounds In Local Space.
     private static void EncapsulateWorldBoundsInLocalSpace(Transform target, Bounds worldBounds, ref Bounds localBounds, ref bool hasBounds)
     {
         Vector3 center = worldBounds.center;

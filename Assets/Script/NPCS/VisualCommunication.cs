@@ -15,6 +15,7 @@ public class VisualCommunication : MonoBehaviour
     public static bool IsTalking { get; private set; }
 
     private Coroutine typingRoutine;
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         if (text != null)
@@ -23,6 +24,7 @@ public class VisualCommunication : MonoBehaviour
         }
     }
 
+    // Update is called once per frame
     void Update()
     {
         
@@ -141,6 +143,7 @@ public static class DialogueState
     private static float _nextLookupTime;
     private const float LookupIntervalSeconds = 0.5f;
 
+    // Handle Is Conversation Running.
     public static bool IsConversationRunning
     {
         get
@@ -159,6 +162,7 @@ public static class DialogueState
         }
     }
 
+    // Handle Register Dialogue Runner.
     public static void RegisterDialogueRunner(DialogueRunner dialogueRunner)
     {
         if (dialogueRunner == null)
@@ -170,6 +174,7 @@ public static class DialogueState
         _nextLookupTime = 0f;
     }
 
+    // Handle Try Get Dialogue Runner.
     public static bool TryGetDialogueRunner(out DialogueRunner dialogueRunner)
     {
         if (_cachedDialogueRunner != null)
@@ -186,7 +191,7 @@ public static class DialogueState
 
         _nextLookupTime = Time.unscaledTime + LookupIntervalSeconds;
 #if UNITY_2023_1_OR_NEWER
-        _cachedDialogueRunner = UnityEngine.Object.FindAnyObjectByType<DialogueRunner>(FindObjectsInactive.Include);
+        _cachedDialogueRunner = UnityEngine.Object.FindFirstObjectByType<DialogueRunner>(FindObjectsInactive.Include);
 #else
         _cachedDialogueRunner = UnityEngine.Object.FindObjectOfType<DialogueRunner>(true);
 #endif

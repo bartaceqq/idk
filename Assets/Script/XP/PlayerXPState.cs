@@ -11,6 +11,7 @@ public class PlayerXPState : MonoBehaviour
     public int CurrentXP => Mathf.Max(0, currentXP);
     public int TotalXP => Mathf.Max(0, totalXP);
 
+    // Handle Add XP.
     public int AddXP(int amount, XPLevelTableLoader xpLevelTableLoader)
     {
         if (amount <= 0)
@@ -24,6 +25,7 @@ public class PlayerXPState : MonoBehaviour
         return NormalizeProgress(xpLevelTableLoader);
     }
 
+    // Handle Normalize Progress.
     public int NormalizeProgress(XPLevelTableLoader xpLevelTableLoader)
     {
         SanitizeValues();
@@ -46,17 +48,20 @@ public class PlayerXPState : MonoBehaviour
         return levelsGained;
     }
 
+    // Handle Set Progress.
     public void SetProgress(int level, int xp)
     {
         currentLevel = Mathf.Max(1, level);
         currentXP = Mathf.Max(0, xp);
     }
 
+    // Handle On Validate.
     private void OnValidate()
     {
         SanitizeValues();
     }
 
+    // Handle Sanitize Values.
     private void SanitizeValues()
     {
         currentLevel = Mathf.Max(1, currentLevel);

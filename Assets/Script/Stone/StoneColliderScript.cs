@@ -1,5 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
+// Controls Stone Collider Script behavior.
 public class StoneColliderScript : MonoBehaviour
 {
     public MineStone mineStone;
@@ -10,6 +11,7 @@ public class StoneColliderScript : MonoBehaviour
         ResolveReference();
     }
 
+    // Run in the editor when values change in Inspector.
     private void OnValidate()
     {
         if (!Application.isPlaying)
@@ -18,6 +20,7 @@ public class StoneColliderScript : MonoBehaviour
         }
     }
 
+    // Handle Resolve Reference.
     private void ResolveReference()
     {
         if (mineStone == null)
@@ -26,6 +29,7 @@ public class StoneColliderScript : MonoBehaviour
         }
     }
 
+    // Handle Trigger.
     public void Trigger()
     {
         ResolveReference();

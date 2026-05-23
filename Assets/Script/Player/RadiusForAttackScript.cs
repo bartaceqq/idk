@@ -34,6 +34,7 @@ public class RadiusForAttackScript : MonoBehaviour
 
     private readonly Collider[] _overlapHits = new Collider[128];
     private readonly HashSet<NPCDemageScript> _uniqueTargets = new HashSet<NPCDemageScript>();
+    private readonly HashSet<Animalec> _uniqueAnimals = new HashSet<Animalec>();
     private readonly List<HashSet<int>> _windowHitTargetIds = new List<HashSet<int>>();
     private int _trackedSwordStateHash;
     private float _lastTrackedSwordProgress;
@@ -54,6 +55,7 @@ public class RadiusForAttackScript : MonoBehaviour
         UpdateSwordAttackHits();
     }
 
+    // Handle Resolve References.
     private void ResolveReferences()
     {
         if (player == null)
@@ -63,7 +65,7 @@ public class RadiusForAttackScript : MonoBehaviour
 
         if (enemiesHandler == null)
         {
-            enemiesHandler = FindAnyObjectByType<EnemiesHandler>();
+            enemiesHandler = FindFirstObjectByType<EnemiesHandler>();
         }
 
         if (actionScript == null)
@@ -76,7 +78,7 @@ public class RadiusForAttackScript : MonoBehaviour
 
             if (actionScript == null)
             {
-                actionScript = FindAnyObjectByType<ActionScript>(FindObjectsInactive.Include);
+                actionScript = FindFirstObjectByType<ActionScript>(FindObjectsInactive.Include);
             }
         }
 
@@ -90,11 +92,12 @@ public class RadiusForAttackScript : MonoBehaviour
 
             if (itemSwitchScript == null)
             {
-                itemSwitchScript = FindAnyObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
+                itemSwitchScript = FindFirstObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
             }
         }
     }
 
+    // Handle Ensure Sword Hit Profiles.
     private void EnsureSwordHitProfiles()
     {
         if (swordHitProfiles != null && swordHitProfiles.Count > 0)
@@ -185,6 +188,7 @@ public class RadiusForAttackScript : MonoBehaviour
         };
     }
 
+    // Handle Create Profile.
     private static SwordHitProfile CreateProfile(string stateName, float radiusMultiplier, params SwordHitWindow[] windows)
     {
         SwordHitProfile profile = new SwordHitProfile
@@ -208,6 +212,7 @@ public class RadiusForAttackScript : MonoBehaviour
         return profile;
     }
 
+    // Handle Update Sword Attack Hits.
     private void UpdateSwordAttackHits()
     {
         ResolveReferences();
@@ -261,6 +266,7 @@ public class RadiusForAttackScript : MonoBehaviour
             _windowHitTargetIds[activeWindowIndex]);
     }
 
+    // Handle Begin Tracked Sword Attack.
     private void BeginTrackedSwordAttack(int stateHash, int windowCount)
     {
         _trackedSwordStateHash = stateHash;
@@ -272,6 +278,7 @@ public class RadiusForAttackScript : MonoBehaviour
         }
     }
 
+    // Handle Reset Tracked Sword Attack.
     private void ResetTrackedSwordAttack()
     {
         _trackedSwordStateHash = 0;
@@ -282,6 +289,7 @@ public class RadiusForAttackScript : MonoBehaviour
         }
     }
 
+    // Handle Ensure Window Registry Capacity.
     private void EnsureWindowRegistryCapacity(int windowCount)
     {
         int requiredCount = Mathf.Max(0, windowCount);
@@ -291,6 +299,7 @@ public class RadiusForAttackScript : MonoBehaviour
         }
     }
 
+    // Handle Try Resolve Sword Hit Profile.
     private bool TryResolveSwordHitProfile(AnimatorStateInfo stateInfo, out SwordHitProfile resolvedProfile)
     {
         resolvedProfile = null;
@@ -320,6 +329,7 @@ public class RadiusForAttackScript : MonoBehaviour
         return false;
     }
 
+    // Handle Find Active Window Index.
     private static int FindActiveWindowIndex(SwordHitProfile profile, float normalizedProgress)
     {
         if (profile == null || profile.windows == null)
@@ -346,6 +356,7 @@ public class RadiusForAttackScript : MonoBehaviour
         return -1;
     }
 
+    // Handle Attack.
     public void Attack()
     {
         ResolveReferences();
@@ -356,6 +367,7 @@ public class RadiusForAttackScript : MonoBehaviour
             null);
     }
 
+    // Handle Resolve Sword Base Damage.
     private float ResolveSwordBaseDamage()
     {
         if (itemSwitchScript != null && itemSwitchScript.TryGetEquippedSword(out Sword equippedSword))
@@ -366,6 +378,7 @@ public class RadiusForAttackScript : MonoBehaviour
         return Mathf.Max(0f, attackDamage);
     }
 
+    // Handle Resolve Attack Origin.
     private Vector3 ResolveAttackOrigin()
     {
         if (attackOrigin != null)
@@ -381,6 +394,7 @@ public class RadiusForAttackScript : MonoBehaviour
         return transform.TransformPoint(attackOriginLocalOffset);
     }
 
+    // Handle Perform Attack Sweep.
     private void PerformAttackSweep(Vector3 origin, float radius, float damage, HashSet<int> alreadyHitTargetIds)
     {
         if (damage <= 0f)
@@ -414,11 +428,35 @@ public class RadiusForAttackScript : MonoBehaviour
             alreadyHitTargetIds?.Add(targetId);
         }
 
+        foreach (Animalec animalTarget in _uniqueAnimals)
+        {
+            if (animalTarget == null)
+            {
+                continue;
+            }
+
+            Vector3 delta = animalTarget.transform.position - origin;
+            if (delta.sqrMagnitude > radiusSqr)
+            {
+                continue;
+            }
+
+            int targetId = animalTarget.GetInstanceID();
+            if (alreadyHitTargetIds != null && alreadyHitTargetIds.Contains(targetId))
+            {
+                continue;
+            }
+
+            animalTarget.TakeDamage(damage);
+            alreadyHitTargetIds?.Add(targetId);
+        }
     }
 
+    // Handle Collect Targets.
     private void CollectTargets(Vector3 origin, float radius, float radiusSqr)
     {
         _uniqueTargets.Clear();
+        _uniqueAnimals.Clear();
 
         int hitCount = Physics.OverlapSphereNonAlloc(
             origin,
@@ -450,14 +488,36 @@ public class RadiusForAttackScript : MonoBehaviour
             {
                 _uniqueTargets.Add(damageTarget);
             }
+
+            Animalec animalTarget = hit.GetComponent<Animalec>();
+            if (animalTarget == null)
+            {
+                animalTarget = hit.GetComponentInParent<Animalec>();
+            }
+
+            if (animalTarget == null)
+            {
+                animalTarget = hit.GetComponentInChildren<Animalec>();
+            }
+
+            if (animalTarget != null)
+            {
+                _uniqueAnimals.Add(animalTarget);
+            }
         }
 
         if (_uniqueTargets.Count == 0)
         {
             CollectTargetsFromEnemyLists(origin, radiusSqr);
         }
+
+        if (_uniqueAnimals.Count == 0)
+        {
+            CollectAnimalTargetsFromScene(origin, radiusSqr);
+        }
     }
 
+    // Handle Collect Targets From Enemy Lists.
     private void CollectTargetsFromEnemyLists(Vector3 origin, float radiusSqr)
     {
         if (enemiesHandler != null && enemiesHandler.enemies != null)
@@ -493,7 +553,9 @@ public class RadiusForAttackScript : MonoBehaviour
             }
         }
 
-        NPCDemageScript[] allDamageTargets = FindObjectsByType<NPCDemageScript>(FindObjectsInactive.Exclude);
+        NPCDemageScript[] allDamageTargets = FindObjectsByType<NPCDemageScript>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
 
         for (int i = 0; i < allDamageTargets.Length; i++)
         {
@@ -511,6 +573,30 @@ public class RadiusForAttackScript : MonoBehaviour
         }
     }
 
+    // Handle Collect Animal Targets From Scene.
+    private void CollectAnimalTargetsFromScene(Vector3 origin, float radiusSqr)
+    {
+        Animalec[] allAnimals = FindObjectsByType<Animalec>(
+            FindObjectsInactive.Exclude,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < allAnimals.Length; i++)
+        {
+            Animalec animal = allAnimals[i];
+            if (animal == null)
+            {
+                continue;
+            }
+
+            Vector3 delta = animal.transform.position - origin;
+            if (delta.sqrMagnitude <= radiusSqr)
+            {
+                _uniqueAnimals.Add(animal);
+            }
+        }
+    }
+
+    // Handle Matches State Name.
     private static bool MatchesStateName(AnimatorStateInfo state, string stateName)
     {
         if (string.IsNullOrWhiteSpace(stateName))
@@ -521,6 +607,7 @@ public class RadiusForAttackScript : MonoBehaviour
         return state.IsName(stateName) || state.IsName($"Base Layer.{stateName}");
     }
 
+    // Handle Normalize State Progress.
     private static float NormalizeStateProgress(AnimatorStateInfo state)
     {
         float normalizedTime = state.normalizedTime;

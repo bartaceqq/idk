@@ -69,6 +69,7 @@ public class PlayerRootMotionDriver : MonoBehaviour
         }
     }
 
+    // Handle Resolve References.
     private bool ResolveReferences()
     {
         if (animator == null)
@@ -107,6 +108,7 @@ public class PlayerRootMotionDriver : MonoBehaviour
         return animator != null && actionScript != null;
     }
 
+    // Handle Is Nearly Zero.
     private static bool IsNearlyZero(Vector3 vector)
     {
         return vector.sqrMagnitude <= 0.000001f;

@@ -1,6 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
+// Controls Stamina Script behavior.
 public class StaminaScript : MonoBehaviour
 {
     public bool enoughstamina;
@@ -24,6 +25,7 @@ public class StaminaScript : MonoBehaviour
 
         UpdateEnoughStaminaState();
     }
+// Handle Add Stamina.
     public void AddStamina()
     {
         if (image == null)
@@ -43,6 +45,7 @@ public class StaminaScript : MonoBehaviour
         UpdateEnoughStaminaState();
         
     }
+    // Handle Reduce Stamina.
     public void ReduceStamina()
     {
         if (image == null)
@@ -56,26 +59,31 @@ public class StaminaScript : MonoBehaviour
         UpdateEnoughStaminaState();
 
     }
+    // Handle Sword Swing.
     public bool SwordSwing()
     {
         return TryConsumeStamina(swordSwingCost);
     }
 
+    // Handle Axe Swing.
     public bool AxeSwing()
     {
         return TryConsumeStamina(axeSwingCost);
     }
 
+    // Handle Pickaxe Swing.
     public bool PickaxeSwing()
     {
         return TryConsumeStamina(pickaxeSwingCost);
     }
 
+    // Handle Try Consume Stamina.
     public bool TryConsumeStamina(float amount)
     {
         return TryConsumeStamina(amount, staminaRechargeDelaySeconds);
     }
 
+    // Handle Try Consume Stamina With Delay.
     public bool TryConsumeStamina(float amount, float rechargeDelaySeconds)
     {
         if (image == null)
@@ -104,6 +112,7 @@ public class StaminaScript : MonoBehaviour
         return true;
     }
 
+    // Handle Block Stamina Regeneration.
     public void BlockStaminaRegeneration(float delaySeconds)
     {
         if (image == null)
@@ -119,6 +128,7 @@ public class StaminaScript : MonoBehaviour
         }
     }
 
+    // Handle Update Enough Stamina State.
     private void UpdateEnoughStaminaState()
     {
         enoughstamina = image == null || image.fillAmount > minimumStaminaThreshold;

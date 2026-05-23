@@ -1,5 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
+// Controls NPCHealth Script behavior.
 public class NPCHealthScript : MonoBehaviour
 {
     public Animator animator;
@@ -18,6 +19,7 @@ public class NPCHealthScript : MonoBehaviour
         }
     }
 
+    // Handle Take Demage.
     public void TakeDemage(float damage)
     {
         if (_isDead || damage <= 0f)
@@ -31,6 +33,7 @@ public class NPCHealthScript : MonoBehaviour
             Die();
         }
     }
+    // Handle Die.
     public void Die()
     {
         if (_isDead)
@@ -43,6 +46,7 @@ public class NPCHealthScript : MonoBehaviour
         StopEnemyBehaviour();
     }
 
+    // Handle Play Death Animation.
     private void PlayDeathAnimation()
     {
         if (animator == null)
@@ -84,6 +88,7 @@ public class NPCHealthScript : MonoBehaviour
         Debug.LogWarning($"No death state/trigger found on animator '{animator.runtimeAnimatorController?.name}' for '{name}'.");
     }
 
+    // Handle Stop Enemy Behaviour.
     private void StopEnemyBehaviour()
     {
         CustomEnemyAIBase enemyAi = GetComponent<CustomEnemyAIBase>();
@@ -97,6 +102,7 @@ public class NPCHealthScript : MonoBehaviour
         }
     }
 
+    // Handle Has Parameter.
     private bool HasParameter(string parameterName, AnimatorControllerParameterType type)
     {
         if (animator == null || string.IsNullOrEmpty(parameterName))
@@ -115,6 +121,7 @@ public class NPCHealthScript : MonoBehaviour
         return false;
     }
 
+    // Handle Set Bool If Exists.
     private void SetBoolIfExists(string parameterName, bool value)
     {
         if (HasParameter(parameterName, AnimatorControllerParameterType.Bool))
@@ -123,6 +130,7 @@ public class NPCHealthScript : MonoBehaviour
         }
     }
 
+    // Handle Reset Trigger If Exists.
     private void ResetTriggerIfExists(string parameterName)
     {
         if (HasParameter(parameterName, AnimatorControllerParameterType.Trigger))

@@ -448,6 +448,7 @@ MonoBehaviour:
   name: Stone
   mingain: 2
   maxgain: 5
+  slotManager: {fileID: 0}
 --- !u!1 &5109151700346690239 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8416272007918961125, guid: e8a2e0ac04db461479e35dd8212ff4cd, type: 3}

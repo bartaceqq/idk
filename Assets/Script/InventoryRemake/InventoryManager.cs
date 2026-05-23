@@ -22,6 +22,7 @@ public class InventoryManager : MonoBehaviour
         EnsureSlotList();
     }
 
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
      EnsureSlotList();
@@ -35,6 +36,7 @@ public class InventoryManager : MonoBehaviour
         ApplyCursorState();
     }
 
+    // Update is called once per frame
     void Update()
     {
         if (GameSettings.GetKeyDown(GameSettings.Key.Inventory, key))
@@ -167,11 +169,13 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
+    // Handle Apply Cursor State.
     private static void ApplyCursorState()
     {
         GameplayUiState.ApplyCursorState();
     }
 
+    // Handle Ensure Slot List.
     private void EnsureSlotList()
     {
         if (slotlist == null)
@@ -195,6 +199,7 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
+    // Handle Is Same Item.
     private static bool IsSameItem(SlotInsideUI slot, InventoryItem item)
     {
         if (slot == null || item == null)
@@ -220,6 +225,7 @@ public class InventoryManager : MonoBehaviour
         return string.Equals(slotName.Trim(), itemName.Trim(), System.StringComparison.OrdinalIgnoreCase);
     }
 
+    // Handle Get XPHandlers For Inventory UI.
     private XPHandler[] GetXPHandlersForInventoryUI()
     {
         Canvas rootCanvas = GetComponentInParent<Canvas>();

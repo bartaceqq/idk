@@ -1,5 +1,6 @@
 using UnityEngine;
 
+// Controls Random Skeleton Script behavior.
 public class RandomSkeletonScript : CustomEnemyAIBase
 {
     [Header("Skeleton References")]
@@ -19,6 +20,7 @@ public class RandomSkeletonScript : CustomEnemyAIBase
         }
     }
 
+    // Handle Attack.
     public void Attack()
     {
         TriggerEnemyAttack();

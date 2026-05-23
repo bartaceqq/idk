@@ -18,7 +18,7 @@ public class RayScript : MonoBehaviour
     public InventoryAddHandler inventoryAddHandler;
 
     [Header("Legacy Raycast (unused by proximity mode)")]
-    public new Camera camera;
+    public Camera camera;
     public float range = 100f;
     public float sphereRadius = 0.25f;
     public LayerMask hitMask = ~0;
@@ -148,6 +148,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Update Sword Block State.
     private void UpdateSwordBlockState(bool swordEquipped, bool rightMouseHeld)
     {
         if (actionScript == null)
@@ -164,6 +165,7 @@ public class RayScript : MonoBehaviour
         actionScript.TryBeginSwordBlock();
     }
 
+    // Handle Current Item Action.
     private float HandleCurrentItemAction(bool leftClick, bool rightClick, int swordSpecialIndex)
     {
         if (IsAxeEquipped())
@@ -199,6 +201,7 @@ public class RayScript : MonoBehaviour
             : HandleUnarmedAction(leftClick, rightClick);
     }
 
+    // Handle Axe Action.
     private float HandleAxeAction()
     {
         float swingCooldown = ResolveToolSwingCooldown(axeSwingCooldownSeconds);
@@ -250,117 +253,137 @@ public class RayScript : MonoBehaviour
                 StartCoroutine(TriggerAfterDelayTreeHandler(treeHandlerTarget, interactionOrigin, axeHitDelaySeconds));
             }
         }
+        else if (TryGetClosestTreeTarget(out ColliderScript treeTarget))
+        {
+            if (!useDelayedAxeHit || axeHitDelaySeconds <= 0f)
+            {
+                treeTarget.Trigger();
+            }
+            else
+            {
+                StartCoroutine(TriggerAfterDelayAxe(treeTarget, axeHitDelaySeconds));
+            }
+        }
 
         return swingCooldown;
     }
 
-    private delegate T ColliderTargetResolver<T>(Collider hit) where T : Component;
-    private delegate T[] SceneTargetFinder<T>() where T : Component;
-
+    // Handle Try Get Closest Tree Handler Target.
     private bool TryGetClosestTreeHandlerTarget(out TreeHandler closestTreeHandler)
     {
-        return TryGetClosestTarget(
-            axeInteractionRadius,
-            allowTreeHandlerWithoutColliderFallback,
-            ResolveTreeHandlerFromCollider,
-            FindTreeHandlersInScene,
-            out closestTreeHandler);
-    }
-
-    private bool TryGetClosestTarget<T>(
-        float radius,
-        bool allowNoColliderFallback,
-        ColliderTargetResolver<T> resolveFromCollider,
-        SceneTargetFinder<T> findAll,
-        out T closestTarget) where T : Component
-    {
-        if (TryGetClosestTargetFromColliders(radius, triggerInteraction, resolveFromCollider, out closestTarget))
+        if (TryGetClosestTreeHandlerTargetInternal(triggerInteraction, out closestTreeHandler))
         {
             return true;
         }
 
-        // Some old prefabs use trigger colliders even when triggerInteraction says to ignore them.
-        if (triggerInteraction == QueryTriggerInteraction.Ignore &&
-            TryGetClosestTargetFromColliders(radius, QueryTriggerInteraction.Collide, resolveFromCollider, out closestTarget))
+        // Fallback: some tree colliders may be marked as trigger colliders.
+        if (triggerInteraction == QueryTriggerInteraction.Ignore)
         {
-            return true;
+            if (TryGetClosestTreeHandlerTargetInternal(QueryTriggerInteraction.Collide, out closestTreeHandler))
+            {
+                return true;
+            }
         }
 
-        return allowNoColliderFallback && TryGetClosestTargetWithoutCollider(radius, findAll, out closestTarget);
+        if (allowTreeHandlerWithoutColliderFallback)
+        {
+            return TryGetClosestTreeHandlerWithoutCollider(out closestTreeHandler);
+        }
+
+        return false;
     }
 
-    private bool TryGetClosestTargetFromColliders<T>(
-        float radius,
-        QueryTriggerInteraction queryMode,
-        ColliderTargetResolver<T> resolveFromCollider,
-        out T closestTarget) where T : Component
+    // Handle Try Get Closest Tree Handler Target Internal.
+    private bool TryGetClosestTreeHandlerTargetInternal(QueryTriggerInteraction queryMode, out TreeHandler closestTreeHandler)
     {
-        closestTarget = null;
-        if (!TryGetInteractionContext(out Vector3 origin, out Transform playerRoot))
+        closestTreeHandler = null;
+        ResolveInteractionOrigin();
+        if (interactionOrigin == null)
         {
             return false;
         }
 
+        float radius = Mathf.Max(0.01f, axeInteractionRadius);
+        Vector3 origin = interactionOrigin.position;
+        Transform playerRoot = interactionOrigin.root;
+        float bestDistanceSqr = float.MaxValue;
+
         int hitCount = Physics.OverlapSphereNonAlloc(
             origin,
-            Mathf.Max(0.01f, radius),
+            radius,
             _proximityHits,
             proximityMask,
             queryMode);
 
-        float bestDistanceSqr = float.MaxValue;
         for (int i = 0; i < hitCount; i++)
         {
             Collider hit = _proximityHits[i];
-            if (hit == null || IsPlayerOwned(hit.transform, playerRoot))
+            if (hit == null)
             {
                 continue;
             }
 
-            T target = resolveFromCollider(hit);
-            if (target == null)
+            if (playerRoot != null && hit.transform.IsChildOf(playerRoot))
             {
                 continue;
             }
 
-            float distanceSqr = (hit.ClosestPoint(origin) - origin).sqrMagnitude;
+            TreeHandler treeHandlerTarget = hit.GetComponent<TreeHandler>();
+            if (treeHandlerTarget == null)
+            {
+                treeHandlerTarget = hit.GetComponentInParent<TreeHandler>();
+            }
+
+            if (treeHandlerTarget == null)
+            {
+                continue;
+            }
+
+            Vector3 closestPoint = hit.ClosestPoint(origin);
+            float distanceSqr = (closestPoint - origin).sqrMagnitude;
             if (distanceSqr >= bestDistanceSqr)
             {
                 continue;
             }
 
             bestDistanceSqr = distanceSqr;
-            closestTarget = target;
+            closestTreeHandler = treeHandlerTarget;
         }
 
-        return closestTarget != null;
+        return closestTreeHandler != null;
     }
 
-    private bool TryGetClosestTargetWithoutCollider<T>(
-        float radius,
-        SceneTargetFinder<T> findAll,
-        out T closestTarget) where T : Component
+    // Handle Try Get Closest Tree Handler Without Collider.
+    private bool TryGetClosestTreeHandlerWithoutCollider(out TreeHandler closestTreeHandler)
     {
-        closestTarget = null;
-        if (!TryGetInteractionContext(out Vector3 origin, out Transform playerRoot))
+        closestTreeHandler = null;
+        ResolveInteractionOrigin();
+        if (interactionOrigin == null)
         {
             return false;
         }
 
-        T[] targets = findAll != null ? findAll() : null;
-        if (targets == null || targets.Length == 0)
-        {
-            return false;
-        }
-
-        float radiusSqr = Mathf.Max(0.01f, radius);
+        float radiusSqr = Mathf.Max(0.01f, axeInteractionRadius);
         radiusSqr *= radiusSqr;
+        Vector3 origin = interactionOrigin.position;
+        Transform playerRoot = interactionOrigin.root;
         float bestDistanceSqr = float.MaxValue;
 
-        for (int i = 0; i < targets.Length; i++)
+#if UNITY_2023_1_OR_NEWER
+        TreeHandler[] allTreeHandlers = FindObjectsByType<TreeHandler>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+#else
+        TreeHandler[] allTreeHandlers = FindObjectsOfType<TreeHandler>(false);
+#endif
+
+        for (int i = 0; i < allTreeHandlers.Length; i++)
         {
-            T candidate = targets[i];
-            if (candidate == null || IsPlayerOwned(candidate.transform, playerRoot))
+            TreeHandler candidate = allTreeHandlers[i];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (playerRoot != null && candidate.transform.IsChildOf(playerRoot))
             {
                 continue;
             }
@@ -372,45 +395,13 @@ public class RayScript : MonoBehaviour
             }
 
             bestDistanceSqr = distanceSqr;
-            closestTarget = candidate;
+            closestTreeHandler = candidate;
         }
 
-        return closestTarget != null;
+        return closestTreeHandler != null;
     }
 
-    private bool TryGetInteractionContext(out Vector3 origin, out Transform playerRoot)
-    {
-        ResolveInteractionOrigin();
-        origin = interactionOrigin != null ? interactionOrigin.position : Vector3.zero;
-        playerRoot = interactionOrigin != null ? interactionOrigin.root : null;
-        return interactionOrigin != null;
-    }
-
-    private static bool IsPlayerOwned(Transform candidate, Transform playerRoot)
-    {
-        return candidate != null && playerRoot != null && candidate.IsChildOf(playerRoot);
-    }
-
-    private static TreeHandler ResolveTreeHandlerFromCollider(Collider hit)
-    {
-        if (hit == null)
-        {
-            return null;
-        }
-
-        TreeHandler tree = hit.GetComponent<TreeHandler>();
-        return tree != null ? tree : hit.GetComponentInParent<TreeHandler>();
-    }
-
-    private static TreeHandler[] FindTreeHandlersInScene()
-    {
-#if UNITY_2023_1_OR_NEWER
-        return FindObjectsByType<TreeHandler>(FindObjectsInactive.Exclude);
-#else
-        return FindObjectsOfType<TreeHandler>(false);
-#endif
-    }
-
+    // Handle Pickaxe Action.
     private float HandlePickaxeAction()
     {
         float swingCooldown = ResolveToolSwingCooldown(pickaxeSwingCooldownSeconds);
@@ -460,6 +451,7 @@ public class RayScript : MonoBehaviour
         return swingCooldown;
     }
 
+    // Handle Sword Action.
     private float HandleSwordAction(bool leftClick, bool rightClick, int specialAttackIndex)
     {
         bool specialAttackRequested = specialAttackIndex >= 0;
@@ -510,6 +502,7 @@ public class RayScript : MonoBehaviour
         return lightCooldown;
     }
 
+    // Handle Unarmed Action.
     private float HandleUnarmedAction(bool leftClick, bool rightClick)
     {
         if (!leftClick)
@@ -531,6 +524,7 @@ public class RayScript : MonoBehaviour
         return unarmedAttackCooldownSeconds;
     }
 
+    // Handle Resolve Tool Swing Cooldown.
     private float ResolveToolSwingCooldown(float dedicatedCooldown)
     {
         if (dedicatedCooldown > 0f)
@@ -541,6 +535,7 @@ public class RayScript : MonoBehaviour
         return Mathf.Max(0.01f, swingCooldownSeconds);
     }
 
+    // Handle Resolve Sword Action Cooldown.
     private float ResolveSwordActionCooldown(float fallbackCooldown)
     {
         float resolvedFallbackCooldown = ResolveSwordFallbackCooldown(fallbackCooldown);
@@ -558,6 +553,7 @@ public class RayScript : MonoBehaviour
         return resolvedFallbackCooldown;
     }
 
+    // Handle Resolve Sword Fallback Cooldown.
     private float ResolveSwordFallbackCooldown(float fallbackCooldown)
     {
         float resolvedCooldown = Mathf.Max(0.01f, fallbackCooldown);
@@ -569,6 +565,7 @@ public class RayScript : MonoBehaviour
         return Mathf.Max(0.01f, resolvedCooldown / equippedSword.GetResolvedAnimationSpeed());
     }
 
+    // Handle Get Sword Special Hotkey Index.
     private static int GetSwordSpecialHotkeyIndex()
     {
         if (GameSettings.GetKeyDown(GameSettings.Key.SwordSpecial1, KeyCode.Alpha3))
@@ -589,21 +586,25 @@ public class RayScript : MonoBehaviour
         return -1;
     }
 
+    // Handle Is Sword Equipped.
     private bool IsSwordEquipped()
     {
         return itemSwitchScript != null && itemSwitchScript.IsSwordEquipped();
     }
 
+    // Handle Is Axe Equipped.
     private bool IsAxeEquipped()
     {
         return IsEquippedWeaponType("Axe", 1);
     }
 
+    // Handle Is Pickaxe Equipped.
     private bool IsPickaxeEquipped()
     {
         return IsEquippedWeaponType("Pickaxe", 2);
     }
 
+    // Handle Is Equipped Weapon Type.
     private bool IsEquippedWeaponType(string expectedWeaponName, int legacyItemId)
     {
         if (itemSwitchScript == null)
@@ -626,6 +627,7 @@ public class RayScript : MonoBehaviour
         return itemSwitchScript.currentitemid == legacyItemId;
     }
 
+    // Handle Resolve Equipped Item Name.
     private string ResolveEquippedItemName()
     {
         if (itemSwitchScript == null)
@@ -647,6 +649,7 @@ public class RayScript : MonoBehaviour
         return string.Empty;
     }
 
+    // Handle Has Equipped Item.
     private bool HasEquippedItem()
     {
         if (itemSwitchScript == null)
@@ -659,6 +662,7 @@ public class RayScript : MonoBehaviour
                !string.IsNullOrEmpty(ResolveEquippedItemName());
     }
 
+    // Handle Normalize Item Name.
     private static string NormalizeItemName(string rawName)
     {
         if (string.IsNullOrWhiteSpace(rawName))
@@ -675,6 +679,7 @@ public class RayScript : MonoBehaviour
         return normalized;
     }
 
+    // Handle Map Common Weapon Name.
     private static string MapCommonWeaponName(string rawName)
     {
         string normalized = NormalizeItemName(rawName);
@@ -702,6 +707,7 @@ public class RayScript : MonoBehaviour
         return string.Empty;
     }
 
+    // Handle Cache Pickable Layer.
     private void CachePickableLayer()
     {
         _pickableLayer = LayerMask.NameToLayer(pickableLayerName);
@@ -711,6 +717,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Update Nearest Pickable.
     private void UpdateNearestPickable()
     {
         bool shouldRescan = Time.time >= _nextPickableScanTime || nearestPickableObject == null;
@@ -736,6 +743,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle On Pickable In Range.
     // Runs when the nearest pickable in 3f range is found or changes.
     private void OnPickableInRange(GameObject objectik)
     {
@@ -762,6 +770,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Try Pickup Inventory Item.
     private void TryPickupInventoryItem(GameObject pickableObject, int amount)
     {
         if (pickableObject == null || amount <= 0)
@@ -800,6 +809,17 @@ public class RayScript : MonoBehaviour
 
         ShowPickupInfo(inventoryItem, amount);
 
+        DetailPickupMarker marker = pickableObject.GetComponent<DetailPickupMarker>();
+        if (marker == null && inventoryItem != null)
+        {
+            marker = inventoryItem.GetComponent<DetailPickupMarker>();
+        }
+
+        if (marker != null)
+        {
+            marker.MarkCollected();
+        }
+
         if (nearestPickableObject == pickableObject || nearestPickableObject == inventoryItem.gameObject)
         {
             nearestPickableObject = null;
@@ -809,6 +829,7 @@ public class RayScript : MonoBehaviour
         Destroy(ResolvePickupDestroyTarget(pickableObject, inventoryItem));
     }
 
+    // Handle Show Pickup Info.
     private void ShowPickupInfo(InventoryItem inventoryItem, int amount)
     {
         if (inventoryItem == null)
@@ -830,6 +851,7 @@ public class RayScript : MonoBehaviour
         infoHandler.QueueInfo(message, inventoryItem.inventorysprite);
     }
 
+    // Handle Set Pickup Text Visible.
     private void SetPickupTextVisible(bool visible, GameObject pickableObject)
     {
         if (pickuptext == null)
@@ -847,6 +869,7 @@ public class RayScript : MonoBehaviour
         pickuptext.text = pickableObject != null ? $"{prompt}" : prompt;
     }
 
+    // Handle Find Nearest Pickable In Range.
     private GameObject FindNearestPickableInRange()
     {
         ResolveInteractionOrigin();
@@ -907,6 +930,7 @@ public class RayScript : MonoBehaviour
         return FindNearestPickableWithoutCollider(origin, radius * radius, playerRoot);
     }
 
+    // Handle Resolve Pickup Destroy Target.
     private static GameObject ResolvePickupDestroyTarget(GameObject pickableObject, InventoryItem inventoryItem)
     {
         if (inventoryItem == null)
@@ -937,6 +961,7 @@ public class RayScript : MonoBehaviour
         return inventoryItem.gameObject;
     }
 
+    // Handle Resolve Pickable Root.
     private static GameObject ResolvePickableRoot(GameObject candidate)
     {
         if (candidate == null)
@@ -958,10 +983,11 @@ public class RayScript : MonoBehaviour
         return inventoryItem != null ? inventoryItem.gameObject : candidate;
     }
 
+    // Handle Find Nearest Pickable Without Collider.
     private GameObject FindNearestPickableWithoutCollider(Vector3 origin, float radiusSqr, Transform playerRoot)
     {
 #if UNITY_2023_1_OR_NEWER
-        InventoryItem[] allItems = FindObjectsByType<InventoryItem>(FindObjectsInactive.Include);
+        InventoryItem[] allItems = FindObjectsByType<InventoryItem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 #else
         InventoryItem[] allItems = FindObjectsOfType<InventoryItem>(true);
 #endif
@@ -1006,6 +1032,7 @@ public class RayScript : MonoBehaviour
         return bestObject;
     }
 
+    // Handle Resolve Interaction Origin.
     private void ResolveInteractionOrigin()
     {
         if (interactionOrigin == null)
@@ -1015,6 +1042,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Resolve Info Handler.
     private void ResolveInfoHandler()
     {
         if (infoHandler == null)
@@ -1032,6 +1060,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Resolve Inventory Add Handler.
     private void ResolveInventoryAddHandler()
     {
         if (inventoryAddHandler == null)
@@ -1049,10 +1078,13 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Find Inventory Add Handler In Scene.
     private static InventoryAddHandler FindInventoryAddHandlerInScene()
     {
 #if UNITY_2023_1_OR_NEWER
-        InventoryAddHandler[] handlers = FindObjectsByType<InventoryAddHandler>(FindObjectsInactive.Include);
+        InventoryAddHandler[] handlers = FindObjectsByType<InventoryAddHandler>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
 #else
         InventoryAddHandler[] handlers = FindObjectsOfType<InventoryAddHandler>(true);
 #endif
@@ -1084,25 +1116,222 @@ public class RayScript : MonoBehaviour
         return fallback;
     }
 
+    // Handle Find Info Handler In Scene.
     private static InfoHandler FindInfoHandlerInScene()
     {
 #if UNITY_2023_1_OR_NEWER
-        return FindAnyObjectByType<InfoHandler>(FindObjectsInactive.Include);
+        return FindFirstObjectByType<InfoHandler>(FindObjectsInactive.Include);
 #else
         return FindObjectOfType<InfoHandler>(true);
 #endif
     }
 
-    private bool TryGetClosestStoneTarget(out MineStone closestStone)
+    // Handle Try Get Closest Tree Target.
+    private bool TryGetClosestTreeTarget(out ColliderScript closestTree)
     {
-        return TryGetClosestTarget(
-            pickaxeInteractionRadius,
-            allowStoneWithoutColliderFallback,
-            ResolveMineStoneFromCollider,
-            FindMineStonesInScene,
-            out closestStone);
+        if (TryGetClosestTreeTargetInternal(triggerInteraction, out closestTree))
+        {
+            return true;
+        }
+
+        // Fallback: some tree colliders may be marked as trigger colliders.
+        if (triggerInteraction == QueryTriggerInteraction.Ignore)
+        {
+            return TryGetClosestTreeTargetInternal(QueryTriggerInteraction.Collide, out closestTree);
+        }
+
+        return false;
     }
 
+    // Handle Try Get Closest Tree Target Internal.
+    private bool TryGetClosestTreeTargetInternal(QueryTriggerInteraction queryMode, out ColliderScript closestTree)
+    {
+        closestTree = null;
+        ResolveInteractionOrigin();
+        if (interactionOrigin == null)
+        {
+            return false;
+        }
+
+        float radius = Mathf.Max(0.01f, axeInteractionRadius);
+        Vector3 origin = interactionOrigin.position;
+        Transform playerRoot = interactionOrigin.root;
+        float bestDistanceSqr = float.MaxValue;
+
+        int hitCount = Physics.OverlapSphereNonAlloc(
+            origin,
+            radius,
+            _proximityHits,
+            proximityMask,
+            queryMode);
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = _proximityHits[i];
+            if (hit == null)
+            {
+                continue;
+            }
+
+            if (playerRoot != null && hit.transform.IsChildOf(playerRoot))
+            {
+                continue;
+            }
+
+            ColliderScript treeTarget = hit.GetComponent<ColliderScript>();
+            if (treeTarget == null)
+            {
+                treeTarget = hit.GetComponentInParent<ColliderScript>();
+            }
+
+            if (treeTarget == null)
+            {
+                continue;
+            }
+
+            Vector3 closestPoint = hit.ClosestPoint(origin);
+            float distanceSqr = (closestPoint - origin).sqrMagnitude;
+            if (distanceSqr >= bestDistanceSqr)
+            {
+                continue;
+            }
+
+            bestDistanceSqr = distanceSqr;
+            closestTree = treeTarget;
+        }
+
+        return closestTree != null;
+    }
+
+    // Handle Try Get Closest Stone Target.
+    private bool TryGetClosestStoneTarget(out MineStone closestStone)
+    {
+        if (TryGetClosestStoneTargetInternal(triggerInteraction, out closestStone))
+        {
+            return true;
+        }
+
+        // Fallback: some stone colliders may be marked as trigger colliders.
+        if (triggerInteraction == QueryTriggerInteraction.Ignore)
+        {
+            if (TryGetClosestStoneTargetInternal(QueryTriggerInteraction.Collide, out closestStone))
+            {
+                return true;
+            }
+        }
+
+        if (allowStoneWithoutColliderFallback)
+        {
+            return TryGetClosestStoneTargetWithoutCollider(out closestStone);
+        }
+
+        return false;
+    }
+
+    // Handle Try Get Closest Stone Target Internal.
+    private bool TryGetClosestStoneTargetInternal(QueryTriggerInteraction queryMode, out MineStone closestStone)
+    {
+        closestStone = null;
+        ResolveInteractionOrigin();
+        if (interactionOrigin == null)
+        {
+            return false;
+        }
+
+        float radius = Mathf.Max(0.01f, pickaxeInteractionRadius);
+        Vector3 origin = interactionOrigin.position;
+        Transform playerRoot = interactionOrigin.root;
+        float bestDistanceSqr = float.MaxValue;
+
+        int hitCount = Physics.OverlapSphereNonAlloc(
+            origin,
+            radius,
+            _proximityHits,
+            proximityMask,
+            queryMode);
+
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = _proximityHits[i];
+            if (hit == null)
+            {
+                continue;
+            }
+
+            if (playerRoot != null && hit.transform.IsChildOf(playerRoot))
+            {
+                continue;
+            }
+
+            MineStone mineStone = ResolveMineStoneFromCollider(hit);
+            if (mineStone == null)
+            {
+                continue;
+            }
+
+            Vector3 closestPoint = hit.ClosestPoint(origin);
+            float distanceSqr = (closestPoint - origin).sqrMagnitude;
+            if (distanceSqr >= bestDistanceSqr)
+            {
+                continue;
+            }
+
+            bestDistanceSqr = distanceSqr;
+            closestStone = mineStone;
+        }
+
+        return closestStone != null;
+    }
+
+    // Handle Try Get Closest Stone Target Without Collider.
+    private bool TryGetClosestStoneTargetWithoutCollider(out MineStone closestStone)
+    {
+        closestStone = null;
+        ResolveInteractionOrigin();
+        if (interactionOrigin == null)
+        {
+            return false;
+        }
+
+        float radiusSqr = Mathf.Max(0.01f, pickaxeInteractionRadius);
+        radiusSqr *= radiusSqr;
+        Vector3 origin = interactionOrigin.position;
+        Transform playerRoot = interactionOrigin.root;
+        float bestDistanceSqr = float.MaxValue;
+
+#if UNITY_2023_1_OR_NEWER
+        MineStone[] allMineStones = FindObjectsByType<MineStone>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+#else
+        MineStone[] allMineStones = FindObjectsOfType<MineStone>(false);
+#endif
+
+        for (int i = 0; i < allMineStones.Length; i++)
+        {
+            MineStone candidate = allMineStones[i];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (playerRoot != null && candidate.transform.IsChildOf(playerRoot))
+            {
+                continue;
+            }
+
+            float distanceSqr = (candidate.transform.position - origin).sqrMagnitude;
+            if (distanceSqr > radiusSqr || distanceSqr >= bestDistanceSqr)
+            {
+                continue;
+            }
+
+            bestDistanceSqr = distanceSqr;
+            closestStone = candidate;
+        }
+
+        return closestStone != null;
+    }
+
+    // Handle Resolve Mine Stone From Collider.
     private static MineStone ResolveMineStoneFromCollider(Collider hit)
     {
         if (hit == null)
@@ -1130,15 +1359,17 @@ public class RayScript : MonoBehaviour
         return mineStone;
     }
 
-    private static MineStone[] FindMineStonesInScene()
+    // Handle Trigger After Delay Axe.
+    private IEnumerator TriggerAfterDelayAxe(ColliderScript colliderScript, float delaySeconds)
     {
-#if UNITY_2023_1_OR_NEWER
-        return FindObjectsByType<MineStone>(FindObjectsInactive.Exclude);
-#else
-        return FindObjectsOfType<MineStone>(false);
-#endif
+        yield return new WaitForSeconds(delaySeconds);
+        if (colliderScript != null)
+        {
+            colliderScript.Trigger();
+        }
     }
 
+    // Handle Trigger After Delay Tree Handler.
     private IEnumerator TriggerAfterDelayTreeHandler(TreeHandler treeHandler, Transform attacker, float delaySeconds)
     {
         yield return new WaitForSeconds(delaySeconds);
@@ -1148,6 +1379,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Trigger After Delay Pickaxe.
     private IEnumerator TriggerAfterDelayPickaxe(MineStone mineStone, Transform attacker, float delaySeconds)
     {
         yield return new WaitForSeconds(delaySeconds);
@@ -1158,6 +1390,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Spawn Stone Impact.
     private void SpawnStoneImpact(MineStone mineStone, Transform attacker)
     {
         if (stoneparticle == null || mineStone == null)
@@ -1207,6 +1440,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Resolve Stone Impact Point.
     private Vector3 ResolveStoneImpactPoint(Transform stoneTransform, Vector3 attackerPosition)
     {
         if (TryResolveClosestImpactPoint(stoneTransform, attackerPosition, out Vector3 closestImpactPoint))
@@ -1223,6 +1457,7 @@ public class RayScript : MonoBehaviour
         return ResolveStoneFallbackPoint(stoneTransform);
     }
 
+    // Handle Resolve Stone Fallback Point.
     private static Vector3 ResolveStoneFallbackPoint(Transform stoneTransform)
     {
         if (stoneTransform != null)
@@ -1233,6 +1468,7 @@ public class RayScript : MonoBehaviour
         return Vector3.zero;
     }
 
+    // Handle Resolve Attacker Position.
     private static Vector3 ResolveAttackerPosition(Transform attacker, Vector3 fallbackTargetPoint)
     {
         if (attacker != null)
@@ -1248,6 +1484,7 @@ public class RayScript : MonoBehaviour
         return fallbackTargetPoint + Vector3.forward;
     }
 
+    // Handle Try Get Bounds.
     private static bool TryGetBounds(Transform target, out Bounds bounds)
     {
         bounds = default;
@@ -1305,6 +1542,7 @@ public class RayScript : MonoBehaviour
         return hasBounds;
     }
 
+    // Handle Try Resolve Closest Impact Point.
     private static bool TryResolveClosestImpactPoint(Transform target, Vector3 attackerPosition, out Vector3 closestPoint)
     {
         closestPoint = default;
@@ -1340,6 +1578,7 @@ public class RayScript : MonoBehaviour
         return foundPoint;
     }
 
+    // Handle Play Impact Particle Systems.
     private static void PlayImpactParticleSystems(GameObject impactInstance)
     {
         if (impactInstance == null)
@@ -1361,6 +1600,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Trigger Melee Attack After Delay.
     private IEnumerator TriggerMeleeAttackAfterDelay(float delaySeconds)
     {
         yield return new WaitForSeconds(delaySeconds);
@@ -1370,6 +1610,7 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Play Sound At Swing Start.
     private void TryPlayWeaponSound(AudioSource source, float delaySeconds, ref float nextAllowedTime, float minBlockSeconds)
     {
         if (source == null)
@@ -1414,11 +1655,13 @@ public class RayScript : MonoBehaviour
         }
     }
 
+    // Handle Is UIBlocking Gameplay.
     private static bool IsUiBlockingGameplay()
     {
         return GameplayUiState.IsGameplayInputBlocked;
     }
 
+    // Handle To Display Name.
     private static string ToDisplayName(string rawName)
     {
         if (string.IsNullOrWhiteSpace(rawName))

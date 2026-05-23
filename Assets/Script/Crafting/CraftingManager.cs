@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class CraftingManager : MonoBehaviour
@@ -9,26 +9,53 @@ public class CraftingManager : MonoBehaviour
     public List<CraftableItem> items = new List<CraftableItem>();
     public LevelingManager levelingManager;
     public KeyCode toggleKey = KeyCode.T;
-    public bool menuShown;
+    public bool menuShown = false;
     public GameObject craftingMenuRoot;
 
-    private bool checkQueued;
-    private CanvasGroup menuCanvasGroup;
+    [Header("Station Filtering")]
+    public Transform playerTransform;
+    public string handCraftingStationId = "HandCrafting";
+    public float defaultStationRange = 5f;
+    public bool closeMenuWhenLeavingStation = true;
+    public bool logActiveStation = false;
 
-    private void Start()
+    private bool _checkQueued;
+    private CanvasGroup _menuCanvasGroup;
+    private CraftingStation _activeStation;
+    private string _activeStationId = string.Empty;
+
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
     {
         MigrateLegacyToggleKey();
         EnsureMenuCanvasGroup();
+        ResolvePlayerTransform();
+        EnsureActiveContextInitialized();
         ApplyMenuVisibility();
-        Check();
+        RefreshLists();
+        ResetRuntimePlacementState();
+        UpdateSlotVisibility();
         QueueCheck();
     }
 
-    private void Update()
+    // Update is called once per frame
+    void Update()
     {
         if (GameSettings.GetKeyDown(GameSettings.Key.Crafting, toggleKey))
         {
-            SetMenuShown(!menuShown);
+            if (menuShown)
+            {
+                CloseMenu();
+            }
+            else
+            {
+                TryOpenMenuForCurrentContext();
+            }
+        }
+
+        if (menuShown && closeMenuWhenLeavingStation && !IsActiveContextStillValid())
+        {
+            CloseMenu();
         }
     }
 
@@ -37,6 +64,7 @@ public class CraftingManager : MonoBehaviour
         if (!Application.isPlaying)
         {
             MigrateLegacyToggleKey();
+            defaultStationRange = Mathf.Max(0.1f, defaultStationRange);
         }
     }
 
@@ -44,42 +72,249 @@ public class CraftingManager : MonoBehaviour
     {
         menuShown = false;
         IsCraftingOpen = false;
-        GameplayUiState.ApplyCursorState();
+        ApplyCursorState();
     }
 
-    public void SetMenuShown(bool shown)
+    // Handle Migrate Legacy Toggle Key.
+    private void MigrateLegacyToggleKey()
     {
-        menuShown = shown;
-        if (shown)
+        if (toggleKey == KeyCode.None || toggleKey == KeyCode.R)
         {
-            Check();
+            toggleKey = KeyCode.T;
+        }
+    }
+
+    // Handle Try Open Menu For Current Context.
+    private void TryOpenMenuForCurrentContext()
+    {
+        ResolvePlayerTransform();
+
+        CraftingStation station = FindClosestStationInRange();
+        string stationId = station != null
+            ? station.GetNormalizedStationId()
+            : NormalizeStationId(handCraftingStationId);
+
+        if (string.IsNullOrEmpty(stationId))
+        {
+            return;
         }
 
+        SetActiveCraftingContext(station, stationId);
+        Check();
+        menuShown = true;
         ApplyMenuVisibility();
+    }
+
+    // Handle Close Menu.
+    private void CloseMenu()
+    {
+        menuShown = false;
+        ApplyMenuVisibility();
+    }
+
+    // Handle Is Active Context Still Valid.
+    private bool IsActiveContextStillValid()
+    {
+        if (_activeStation == null)
+        {
+            return true;
+        }
+
+        ResolvePlayerTransform();
+        if (playerTransform == null || !_activeStation.gameObject.activeInHierarchy)
+        {
+            return false;
+        }
+
+        return _activeStation.IsInRange(playerTransform, defaultStationRange);
+    }
+
+    // Handle Resolve Player Transform.
+    private void ResolvePlayerTransform()
+    {
+        if (playerTransform != null)
+        {
+            return;
+        }
+
+        if (Camera.main != null)
+        {
+            playerTransform = Camera.main.transform;
+            return;
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        LookingController lookingController = FindFirstObjectByType<LookingController>(FindObjectsInactive.Include);
+#else
+        LookingController lookingController = FindObjectOfType<LookingController>(true);
+#endif
+
+        if (lookingController != null)
+        {
+            playerTransform = lookingController.transform;
+            return;
+        }
+
+        GameObject taggedPlayer = FindPlayerTaggedObject();
+        if (taggedPlayer != null)
+        {
+            playerTransform = taggedPlayer.transform;
+        }
+    }
+
+    // Handle Find Player Tagged Object.
+    private static GameObject FindPlayerTaggedObject()
+    {
+        try
+        {
+            return GameObject.FindWithTag("Player");
+        }
+        catch (UnityException)
+        {
+            return null;
+        }
+    }
+
+    // Handle Find Closest Station In Range.
+    private CraftingStation FindClosestStationInRange()
+    {
+        if (playerTransform == null)
+        {
+            return null;
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        CraftingStation[] stations = FindObjectsByType<CraftingStation>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        CraftingStation[] stations = FindObjectsOfType<CraftingStation>(true);
+#endif
+
+        float bestDistance = float.MaxValue;
+        CraftingStation bestStation = null;
+
+        for (int i = 0; i < stations.Length; i++)
+        {
+            CraftingStation station = stations[i];
+            if (station == null || !station.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            if (string.IsNullOrEmpty(station.GetNormalizedStationId()))
+            {
+                continue;
+            }
+
+            if (!station.IsInRange(playerTransform, defaultStationRange))
+            {
+                continue;
+            }
+
+            float distance = station.GetDistanceSqrTo(playerTransform);
+            if (distance >= bestDistance)
+            {
+                continue;
+            }
+
+            bestDistance = distance;
+            bestStation = station;
+        }
+
+        return bestStation;
+    }
+
+    // Handle Set Active Crafting Context.
+    private void SetActiveCraftingContext(CraftingStation station, string stationId)
+    {
+        _activeStation = station;
+        _activeStationId = NormalizeStationId(stationId);
+
+        if (!logActiveStation)
+        {
+            return;
+        }
+
+        if (_activeStation == null)
+        {
+            Debug.Log("Crafting station: " + _activeStationId);
+            return;
+        }
+
+        Debug.Log("Crafting station: " + _activeStationId + " (" + _activeStation.name + ")");
+    }
+
+    // Handle Ensure Active Context Initialized.
+    private void EnsureActiveContextInitialized()
+    {
+        if (!string.IsNullOrEmpty(_activeStationId))
+        {
+            return;
+        }
+
+        SetActiveCraftingContext(null, NormalizeStationId(handCraftingStationId));
+    }
+
+    private void RefreshLists()
+    {
+        slots.Clear();
+        items.Clear();
+
+        slots.AddRange(GetComponentsInChildren<CraftableSlot>(true));
+        items.AddRange(GetComponentsInChildren<CraftableItem>(true));
+
+        slots.RemoveAll(slot => slot == null);
+        items.RemoveAll(item => item == null);
+        slots.Sort(CompareSlotsForPlacement);
+    }
+
+    private void QueueCheck()
+    {
+        if (_checkQueued)
+        {
+            return;
+        }
+
+        _checkQueued = true;
+        StartCoroutine(DelayedCheck());
+    }
+
+    private System.Collections.IEnumerator DelayedCheck()
+    {
+        yield return null;
+        _checkQueued = false;
+        Check();
     }
 
     public void Check()
     {
+        EnsureActiveContextInitialized();
         RefreshLists();
-        ResetRuntimePlacementState();
 
         if (items.Count == 0)
         {
-            Debug.LogWarning("CraftingManager: No craftable items assigned or found.", this);
+            Debug.LogWarning("CraftingManager: No craftable items assigned or found.");
             UpdateSlotVisibility();
             return;
         }
 
         if (slots.Count == 0)
         {
-            Debug.LogWarning("CraftingManager: No craftable slots assigned or found.", this);
+            Debug.LogWarning("CraftingManager: No craftable slots assigned or found.");
             return;
         }
+
+        RebuildVisibleCraftables();
+    }
+
+    // Handle Rebuild Visible Craftables.
+    private void RebuildVisibleCraftables()
+    {
+        ResetRuntimePlacementState();
 
         for (int i = 0; i < items.Count; i++)
         {
             CraftableItem item = items[i];
-            if (item == null)
+            if (!IsItemVisibleInCurrentContext(item))
             {
                 continue;
             }
@@ -91,57 +326,53 @@ public class CraftingManager : MonoBehaviour
             }
 
             item.placed = true;
-            item.slotnumber = slot.slotnumber;
             slot.AddCraftableItem(item);
+            item.slotnumber = slot.slotnumber;
         }
 
         UpdateSlotVisibility();
     }
 
-    private void RefreshLists()
+    // Handle Is Item Visible In Current Context.
+    private bool IsItemVisibleInCurrentContext(CraftableItem item)
     {
-        slots.Clear();
-        items.Clear();
-        slots.AddRange(GetComponentsInChildren<CraftableSlot>(true));
-        items.AddRange(GetComponentsInChildren<CraftableItem>(true));
-        slots.RemoveAll(slot => slot == null);
-        items.RemoveAll(item => item == null);
-        slots.Sort(CompareSlotsForPlacement);
-    }
-
-    private void QueueCheck()
-    {
-        if (checkQueued)
+        if (item == null)
         {
-            return;
+            return false;
         }
 
-        checkQueued = true;
-        StartCoroutine(DelayedCheck());
-    }
+        string itemStationId = NormalizeStationId(item.craftingStationId);
+        if (string.IsNullOrEmpty(itemStationId))
+        {
+            itemStationId = NormalizeStationId(handCraftingStationId);
+        }
 
-    private System.Collections.IEnumerator DelayedCheck()
-    {
-        yield return null;
-        checkQueued = false;
-        Check();
+        if (string.Equals(itemStationId, "Any", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return string.Equals(itemStationId, _activeStationId, System.StringComparison.OrdinalIgnoreCase);
     }
 
     private CraftableSlot GetLowestAvailableSlot()
     {
         slots.Sort(CompareSlotsForPlacement);
-        for (int i = 0; i < slots.Count; i++)
+
+        foreach (CraftableSlot slot in slots)
         {
-            CraftableSlot slot = slots[i];
-            if (slot != null && !slot.occupied)
+            if (slot == null || slot.occupied)
             {
-                return slot;
+                continue;
             }
+
+            return slot;
         }
 
         return null;
     }
 
+    // Handle Compare Slots For Placement.
     private static int CompareSlotsForPlacement(CraftableSlot a, CraftableSlot b)
     {
         if (a == b) return 0;
@@ -156,23 +387,43 @@ public class CraftingManager : MonoBehaviour
 
         RectTransform rectA = a.transform as RectTransform;
         RectTransform rectB = b.transform as RectTransform;
-        Vector2 posA = rectA != null ? rectA.anchoredPosition : new Vector2(a.transform.position.x, a.transform.position.y);
-        Vector2 posB = rectB != null ? rectB.anchoredPosition : new Vector2(b.transform.position.x, b.transform.position.y);
 
+        Vector2 posA = rectA != null
+            ? rectA.anchoredPosition
+            : new Vector2(a.transform.position.x, a.transform.position.y);
+        Vector2 posB = rectB != null
+            ? rectB.anchoredPosition
+            : new Vector2(b.transform.position.x, b.transform.position.y);
+
+        // Higher Y means visually higher in UI; then lower X means more left.
         int yCompare = posB.y.CompareTo(posA.y);
-        return yCompare != 0 ? yCompare : posA.x.CompareTo(posB.x);
-    }
-
-    private void ResetRuntimePlacementState()
-    {
-        for (int i = 0; i < slots.Count; i++)
+        if (yCompare != 0)
         {
-            slots[i]?.ResetRuntimeState();
+            return yCompare;
         }
 
-        for (int i = 0; i < items.Count; i++)
+        int xCompare = posA.x.CompareTo(posB.x);
+        if (xCompare != 0)
         {
-            CraftableItem item = items[i];
+            return xCompare;
+        }
+
+        return a.transform.GetSiblingIndex().CompareTo(b.transform.GetSiblingIndex());
+    }
+
+    // Handle Reset Runtime Placement State.
+    private void ResetRuntimePlacementState()
+    {
+        foreach (CraftableSlot slot in slots)
+        {
+            if (slot != null)
+            {
+                slot.ResetRuntimeState();
+            }
+        }
+
+        foreach (CraftableItem item in items)
+        {
             if (item == null)
             {
                 continue;
@@ -183,18 +434,21 @@ public class CraftingManager : MonoBehaviour
         }
     }
 
+    // Handle Update Slot Visibility.
     private void UpdateSlotVisibility()
     {
-        for (int i = 0; i < slots.Count; i++)
+        foreach (CraftableSlot slot in slots)
         {
-            CraftableSlot slot = slots[i];
-            if (slot != null)
+            if (slot == null)
             {
-                slot.SetVisualVisible(slot.occupied);
+                continue;
             }
+
+            slot.SetVisualVisible(slot.occupied);
         }
     }
 
+    // Handle Ensure Menu Canvas Group.
     private void EnsureMenuCanvasGroup()
     {
         if (craftingMenuRoot == null)
@@ -202,32 +456,47 @@ public class CraftingManager : MonoBehaviour
             craftingMenuRoot = gameObject;
         }
 
-        menuCanvasGroup = craftingMenuRoot.GetComponent<CanvasGroup>();
-        if (menuCanvasGroup == null)
+        if (craftingMenuRoot == null)
         {
-            menuCanvasGroup = craftingMenuRoot.AddComponent<CanvasGroup>();
+            return;
+        }
+
+        _menuCanvasGroup = craftingMenuRoot.GetComponent<CanvasGroup>();
+        if (_menuCanvasGroup == null)
+        {
+            _menuCanvasGroup = craftingMenuRoot.AddComponent<CanvasGroup>();
         }
     }
 
+    // Handle Apply Menu Visibility.
     private void ApplyMenuVisibility()
     {
-        if (menuCanvasGroup == null)
+        if (_menuCanvasGroup == null)
         {
-            EnsureMenuCanvasGroup();
+            return;
         }
 
         IsCraftingOpen = menuShown;
-        menuCanvasGroup.alpha = menuShown ? 1f : 0f;
-        menuCanvasGroup.interactable = menuShown;
-        menuCanvasGroup.blocksRaycasts = menuShown;
+        _menuCanvasGroup.alpha = menuShown ? 1f : 0f;
+        _menuCanvasGroup.interactable = menuShown;
+        _menuCanvasGroup.blocksRaycasts = menuShown;
+        ApplyCursorState();
+    }
+
+    // Handle Apply Cursor State.
+    private static void ApplyCursorState()
+    {
         GameplayUiState.ApplyCursorState();
     }
 
-    private void MigrateLegacyToggleKey()
+    // Handle Normalize Station Id.
+    private static string NormalizeStationId(string rawId)
     {
-        if (toggleKey == KeyCode.None || toggleKey == KeyCode.R)
+        if (string.IsNullOrWhiteSpace(rawId))
         {
-            toggleKey = KeyCode.T;
+            return string.Empty;
         }
+
+        return rawId.Trim();
     }
 }

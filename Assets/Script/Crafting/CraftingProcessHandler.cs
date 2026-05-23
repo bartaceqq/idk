@@ -1,15 +1,17 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.UI;
+using UnityEngine.Events;
 
 public class CraftingProcessHandler : MonoBehaviour
 {
     public CraftableItem craftableItem;
     public CraftingManager craftingManager;
+    public InventoryListHandler inventoryListHandler;
+    public SlotManager slotManager;
     public InventoryManager inventoryManager;
     public Button button;
     public bool hasenough;
@@ -24,30 +26,36 @@ public class CraftingProcessHandler : MonoBehaviour
     [Header("Craft Click Guard")]
     [SerializeField, Min(0f)] private float craftClickCooldownSeconds = 0.2f;
 
-    private Coroutine craftRoutine;
-    private bool craftInProgress;
-    private float clickLockedUntil;
-    private string defaultButtonText = "CRAFT";
+    private float _craftButtonCooldownUntil;
+    private bool _craftInProgress;
+    private Coroutine _craftRoutine;
+    private string _defaultCraftButtonLabel = "CRAFT";
+    private bool _hasCachedDefaultCraftButtonLabel;
 
-    private List<SlotInsideUI> Slots => inventoryManager != null ? inventoryManager.slotlist : null;
-
-    private void Start()
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
     {
         ResolveReferences();
-        SetupCraftButton();
+        ResolveCraftUiReferences();
+        EnsureCraftProgressSliderExists();
+        BindCraftButtonIfNeeded();
         AutoSelectCraftableItem();
-        ResetProgressUi();
+        UpdateSelectedSlotVisuals();
+        ResetCraftProgressVisuals();
         RefreshCraftAvailability();
     }
 
-    private void Update()
+    // Update is called once per frame
+    void Update()
     {
         ResolveReferences();
+        ResolveCraftUiReferences();
         AutoSelectCraftableItem();
         UpdateSelectedSlotVisuals();
         RefreshCraftAvailability();
     }
 
+    // Handle Select Craftable Item.
     public void SelectCraftableItem(CraftableItem selectedCraftableItem)
     {
         craftableItem = selectedCraftableItem;
@@ -57,97 +65,150 @@ public class CraftingProcessHandler : MonoBehaviour
 
     public void Craft()
     {
-        if (IsCraftLocked() || !ValidateCraft(out Dictionary<string, int> cost, out InventoryItem result, out int amount, true))
+        if (IsCraftInteractionLocked())
         {
-            SetCanCraft(false);
             return;
         }
 
-        if (!Consume(cost))
+        ResolveReferences();
+        ResolveCraftUiReferences();
+        EnsureCraftProgressSliderExists();
+
+        if (!TryBuildRequirementMap(out Dictionary<string, int> requiredResources))
         {
-            SetCanCraft(false);
+            hasenough = false;
+            OnCraftMissingResources();
             return;
         }
 
-        craftInProgress = true;
-        clickLockedUntil = Time.unscaledTime + craftClickCooldownSeconds;
-        SetCanCraft(false);
-
-        if (craftRoutine != null)
+        bool hasResources = HasEnoughResources(requiredResources);
+        if (!hasResources)
         {
-            StopCoroutine(craftRoutine);
+            hasenough = false;
+            OnCraftMissingResources();
+            return;
         }
 
-        craftRoutine = StartCoroutine(FinishCraftAfterDelay(result, amount));
+        if (!TryResolveCraftResult(out InventoryItem craftedItem, out int craftedAmount, true))
+        {
+            hasenough = false;
+            OnCraftMissingResources();
+            return;
+        }
+
+        if (!CanReceiveCraftedItem())
+        {
+            hasenough = false;
+            OnCraftMissingResources();
+            return;
+        }
+
+        bool consumedResources;
+        if (inventoryManager != null)
+        {
+            consumedResources = TryConsumeResourcesFromInventoryManager(requiredResources);
+        }
+        else if (slotManager != null)
+        {
+            consumedResources = slotManager.TryConsumeResources(requiredResources);
+        }
+        else
+        {
+            consumedResources = false;
+        }
+
+        if (!consumedResources)
+        {
+            hasenough = false;
+            OnCraftMissingResources();
+            return;
+        }
+
+        _craftInProgress = true;
+        _craftButtonCooldownUntil = Time.unscaledTime + Mathf.Max(0f, craftClickCooldownSeconds);
+        UpdateCraftButtonInteractable(false);
+
+        if (_craftRoutine != null)
+        {
+            StopCoroutine(_craftRoutine);
+        }
+
+        _craftRoutine = StartCoroutine(CraftAfterDelay(craftedItem, craftedAmount));
     }
 
+    // Handle Refresh Craft Availability.
     private void RefreshCraftAvailability()
     {
-        hasenough = ValidateCraft(out _, out _, out _, false);
-        SetCanCraft(hasenough);
+        UpdateSelectedSlotVisuals();
+
+        if (!TryBuildRequirementMap(out Dictionary<string, int> requiredResources))
+        {
+            hasenough = false;
+            OnCraftMissingResources();
+            return;
+        }
+
+        bool hasResources = HasEnoughResources(requiredResources);
+        bool canReceiveCraftedItem = CanReceiveCraftedItem();
+        hasenough = hasResources && canReceiveCraftedItem;
+        if (hasenough)
+        {
+            OnCraftHasEnoughResources();
+        }
+        else
+        {
+            OnCraftMissingResources();
+        }
     }
 
-    private bool ValidateCraft(out Dictionary<string, int> cost, out InventoryItem result, out int amount, bool logWarnings)
+    // Handle Update Selected Slot Visuals.
+    private void UpdateSelectedSlotVisuals()
     {
-        cost = BuildCost();
-        result = null;
-        amount = 0;
-
-        if (craftableItem == null)
+        if (craftingManager == null || craftingManager.slots == null)
         {
-            if (logWarnings) Debug.LogWarning("CraftingProcessHandler: No craftable item selected.", this);
-            return false;
+            return;
         }
 
-        amount = Mathf.Max(1, craftableItem.craftAmount);
-        if (!craftableItem.TryResolveCraftedInventoryItem(out result, out string reason) || result == null)
+        for (int i = 0; i < craftingManager.slots.Count; i++)
         {
-            if (logWarnings) Debug.LogWarning($"CraftingProcessHandler: {reason}", this);
-            return false;
-        }
-
-        return HasEnough(cost) && HasRoomFor(result);
-    }
-
-    private Dictionary<string, int> BuildCost()
-    {
-        Dictionary<string, int> cost = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        if (craftableItem == null || craftableItem.neededResources == null)
-        {
-            return cost;
-        }
-
-        foreach (string rawRequirement in craftableItem.neededResources)
-        {
-            if (!TryParseRequirement(rawRequirement, out string itemName, out int amount))
+            CraftableSlot slot = craftingManager.slots[i];
+            if (slot == null)
             {
                 continue;
             }
 
-            string key = CleanName(itemName);
-            if (key.Length == 0)
-            {
-                continue;
-            }
-
-            cost.TryGetValue(key, out int current);
-            cost[key] = current + amount;
+            bool isSelected = craftableItem != null && slot.craftableItemReference == craftableItem;
+            slot.SetSelectedVisual(isSelected);
         }
-
-        return cost;
     }
 
-    private bool HasEnough(Dictionary<string, int> cost)
+    // Handle Has Enough Resources.
+    private bool HasEnoughResources(Dictionary<string, int> requiredResources)
     {
-        if (cost.Count == 0)
+        if (requiredResources == null || requiredResources.Count == 0)
         {
             return true;
         }
 
-        Dictionary<string, int> available = CountInventoryItems();
-        foreach (KeyValuePair<string, int> need in cost)
+        Dictionary<string, int> availableByName = BuildAvailableByNameFromInventoryManagerSlots();
+        if (availableByName.Count == 0)
         {
-            if (!available.TryGetValue(need.Key, out int count) || count < need.Value)
+            availableByName = BuildAvailableByNameFromSlots();
+        }
+        if (availableByName.Count == 0 && inventoryListHandler != null)
+        {
+            Dictionary<InventoryItem, int> list = inventoryListHandler.itemlist;
+            availableByName = BuildAvailableByName(list);
+        }
+
+        if (availableByName.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (KeyValuePair<string, int> required in requiredResources)
+        {
+            if (!availableByName.TryGetValue(required.Key, out int availableAmount) || availableAmount < required.Value)
             {
                 return false;
             }
@@ -156,44 +217,421 @@ public class CraftingProcessHandler : MonoBehaviour
         return true;
     }
 
-    private Dictionary<string, int> CountInventoryItems()
+    // Handle Can Receive Crafted Item.
+    private bool CanReceiveCraftedItem()
     {
-        Dictionary<string, int> items = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        if (Slots == null)
-        {
-            return items;
-        }
-
-        foreach (SlotInsideUI slot in Slots)
-        {
-            if (slot == null || !slot.occupied || slot.count <= 0)
-            {
-                continue;
-            }
-
-            string key = CleanName(GetSlotItemName(slot));
-            if (key.Length == 0)
-            {
-                continue;
-            }
-
-            items.TryGetValue(key, out int current);
-            items[key] = current + slot.count;
-        }
-
-        return items;
-    }
-
-    private bool HasRoomFor(InventoryItem item)
-    {
-        if (Slots == null || item == null)
+        if (!TryResolveCraftResult(out InventoryItem craftedItem, out int craftedAmount, false))
         {
             return false;
         }
 
-        foreach (SlotInsideUI slot in Slots)
+        if (craftedAmount <= 0)
         {
-            if (slot != null && (!slot.occupied || IsSameItem(slot, item)))
+            return false;
+        }
+
+        if (inventoryManager != null && inventoryManager.slotlist != null)
+        {
+            for (int i = 0; i < inventoryManager.slotlist.Count; i++)
+            {
+                SlotInsideUI slot = inventoryManager.slotlist[i];
+                if (slot != null && !slot.occupied)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return slotManager != null && slotManager.CanAddItem(craftedItem);
+    }
+
+    // Handle Try Resolve Craft Result.
+    private bool TryResolveCraftResult(out InventoryItem craftedItem, out int craftedAmount, bool logWarnings)
+    {
+        craftedItem = null;
+        craftedAmount = 0;
+
+        if (craftableItem == null)
+        {
+            if (logWarnings)
+            {
+                Debug.LogWarning("CraftingProcessHandler: No craftable item selected.", this);
+            }
+
+            return false;
+        }
+
+        craftedAmount = Mathf.Max(1, craftableItem.craftAmount);
+        if (!craftableItem.TryResolveCraftedInventoryItem(slotManager, out craftedItem, out string reason))
+        {
+            if (logWarnings)
+            {
+                Debug.LogWarning($"CraftingProcessHandler: {reason}", this);
+            }
+
+            return false;
+        }
+
+        return craftedItem != null;
+    }
+
+    // Handle Build Available By Name From Slots.
+    private Dictionary<string, int> BuildAvailableByNameFromSlots()
+    {
+        Dictionary<string, int> availableByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (slotManager == null || slotManager.slots == null)
+        {
+            return availableByName;
+        }
+
+        for (int i = 0; i < slotManager.slots.Count; i++)
+        {
+            Slot slot = slotManager.slots[i];
+            if (slot == null || slot.IsEmpty() || string.IsNullOrWhiteSpace(slot.itemName))
+            {
+                continue;
+            }
+
+            string key = slot.itemName.Trim();
+            int amount = Mathf.Max(0, slot.count);
+            if (amount <= 0)
+            {
+                continue;
+            }
+
+            if (availableByName.TryGetValue(key, out int currentAmount))
+            {
+                availableByName[key] = currentAmount + amount;
+            }
+            else
+            {
+                availableByName[key] = amount;
+            }
+        }
+
+        return availableByName;
+    }
+
+    // Handle Build Available By Name From Inventory Manager Slots.
+    private Dictionary<string, int> BuildAvailableByNameFromInventoryManagerSlots()
+    {
+        Dictionary<string, int> availableByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (inventoryManager == null || inventoryManager.slotlist == null)
+        {
+            return availableByName;
+        }
+
+        for (int i = 0; i < inventoryManager.slotlist.Count; i++)
+        {
+            SlotInsideUI slot = inventoryManager.slotlist[i];
+            if (slot == null || !slot.occupied)
+            {
+                continue;
+            }
+
+            int amount = Mathf.Max(0, slot.count);
+            if (amount <= 0)
+            {
+                continue;
+            }
+
+            string key = GetBestSlotName(slot);
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            if (availableByName.TryGetValue(key, out int currentAmount))
+            {
+                availableByName[key] = currentAmount + amount;
+            }
+            else
+            {
+                availableByName[key] = amount;
+            }
+        }
+
+        return availableByName;
+    }
+
+    // Handle Try Build Requirement Map.
+    private bool TryBuildRequirementMap(out Dictionary<string, int> requiredResources)
+    {
+        requiredResources = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        if (craftableItem == null)
+        {
+            return false;
+        }
+
+        List<string> neededResources = craftableItem.neededResources;
+        if (neededResources == null || neededResources.Count == 0)
+        {
+            return true;
+        }
+
+        for (int i = 0; i < neededResources.Count; i++)
+        {
+            string neededItem = neededResources[i];
+            if (!TryParseRequirement(neededItem, out string neededName, out int neededCount))
+            {
+                return false;
+            }
+
+            if (requiredResources.TryGetValue(neededName, out int currentRequiredAmount))
+            {
+                requiredResources[neededName] = currentRequiredAmount + neededCount;
+            }
+            else
+            {
+                requiredResources[neededName] = neededCount;
+            }
+        }
+
+        return true;
+    }
+
+    // Handle Build Available By Name.
+    private static Dictionary<string, int> BuildAvailableByName(Dictionary<InventoryItem, int> list)
+    {
+        Dictionary<string, int> availableByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (list == null)
+        {
+            return availableByName;
+        }
+
+        foreach (KeyValuePair<InventoryItem, int> pair in list)
+        {
+            if (pair.Key == null || pair.Value <= 0 || string.IsNullOrWhiteSpace(pair.Key.name))
+            {
+                continue;
+            }
+
+            string key = pair.Key.name.Trim();
+            if (availableByName.TryGetValue(key, out int currentAmount))
+            {
+                availableByName[key] = currentAmount + pair.Value;
+            }
+            else
+            {
+                availableByName[key] = pair.Value;
+            }
+        }
+
+        return availableByName;
+    }
+
+    // Handle Resolve References.
+    private void ResolveReferences()
+    {
+        if (craftingManager == null)
+        {
+            craftingManager = GetComponentInParent<CraftingManager>();
+            if (craftingManager == null)
+            {
+                craftingManager = FindFirstInScene<CraftingManager>();
+            }
+        }
+
+        if (slotManager == null)
+        {
+            slotManager = FindSlotManagerForInventoryList(inventoryListHandler);
+        }
+
+        if (slotManager == null)
+        {
+            slotManager = FindFirstInScene<SlotManager>();
+        }
+
+        if (slotManager != null &&
+            inventoryListHandler != null &&
+            slotManager.inventoryListHandler != null &&
+            slotManager.inventoryListHandler != inventoryListHandler)
+        {
+            SlotManager matchedSlotManager = FindSlotManagerForInventoryList(inventoryListHandler);
+            if (matchedSlotManager != null)
+            {
+                slotManager = matchedSlotManager;
+            }
+        }
+
+        if (inventoryListHandler == null && slotManager != null)
+        {
+            inventoryListHandler = slotManager.inventoryListHandler;
+        }
+
+        if (inventoryListHandler == null)
+        {
+            inventoryListHandler = FindFirstInScene<InventoryListHandler>();
+        }
+
+        if (slotManager != null && slotManager.inventoryListHandler == null && inventoryListHandler != null)
+        {
+            slotManager.inventoryListHandler = inventoryListHandler;
+        }
+
+        if (inventoryManager == null)
+        {
+            inventoryManager = FindFirstInScene<InventoryManager>();
+        }
+    }
+
+    // Handle Resolve Craft UI References.
+    private void ResolveCraftUiReferences()
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        if (craftButtonLabel == null)
+        {
+            craftButtonLabel = button.GetComponentInChildren<TextMeshProUGUI>(true);
+        }
+
+        if (!_hasCachedDefaultCraftButtonLabel && craftButtonLabel != null && !string.IsNullOrWhiteSpace(craftButtonLabel.text))
+        {
+            _defaultCraftButtonLabel = craftButtonLabel.text;
+            _hasCachedDefaultCraftButtonLabel = true;
+        }
+
+        if (craftProgressSlider == null)
+        {
+            craftProgressSlider = button.GetComponentInChildren<Slider>(true);
+        }
+    }
+
+    // Handle Ensure Craft Progress Slider Exists.
+    private void EnsureCraftProgressSliderExists()
+    {
+        if (craftProgressSlider != null || button == null)
+        {
+            return;
+        }
+
+        craftProgressSlider = CreateRuntimeCraftProgressSlider(button.transform as RectTransform);
+    }
+
+    // Handle Bind Craft Button If Needed.
+    private void BindCraftButtonIfNeeded()
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.onClick.RemoveListener(Craft);
+        if (!HasPersistentCraftBinding(button))
+        {
+            button.onClick.AddListener(Craft);
+        }
+    }
+
+    // Handle Create Runtime Craft Progress Slider.
+    private Slider CreateRuntimeCraftProgressSlider(RectTransform parent)
+    {
+        if (parent == null)
+        {
+            return null;
+        }
+
+        GameObject rootObject = new GameObject("CraftProgressSlider", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Slider));
+        RectTransform rootRect = rootObject.GetComponent<RectTransform>();
+        rootRect.SetParent(parent, false);
+        rootRect.anchorMin = Vector2.zero;
+        rootRect.anchorMax = Vector2.one;
+        rootRect.offsetMin = Vector2.zero;
+        rootRect.offsetMax = Vector2.zero;
+        rootRect.SetSiblingIndex(0);
+
+        Image backgroundImage = rootObject.GetComponent<Image>();
+        backgroundImage.color = new Color32(28, 24, 18, 200);
+        backgroundImage.raycastTarget = false;
+        backgroundImage.type = Image.Type.Simple;
+
+        Slider slider = rootObject.GetComponent<Slider>();
+        slider.interactable = false;
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+        slider.targetGraphic = backgroundImage;
+
+        GameObject fillAreaObject = new GameObject("Fill Area", typeof(RectTransform));
+        RectTransform fillAreaRect = fillAreaObject.GetComponent<RectTransform>();
+        fillAreaRect.SetParent(rootRect, false);
+        fillAreaRect.anchorMin = new Vector2(0f, 0f);
+        fillAreaRect.anchorMax = new Vector2(1f, 1f);
+        fillAreaRect.offsetMin = new Vector2(4f, 4f);
+        fillAreaRect.offsetMax = new Vector2(-4f, -4f);
+
+        GameObject fillObject = new GameObject("Fill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform fillRect = fillObject.GetComponent<RectTransform>();
+        fillRect.SetParent(fillAreaRect, false);
+        fillRect.anchorMin = new Vector2(0f, 0f);
+        fillRect.anchorMax = new Vector2(1f, 1f);
+        fillRect.offsetMin = Vector2.zero;
+        fillRect.offsetMax = Vector2.zero;
+
+        Image fillImage = fillObject.GetComponent<Image>();
+        fillImage.color = new Color32(118, 193, 96, 255);
+        fillImage.raycastTarget = false;
+        fillImage.type = Image.Type.Simple;
+
+        slider.fillRect = fillRect;
+        slider.handleRect = null;
+        slider.value = 0f;
+
+        return slider;
+    }
+
+    // Handle Auto Select Craftable Item.
+    private void AutoSelectCraftableItem()
+    {
+        if (craftingManager == null || craftingManager.slots == null)
+        {
+            return;
+        }
+
+        if (craftableItem != null && IsCraftableVisibleInSlots(craftableItem))
+        {
+            return;
+        }
+
+        craftableItem = null;
+
+        for (int i = 0; i < craftingManager.slots.Count; i++)
+        {
+            CraftableSlot slot = craftingManager.slots[i];
+            if (slot == null || !slot.occupied || slot.locked || slot.craftableItemReference == null)
+            {
+                continue;
+            }
+
+            craftableItem = slot.craftableItemReference;
+            return;
+        }
+    }
+
+    // Handle Is Craftable Visible In Slots.
+    private bool IsCraftableVisibleInSlots(CraftableItem target)
+    {
+        if (target == null || craftingManager == null || craftingManager.slots == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < craftingManager.slots.Count; i++)
+        {
+            CraftableSlot slot = craftingManager.slots[i];
+            if (slot == null || !slot.occupied || slot.locked)
+            {
+                continue;
+            }
+
+            if (slot.craftableItemReference == target)
             {
                 return true;
             }
@@ -202,37 +640,334 @@ public class CraftingProcessHandler : MonoBehaviour
         return false;
     }
 
-    private bool Consume(Dictionary<string, int> cost)
+    // Handle Find First In Scene.
+    private static T FindFirstInScene<T>() where T : UnityEngine.Object
     {
-        if (cost.Count == 0)
+#if UNITY_2023_1_OR_NEWER
+        return UnityEngine.Object.FindFirstObjectByType<T>(FindObjectsInactive.Include);
+#else
+        return UnityEngine.Object.FindObjectOfType<T>(true);
+#endif
+    }
+
+    // Handle Find Slot Manager For Inventory List.
+    private static SlotManager FindSlotManagerForInventoryList(InventoryListHandler handler)
+    {
+        if (handler == null)
+        {
+            return null;
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        SlotManager[] managers = UnityEngine.Object.FindObjectsByType<SlotManager>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        SlotManager[] managers = UnityEngine.Object.FindObjectsOfType<SlotManager>(true);
+#endif
+
+        for (int i = 0; i < managers.Length; i++)
+        {
+            SlotManager manager = managers[i];
+            if (manager != null && manager.inventoryListHandler == handler)
+            {
+                return manager;
+            }
+        }
+
+        SlotManager bestFallback = null;
+        int bestSlotCount = -1;
+        for (int i = 0; i < managers.Length; i++)
+        {
+            SlotManager manager = managers[i];
+            if (manager == null)
+            {
+                continue;
+            }
+
+            int slotCount = manager.slots != null ? manager.slots.Count : 0;
+            if (slotCount > bestSlotCount)
+            {
+                bestSlotCount = slotCount;
+                bestFallback = manager;
+            }
+        }
+
+        return bestFallback;
+    }
+
+    // Handle On Craft Has Enough Resources.
+    private void OnCraftHasEnoughResources()
+    {
+        UpdateCraftButtonInteractable(true);
+    }
+
+    // Handle On Craft Missing Resources.
+    private void OnCraftMissingResources()
+    {
+        UpdateCraftButtonInteractable(false);
+    }
+
+    // Handle Update Craft Button Interactable.
+    private void UpdateCraftButtonInteractable(bool canInteract)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.interactable = canInteract && !IsCraftInteractionLocked();
+    }
+
+    // Handle Reset Craft Progress Visuals.
+    private void ResetCraftProgressVisuals()
+    {
+        if (craftProgressSlider != null)
+        {
+            craftProgressSlider.value = 0f;
+            craftProgressSlider.gameObject.SetActive(false);
+        }
+
+        ApplyIdleCraftButtonLabel();
+    }
+
+    // Handle Set Craft Progress.
+    private void SetCraftProgress(float normalizedProgress)
+    {
+        float clampedProgress = Mathf.Clamp01(normalizedProgress);
+
+        if (craftProgressSlider != null)
+        {
+            if (!craftProgressSlider.gameObject.activeSelf)
+            {
+                craftProgressSlider.gameObject.SetActive(true);
+            }
+
+            craftProgressSlider.value = clampedProgress;
+        }
+
+        if (showCraftPercentOnButton && craftButtonLabel != null)
+        {
+            int progressPercent = Mathf.RoundToInt(clampedProgress * 100f);
+            craftButtonLabel.text = $"{craftingLabelPrefix} {progressPercent}%";
+        }
+    }
+
+    // Handle Apply Idle Craft Button Label.
+    private void ApplyIdleCraftButtonLabel()
+    {
+        if (craftButtonLabel == null)
+        {
+            return;
+        }
+
+        craftButtonLabel.text = _defaultCraftButtonLabel;
+    }
+
+    // Handle Is Craft Interaction Locked.
+    private bool IsCraftInteractionLocked()
+    {
+        if (_craftInProgress)
         {
             return true;
         }
 
-        if (Slots == null || !HasEnough(cost))
+        return Time.unscaledTime < _craftButtonCooldownUntil;
+    }
+
+    // Handle Has Persistent Craft Binding.
+    private bool HasPersistentCraftBinding(Button targetButton)
+    {
+        if (targetButton == null)
         {
             return false;
         }
 
-        foreach (KeyValuePair<string, int> need in cost)
+        UnityEventBase clickEvent = targetButton.onClick;
+        int persistentEventCount = clickEvent.GetPersistentEventCount();
+        for (int i = 0; i < persistentEventCount; i++)
         {
-            int remaining = need.Value;
-            foreach (SlotInsideUI slot in Slots)
+            if (!string.Equals(clickEvent.GetPersistentMethodName(i), nameof(Craft), StringComparison.Ordinal))
             {
-                if (remaining <= 0)
-                {
-                    break;
-                }
+                continue;
+            }
 
-                if (slot == null || !slot.occupied || slot.count <= 0 || CleanName(GetSlotItemName(slot)) != need.Key)
+            UnityEngine.Object persistentTarget = clickEvent.GetPersistentTarget(i);
+            if (persistentTarget == this)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Handle Craft After Delay.
+    private IEnumerator CraftAfterDelay(InventoryItem craftedItem, int craftedAmount)
+    {
+        float duration = Mathf.Max(0f, craftDurationSeconds);
+        SetCraftProgress(0f);
+
+        if (duration > 0f)
+        {
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                SetCraftProgress(elapsed / duration);
+                yield return null;
+            }
+        }
+
+        SetCraftProgress(1f);
+
+        bool addedCraftedItem = TryAddCraftedItem(craftedItem, craftedAmount);
+
+        _craftInProgress = false;
+        _craftRoutine = null;
+        ResetCraftProgressVisuals();
+
+        if (!addedCraftedItem)
+        {
+            hasenough = false;
+            OnCraftMissingResources();
+            yield break;
+        }
+
+        RefreshCraftAvailability();
+    }
+
+    // Handle Try Add Crafted Item.
+    private bool TryAddCraftedItem(InventoryItem craftedItem, int craftedAmount)
+    {
+        if (craftedItem == null || craftedAmount <= 0)
+        {
+            return false;
+        }
+
+        if (inventoryManager != null)
+        {
+            return inventoryManager.AddItem(craftedItem, craftedAmount);
+        }
+
+        if (slotManager != null)
+        {
+            return slotManager.AddItem(craftedItem, craftedAmount);
+        }
+
+        return false;
+    }
+
+    // Supports entries like "wood" (defaults to 1) and "wood:3".
+    private static bool TryParseRequirement(string rawRequirement, out string itemName, out int requiredAmount)
+    {
+        itemName = string.Empty;
+        requiredAmount = 1;
+
+        if (string.IsNullOrWhiteSpace(rawRequirement))
+        {
+            return false;
+        }
+
+        string trimmed = rawRequirement.Trim();
+        int separatorIndex = trimmed.LastIndexOf(':');
+
+        if (separatorIndex > 0 && separatorIndex < trimmed.Length - 1)
+        {
+            string namePart = trimmed.Substring(0, separatorIndex).Trim();
+            string amountPart = trimmed.Substring(separatorIndex + 1).Trim();
+
+            if (string.IsNullOrWhiteSpace(namePart))
+            {
+                return false;
+            }
+
+            if (!int.TryParse(amountPart, out int parsedAmount) || parsedAmount <= 0)
+            {
+                return false;
+            }
+
+            itemName = namePart;
+            requiredAmount = parsedAmount;
+            return true;
+        }
+
+        // Also support "wood (3)" format.
+        int openParenthesis = trimmed.LastIndexOf('(');
+        int closeParenthesis = trimmed.LastIndexOf(')');
+        if (openParenthesis > 0 && closeParenthesis == trimmed.Length - 1 && closeParenthesis > openParenthesis + 1)
+        {
+            string namePart = trimmed.Substring(0, openParenthesis).Trim();
+            string amountPart = trimmed.Substring(openParenthesis + 1, closeParenthesis - openParenthesis - 1).Trim();
+
+            if (string.IsNullOrWhiteSpace(namePart))
+            {
+                return false;
+            }
+
+            if (!int.TryParse(amountPart, out int parsedAmount) || parsedAmount <= 0)
+            {
+                return false;
+            }
+
+            itemName = namePart;
+            requiredAmount = parsedAmount;
+            return true;
+        }
+
+        itemName = trimmed;
+        return true;
+    }
+
+    // Handle Try Consume Resources From Inventory Manager.
+    private bool TryConsumeResourcesFromInventoryManager(Dictionary<string, int> requiredResources)
+    {
+        if (requiredResources == null || requiredResources.Count == 0)
+        {
+            return true;
+        }
+
+        if (inventoryManager == null || inventoryManager.slotlist == null)
+        {
+            return false;
+        }
+
+        if (!HasEnoughResources(requiredResources))
+        {
+            return false;
+        }
+
+        foreach (KeyValuePair<string, int> required in requiredResources)
+        {
+            int remaining = required.Value;
+            if (remaining <= 0)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < inventoryManager.slotlist.Count && remaining > 0; i++)
+            {
+                SlotInsideUI slot = inventoryManager.slotlist[i];
+                if (slot == null || !slot.occupied || slot.count <= 0)
                 {
                     continue;
                 }
 
-                int taken = Mathf.Min(slot.count, remaining);
-                slot.count -= taken;
-                remaining -= taken;
-                RefreshInventorySlot(slot);
+                if (!SlotMatchesRequirement(slot, required.Key))
+                {
+                    continue;
+                }
+
+                int consume = Mathf.Min(slot.count, remaining);
+                slot.count -= consume;
+                remaining -= consume;
+
+                if (slot.count <= 0)
+                {
+                    ClearInventoryManagerSlot(slot);
+                }
+                else
+                {
+                    UpdateInventoryManagerSlotVisual(slot);
+                }
             }
 
             if (remaining > 0)
@@ -244,289 +979,90 @@ public class CraftingProcessHandler : MonoBehaviour
         return true;
     }
 
-    private IEnumerator FinishCraftAfterDelay(InventoryItem result, int amount)
+    // Handle Slot Matches Requirement.
+    private static bool SlotMatchesRequirement(SlotInsideUI slot, string requiredName)
     {
-        float duration = Mathf.Max(0f, craftDurationSeconds);
-        for (float elapsed = 0f; elapsed < duration; elapsed += Time.unscaledDeltaTime)
-        {
-            SetProgress(duration <= 0f ? 1f : elapsed / duration);
-            yield return null;
-        }
-
-        SetProgress(1f);
-        bool added = inventoryManager != null && inventoryManager.AddItem(result, amount);
-        craftInProgress = false;
-        craftRoutine = null;
-        ResetProgressUi();
-
-        hasenough = added && ValidateCraft(out _, out _, out _, false);
-        SetCanCraft(hasenough);
-    }
-
-    private void AutoSelectCraftableItem()
-    {
-        if (craftingManager == null || craftingManager.slots == null || IsSelectedItemVisible())
-        {
-            return;
-        }
-
-        craftableItem = null;
-        foreach (CraftableSlot slot in craftingManager.slots)
-        {
-            if (slot != null && slot.occupied && !slot.locked && slot.craftableItemReference != null)
-            {
-                craftableItem = slot.craftableItemReference;
-                return;
-            }
-        }
-    }
-
-    private bool IsSelectedItemVisible()
-    {
-        if (craftableItem == null || craftingManager == null || craftingManager.slots == null)
+        if (slot == null || string.IsNullOrWhiteSpace(requiredName))
         {
             return false;
         }
 
-        foreach (CraftableSlot slot in craftingManager.slots)
+        string required = NormalizeItemToken(requiredName);
+        if (string.IsNullOrEmpty(required))
         {
-            if (slot != null && slot.occupied && !slot.locked && slot.craftableItemReference == craftableItem)
-            {
-                return true;
-            }
+            return false;
         }
 
-        return false;
+        string slotName = NormalizeItemToken(GetBestSlotName(slot));
+        return string.Equals(slotName, required, StringComparison.OrdinalIgnoreCase);
     }
 
-    private void UpdateSelectedSlotVisuals()
+    // Handle Get Best Slot Name.
+    private static string GetBestSlotName(SlotInsideUI slot)
     {
-        if (craftingManager == null || craftingManager.slots == null)
+        if (slot == null)
+        {
+            return string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(slot.nameofslot))
+        {
+            return slot.nameofslot.Trim();
+        }
+
+        if (slot.Item != null && !string.IsNullOrWhiteSpace(slot.Item.nameofitem))
+        {
+            return slot.Item.nameofitem.Trim();
+        }
+
+        if (slot.Item != null && !string.IsNullOrWhiteSpace(slot.Item.name))
+        {
+            return slot.Item.name.Trim();
+        }
+
+        return string.Empty;
+    }
+
+    // Handle Normalize Item Token.
+    private static string NormalizeItemToken(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return string.Empty;
+        }
+
+        return raw.Trim().Replace('_', ' ').ToLowerInvariant();
+    }
+
+    // Handle Clear Inventory Manager Slot.
+    private static void ClearInventoryManagerSlot(SlotInsideUI slot)
+    {
+        if (slot == null)
         {
             return;
         }
 
-        foreach (CraftableSlot slot in craftingManager.slots)
+        slot.count = 0;
+        slot.occupied = false;
+        slot.nameofslot = string.Empty;
+        slot.Item = null;
+
+        if (slot.image != null)
         {
-            slot?.SetSelectedVisual(craftableItem != null && slot.craftableItemReference == craftableItem);
+            slot.image.sprite = null;
         }
+
+        UpdateInventoryManagerSlotVisual(slot);
     }
 
-    private void ResolveReferences()
+    // Handle Update Inventory Manager Slot Visual.
+    private static void UpdateInventoryManagerSlotVisual(SlotInsideUI slot)
     {
-        if (craftingManager == null)
-        {
-            craftingManager = GetComponentInParent<CraftingManager>();
-        }
-
-        if (craftingManager == null)
-        {
-#if UNITY_2023_1_OR_NEWER
-            craftingManager = FindAnyObjectByType<CraftingManager>(FindObjectsInactive.Include);
-#else
-            craftingManager = FindObjectOfType<CraftingManager>(true);
-#endif
-        }
-
-        if (inventoryManager == null)
-        {
-#if UNITY_2023_1_OR_NEWER
-            inventoryManager = FindAnyObjectByType<InventoryManager>(FindObjectsInactive.Include);
-#else
-            inventoryManager = FindObjectOfType<InventoryManager>(true);
-#endif
-        }
-    }
-
-    private void SetupCraftButton()
-    {
-        if (button == null)
+        if (slot == null || slot.text == null)
         {
             return;
         }
 
-        craftButtonLabel = craftButtonLabel != null ? craftButtonLabel : button.GetComponentInChildren<TextMeshProUGUI>(true);
-        craftProgressSlider = craftProgressSlider != null ? craftProgressSlider : button.GetComponentInChildren<Slider>(true);
-
-        if (craftButtonLabel != null && !string.IsNullOrWhiteSpace(craftButtonLabel.text))
-        {
-            defaultButtonText = craftButtonLabel.text;
-        }
-
-        button.onClick.RemoveListener(Craft);
-        if (!HasPersistentCraftBinding(button))
-        {
-            button.onClick.AddListener(Craft);
-        }
-
-        EnsureProgressSliderExists();
-    }
-
-    private bool HasPersistentCraftBinding(Button targetButton)
-    {
-        UnityEventBase click = targetButton.onClick;
-        for (int i = 0; i < click.GetPersistentEventCount(); i++)
-        {
-            if (click.GetPersistentTarget(i) == this && click.GetPersistentMethodName(i) == nameof(Craft))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private void EnsureProgressSliderExists()
-    {
-        RectTransform parent = button != null ? button.transform as RectTransform : null;
-        if (craftProgressSlider != null || parent == null)
-        {
-            return;
-        }
-
-        RectTransform root = CreateUiRect("CraftProgressSlider", parent, typeof(Image), typeof(Slider));
-        root.SetSiblingIndex(0);
-        Image background = root.GetComponent<Image>();
-        background.color = new Color32(28, 24, 18, 200);
-        background.raycastTarget = false;
-
-        RectTransform fill = CreateUiRect("Fill", root, typeof(Image));
-        fill.offsetMin = new Vector2(4f, 4f);
-        fill.offsetMax = new Vector2(-4f, -4f);
-        Image fillImage = fill.GetComponent<Image>();
-        fillImage.color = new Color32(118, 193, 96, 255);
-        fillImage.raycastTarget = false;
-
-        craftProgressSlider = root.GetComponent<Slider>();
-        craftProgressSlider.interactable = false;
-        craftProgressSlider.minValue = 0f;
-        craftProgressSlider.maxValue = 1f;
-        craftProgressSlider.fillRect = fill;
-        craftProgressSlider.handleRect = null;
-    }
-
-    private static RectTransform CreateUiRect(string objectName, RectTransform parent, params Type[] extraComponents)
-    {
-        Type[] components = new Type[extraComponents.Length + 2];
-        components[0] = typeof(RectTransform);
-        components[1] = typeof(CanvasRenderer);
-        Array.Copy(extraComponents, 0, components, 2, extraComponents.Length);
-
-        RectTransform rect = new GameObject(objectName, components).GetComponent<RectTransform>();
-        rect.SetParent(parent, false);
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-        return rect;
-    }
-
-    private void ResetProgressUi()
-    {
-        if (craftProgressSlider != null)
-        {
-            craftProgressSlider.value = 0f;
-            craftProgressSlider.gameObject.SetActive(false);
-        }
-
-        if (craftButtonLabel != null)
-        {
-            craftButtonLabel.text = defaultButtonText;
-        }
-    }
-
-    private void SetProgress(float value)
-    {
-        float progress = Mathf.Clamp01(value);
-        if (craftProgressSlider != null)
-        {
-            craftProgressSlider.gameObject.SetActive(true);
-            craftProgressSlider.value = progress;
-        }
-
-        if (showCraftPercentOnButton && craftButtonLabel != null)
-        {
-            craftButtonLabel.text = $"{craftingLabelPrefix} {Mathf.RoundToInt(progress * 100f)}%";
-        }
-    }
-
-    private bool IsCraftLocked()
-    {
-        return craftInProgress || Time.unscaledTime < clickLockedUntil;
-    }
-
-    private void SetCanCraft(bool canCraft)
-    {
-        if (button != null)
-        {
-            button.interactable = canCraft && !IsCraftLocked();
-        }
-    }
-
-    private static void RefreshInventorySlot(SlotInsideUI slot)
-    {
-        if (slot.count <= 0)
-        {
-            slot.count = 0;
-            slot.occupied = false;
-            slot.nameofslot = string.Empty;
-            slot.Item = null;
-            if (slot.image != null) slot.image.sprite = null;
-        }
-
-        if (slot.text != null)
-        {
-            slot.text.text = slot.count > 0 ? slot.count.ToString() : "0";
-        }
-    }
-
-    private static bool IsSameItem(SlotInsideUI slot, InventoryItem item)
-    {
-        return slot != null && item != null &&
-               (slot.Item == item || CleanName(GetSlotItemName(slot)) == CleanName(GetItemName(item)));
-    }
-
-    private static string GetSlotItemName(SlotInsideUI slot)
-    {
-        if (slot == null) return string.Empty;
-        if (!string.IsNullOrWhiteSpace(slot.nameofslot)) return slot.nameofslot;
-        return slot.Item != null ? GetItemName(slot.Item) : string.Empty;
-    }
-
-    private static string GetItemName(InventoryItem item)
-    {
-        if (item == null) return string.Empty;
-        return !string.IsNullOrWhiteSpace(item.nameofitem) ? item.nameofitem : item.name;
-    }
-
-    private static string CleanName(string raw)
-    {
-        return string.IsNullOrWhiteSpace(raw) ? string.Empty : raw.Trim().Replace('_', ' ').ToLowerInvariant();
-    }
-
-    private static bool TryParseRequirement(string raw, out string itemName, out int amount)
-    {
-        itemName = string.Empty;
-        amount = 1;
-        if (string.IsNullOrWhiteSpace(raw)) return false;
-
-        string text = raw.Trim();
-        int colon = text.LastIndexOf(':');
-        if (colon > 0 && colon < text.Length - 1)
-        {
-            itemName = text.Substring(0, colon).Trim();
-            return int.TryParse(text.Substring(colon + 1).Trim(), out amount) && amount > 0;
-        }
-
-        int open = text.LastIndexOf('(');
-        int close = text.LastIndexOf(')');
-        if (open > 0 && close == text.Length - 1 && close > open + 1)
-        {
-            itemName = text.Substring(0, open).Trim();
-            return int.TryParse(text.Substring(open + 1, close - open - 1).Trim(), out amount) && amount > 0;
-        }
-
-        itemName = text;
-        return true;
+        slot.text.text = slot.count > 0 ? slot.count.ToString() : "0";
     }
 }

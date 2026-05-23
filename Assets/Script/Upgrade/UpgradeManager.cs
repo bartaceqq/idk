@@ -13,6 +13,7 @@ public class UpgradeManager : MonoBehaviour
     public bool UpgradeUIShown = false;
   
 
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         RefreshUpgradeSlots();
@@ -39,6 +40,7 @@ public class UpgradeManager : MonoBehaviour
         GameplayUiState.ApplyCursorState();
     }
 
+    // Update is called once per frame
     void Update()
     {
         if (GameSettings.GetKeyDown(GameSettings.Key.Upgrade, KeyCode.K))
@@ -107,17 +109,20 @@ public static class GameplayUiState
 {
     private static bool externalMenuOpen;
 
+    // Handle Is Menu Open.
     public static bool IsMenuOpen
     {
         get
         {
-            return InventoryManager.IsInventoryOpen ||
+            return InventoryController.IsInventoryOpen ||
+                   InventoryManager.IsInventoryOpen ||
                    CraftingManager.IsCraftingOpen ||
                    UpgradeManager.IsUpgradeOpen ||
                    externalMenuOpen;
         }
     }
 
+    // Handle Is Gameplay Input Blocked.
     public static bool IsGameplayInputBlocked
     {
         get
@@ -126,6 +131,7 @@ public static class GameplayUiState
         }
     }
 
+    // Handle Apply Cursor State.
     public static void ApplyCursorState()
     {
         bool uiBlocking = IsGameplayInputBlocked;

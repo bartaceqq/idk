@@ -1,6 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
+// Controls Axe Animation Script behavior.
 public class AxeAnimationScript : MonoBehaviour
 {
     public Animator axeanimator;
@@ -12,11 +13,13 @@ public class AxeAnimationScript : MonoBehaviour
     private static readonly int SwingTriggerHash = Animator.StringToHash("Swing");
     private float _nextSwingAllowedTime;
 
+    // Handle Chop Animation.
     public void ChopAnimation()
     {
         TryPlayChopAnimation();
     }
 
+    // Handle Try Play Chop Animation.
     public bool TryPlayChopAnimation()
     {
         if (axeanimator == null || !axeanimator.isActiveAndEnabled)
@@ -41,11 +44,13 @@ public class AxeAnimationScript : MonoBehaviour
         return true;
     }
 
+    // Handle Get Resolved Swing Animation Speed.
     public float GetResolvedSwingAnimationSpeed()
     {
         return Mathf.Max(minimumSwingAnimationSpeed, swingAnimationSpeed);
     }
 
+    // Handle Try Set Animator Float Parameter.
     private bool TrySetAnimatorFloatParameter(string parameterName, float value)
     {
         if (axeanimator == null || string.IsNullOrWhiteSpace(parameterName))

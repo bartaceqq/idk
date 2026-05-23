@@ -8,6 +8,7 @@ public class UpgradeSlot : MonoBehaviour
     public Sprite sprite;
     public Image image;
     public int id;
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         if (upgradeManager != null && !upgradeManager.upgradeSlots.Contains(this))
@@ -16,6 +17,7 @@ public class UpgradeSlot : MonoBehaviour
         }
     }
 
+    // Update is called once per frame
     void Update()
     {
         

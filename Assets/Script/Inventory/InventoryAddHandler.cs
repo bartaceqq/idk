@@ -5,6 +5,7 @@ public class InventoryAddHandler : MonoBehaviour
 {
     public InventoryManager inventoryManager;
 
+    // Handle Add Item To Inventory.
     public bool AddItemToInventory(InventoryItem Item)
     {
         if (Item == null || inventoryManager == null)
@@ -18,6 +19,7 @@ public class InventoryAddHandler : MonoBehaviour
         return inventoryManager.AddItem(Item, roll);
     }
 
+    // Handle Add Item To Inventory Amount.
     public bool AddItemToInventoryAmount(InventoryItem item, int amount)
     {
         if (item == null || inventoryManager == null || amount <= 0)
@@ -28,6 +30,7 @@ public class InventoryAddHandler : MonoBehaviour
         return inventoryManager.AddItem(item, amount);
     }
 
+    // Handle Resolve Slot Manager.
   
 
 }

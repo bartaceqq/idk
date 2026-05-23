@@ -7,6 +7,7 @@ public abstract class CustomEnemyAIBase : MonoBehaviour
     [Header("References")]
     public LookingController lookingController;
     public GameObject PlayerNormal;
+    public GameObject PlayerBuilding;
     public Transform playertransform;
     public EnemiesHandler enemiesHandler;
 
@@ -193,13 +194,27 @@ public abstract class CustomEnemyAIBase : MonoBehaviour
 
         if (lookingController != null)
         {
-            if (PlayerNormal != null)
+            if (lookingController.switched)
             {
-                resolved = PlayerNormal.transform;
+                if (PlayerBuilding != null)
+                {
+                    resolved = PlayerBuilding.transform;
+                }
+                else if (lookingController.buildingcapsule != null)
+                {
+                    resolved = lookingController.buildingcapsule.transform;
+                }
             }
-            else if (lookingController.normalcapsule != null)
+            else
             {
-                resolved = lookingController.normalcapsule.transform;
+                if (PlayerNormal != null)
+                {
+                    resolved = PlayerNormal.transform;
+                }
+                else if (lookingController.normalcapsule != null)
+                {
+                    resolved = lookingController.normalcapsule.transform;
+                }
             }
         }
 
@@ -209,9 +224,17 @@ public abstract class CustomEnemyAIBase : MonoBehaviour
             {
                 resolved = PlayerNormal.transform;
             }
+            else if (PlayerBuilding != null && PlayerBuilding.activeInHierarchy)
+            {
+                resolved = PlayerBuilding.transform;
+            }
             else if (PlayerNormal != null)
             {
                 resolved = PlayerNormal.transform;
+            }
+            else if (PlayerBuilding != null)
+            {
+                resolved = PlayerBuilding.transform;
             }
         }
 
@@ -846,6 +869,11 @@ public abstract class CustomEnemyAIBase : MonoBehaviour
             return true;
         }
 
+        if (PlayerBuilding != null && IsSameOrChild(candidate, PlayerBuilding.transform))
+        {
+            return true;
+        }
+
         if (lookingController != null)
         {
             if (IsSameOrChild(candidate, lookingController.transform))
@@ -858,6 +886,10 @@ public abstract class CustomEnemyAIBase : MonoBehaviour
                 return true;
             }
 
+            if (lookingController.buildingcapsule != null && IsSameOrChild(candidate, lookingController.buildingcapsule.transform))
+            {
+                return true;
+            }
         }
 
         return false;
@@ -894,6 +926,7 @@ public abstract class CustomEnemyAIBase : MonoBehaviour
     }
 }
 
+// Controls Random Zombie Script behavior.
 public class RandomZombieScript : CustomEnemyAIBase
 {
     [Header("Zombie References")]
@@ -922,6 +955,7 @@ public class RandomZombieScript : CustomEnemyAIBase
         }
     }
 
+    // Handle Attack.
     public void Attack()
     {
         TriggerEnemyAttack();
@@ -948,6 +982,7 @@ public class RandomZombieScript : CustomEnemyAIBase
         }
     }
 
+    // Handle Throw Item Routine.
     private IEnumerator ThrowItemRoutine()
     {
         if (throwSpawnDelay > 0f)
@@ -993,6 +1028,7 @@ public class RandomZombieScript : CustomEnemyAIBase
         }
     }
 
+    // Handle Move Projectile Arc.
     private IEnumerator MoveProjectileArc(Transform projectile, Vector3 startPos, Vector3 endPos, float travelTime, float arcHeight)
     {
         if (projectile == null)
@@ -1030,6 +1066,7 @@ public class RandomZombieScript : CustomEnemyAIBase
         }
     }
 
+    // Handle Ensure Projectile Vfx Is Playing.
     private static void EnsureProjectileVfxIsPlaying(GameObject projectileRoot)
     {
         if (projectileRoot == null)

@@ -1,5 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
+// Controls Optimalization behavior.
 public class Optimalization : MonoBehaviour
 {
     [Header("When To Apply")]
@@ -19,6 +20,7 @@ public class Optimalization : MonoBehaviour
     [Tooltip("If true, game keeps running when not focused (useful while testing).")]
     [SerializeField] private bool runInBackground = true;
 
+    // Run setup once before the first frame.
     private void Start()
     {
         if (applyOnStart)

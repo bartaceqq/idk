@@ -523,7 +523,7 @@ public class ResHandler : MonoBehaviour
     {
         _managedLights.Clear();
 
-        Light[] allLights = FindObjectsByType<Light>(FindObjectsInactive.Include);
+        Light[] allLights = FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < allLights.Length; i++)
         {
             Light light = allLights[i];
