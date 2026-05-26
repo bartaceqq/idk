@@ -1,11 +1,7 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.Rendering;
+using System.Collections; using System.Collections.Generic; using UnityEngine; using UnityEngine.Rendering;
 
 // Aggressive runtime optimizer for very large scenes.
-public class ResHandler : MonoBehaviour
-{
+public class ResHandler : MonoBehaviour {
     [Header("Resolution")]
     [SerializeField] private bool forceResolutionOnStart = true;
     [Tooltip("If true, uses highest supported refresh rate (ignores Target Refresh Rate).")]
@@ -80,483 +76,251 @@ public class ResHandler : MonoBehaviour
     private int _fpsFrameCount;
     private float _fpsAccumTime;
 
-    private struct ManagedObject
-    {
+    private struct ManagedObject {
         public GameObject gameObject;
         public bool initialActive;
-        public Vector3 cachedPosition;
-    }
+        public Vector3 cachedPosition; }
 
-    private struct ManagedRenderer
-    {
+    private struct ManagedRenderer {
         public Renderer renderer;
         public bool initialEnabled;
-        public ShadowCastingMode originalShadows;
-    }
+        public ShadowCastingMode originalShadows; }
 
-    private struct ManagedLight
-    {
+    private struct ManagedLight {
         public Light light;
         public bool initialEnabled;
         public LightShadows originalShadows;
-        public LightType type;
-    }
+        public LightType type; }
 
-    private void OnValidate()
-    {
-        ClampRuntimeTuning();
-    }
+    private void OnValidate() { ClampRuntimeTuning(); }
 
-    private void Awake()
-    {
+    private void Awake() {
         ClampRuntimeTuning();
 
-        if (forceResolutionOnStart)
-        {
+        if (forceResolutionOnStart) {
             int requestedRefresh = useHighestRefreshRate ? 0 : Mathf.Max(0, targetRefreshRate);
-            Screen.SetResolution(targetWidth, targetHeight, fullscreenMode, requestedRefresh);
-        }
+            Screen.SetResolution(targetWidth, targetHeight, fullscreenMode, requestedRefresh); }
 
         ResolveCamera();
-        if (clampCameraFarClip && targetCamera != null)
-        {
-            targetCamera.farClipPlane = Mathf.Min(targetCamera.farClipPlane, cameraFarClipDistance);
-        }
+        if (clampCameraFarClip && targetCamera != null) { targetCamera.farClipPlane = Mathf.Min(targetCamera.farClipPlane, cameraFarClipDistance); }
 
-        if (applyGlobalShadowDistance)
-        {
-            QualitySettings.shadowDistance = Mathf.Min(QualitySettings.shadowDistance, globalShadowDistance);
-        }
+        if (applyGlobalShadowDistance) { QualitySettings.shadowDistance = Mathf.Min(QualitySettings.shadowDistance, globalShadowDistance); }
 
-        if (applyGlobalQualityClamps)
-        {
-            ApplyQualityClamps();
-        }
+        if (applyGlobalQualityClamps) { ApplyQualityClamps(); }
 
         AutoAssignManagedRootsIfMissing();
         CollectManagedData();
-        CollectLights();
-    }
+        CollectLights(); }
 
-    private void Start()
-    {
-        if (useGameObjectCulling && _managedObjects.Count > 0)
-        {
-            StartCoroutine(InitialObjectCullPass());
-        }
-        else if (_managedRenderers.Count > 0)
-        {
-            ForceRendererCullAllNow();
-        }
-    }
+    private void Start() {
+        if (useGameObjectCulling && _managedObjects.Count > 0) { StartCoroutine(InitialObjectCullPass()); } else if (_managedRenderers.Count > 0) { ForceRendererCullAllNow(); } }
 
-    private void Update()
-    {
-        if (targetCamera == null)
-        {
+    private void Update() {
+        if (targetCamera == null) {
             ResolveCamera();
-            if (targetCamera == null)
-            {
-                return;
-            }
-        }
+            if (targetCamera == null) { return; } }
 
         _fpsFrameCount++;
         _fpsAccumTime += Mathf.Max(0.0001f, Time.unscaledDeltaTime);
 
-        if (Time.time >= _nextCullingUpdateTime)
-        {
+        if (Time.time >= _nextCullingUpdateTime) {
             _nextCullingUpdateTime = Time.time + Mathf.Max(0.03f, cullingUpdateInterval);
 
-            if (useGameObjectCulling && _managedObjects.Count > 0)
-            {
-                ProcessObjectCullingBatch();
-            }
-            else if (_managedRenderers.Count > 0)
-            {
-                ProcessRendererCullingBatch();
-            }
-        }
+            if (useGameObjectCulling && _managedObjects.Count > 0) { ProcessObjectCullingBatch(); } else if (_managedRenderers.Count > 0) { ProcessRendererCullingBatch(); } }
 
-        if (optimizeRealtimeLights && Time.time >= _nextLightsUpdateTime)
-        {
+        if (optimizeRealtimeLights && Time.time >= _nextLightsUpdateTime) {
             _nextLightsUpdateTime = Time.time + Mathf.Max(0.05f, lightsUpdateInterval);
-            ProcessLights();
-        }
+            ProcessLights(); }
 
-        if (adaptiveDistanceByFps && Time.time >= _nextAdaptiveCheckTime)
-        {
+        if (adaptiveDistanceByFps && Time.time >= _nextAdaptiveCheckTime) {
             _nextAdaptiveCheckTime = Time.time + Mathf.Max(0.2f, adaptiveCheckInterval);
-            AdaptDistancesFromFps();
-        }
-    }
+            AdaptDistancesFromFps(); } }
 
-    [ContextMenu("Refresh Managed Data")]
-    public void RefreshManagedData()
-    {
-        CollectManagedData();
-    }
+    [ContextMenu("Refresh Managed Data")] public void RefreshManagedData() { CollectManagedData(); }
 
-    [ContextMenu("Refresh Lights")]
-    public void RefreshLights()
-    {
-        CollectLights();
-    }
+    [ContextMenu("Refresh Lights")] public void RefreshLights() { CollectLights(); }
 
-    public void RegisterManagedRoot(Transform root)
-    {
-        if (root == null)
-        {
-            return;
-        }
+    public void RegisterManagedRoot(Transform root) { if (root == null) { return; }
 
-        if (managedRoots == null)
-        {
-            managedRoots = new Transform[0];
-        }
+        if (managedRoots == null) { managedRoots = new Transform[0]; }
 
-        for (int i = 0; i < managedRoots.Length; i++)
-        {
-            if (managedRoots[i] == root)
-            {
-                return;
-            }
-        }
+        for (int i = 0; i < managedRoots.Length; i++) { if (managedRoots[i] == root) { return; } }
 
         Transform[] expandedRoots = new Transform[managedRoots.Length + 1];
-        for (int i = 0; i < managedRoots.Length; i++)
-        {
-            expandedRoots[i] = managedRoots[i];
-        }
+        for (int i = 0; i < managedRoots.Length; i++) { expandedRoots[i] = managedRoots[i]; }
 
         expandedRoots[managedRoots.Length] = root;
-        managedRoots = expandedRoots;
-    }
+        managedRoots = expandedRoots; }
 
-    private void ClampRuntimeTuning()
-    {
-        if (!enforceDistanceCaps)
-        {
-            return;
-        }
+    private void ClampRuntimeTuning() { if (!enforceDistanceCaps) { return; }
 
         treeRenderDistance = Mathf.Min(treeRenderDistance, hardMaxRenderDistance);
         treeShadowDistance = Mathf.Min(treeShadowDistance, hardMaxShadowDistance);
         nonDirectionalLightDistance = Mathf.Min(nonDirectionalLightDistance, hardMaxRenderDistance);
-        nonDirectionalShadowDistance = Mathf.Min(nonDirectionalShadowDistance, hardMaxShadowDistance);
-    }
+        nonDirectionalShadowDistance = Mathf.Min(nonDirectionalShadowDistance, hardMaxShadowDistance); }
 
-    private void ResolveCamera()
-    {
-        if (targetCamera == null)
-        {
-            targetCamera = Camera.main;
-        }
-    }
+    private void ResolveCamera() { if (targetCamera == null) { targetCamera = Camera.main; } }
 
-    private void AutoAssignManagedRootsIfMissing()
-    {
-        if (managedRoots != null && managedRoots.Length > 0)
-        {
-            return;
-        }
+    private void AutoAssignManagedRootsIfMissing() { if (managedRoots != null && managedRoots.Length > 0) { return; }
 
         List<Transform> found = new List<Transform>(3);
         TryAddRootByName(found, "Trees&stones");
         TryAddRootByName(found, "Trees");
         TryAddRootByName(found, "Lamps");
 
-        if (found.Count > 0)
-        {
-            managedRoots = found.ToArray();
-        }
-    }
+        if (found.Count > 0) { managedRoots = found.ToArray(); } }
 
-    private static void TryAddRootByName(List<Transform> found, string objectName)
-    {
+    private static void TryAddRootByName(List<Transform> found, string objectName) {
         GameObject go = GameObject.Find(objectName);
-        if (go != null)
-        {
-            found.Add(go.transform);
-        }
-    }
+        if (go != null) { found.Add(go.transform); } }
 
-    private void CollectManagedData()
-    {
+    private void CollectManagedData() {
         _managedObjects.Clear();
         _managedRenderers.Clear();
         _uniqueManagedObjectIds.Clear();
 
-        if (managedRoots == null || managedRoots.Length == 0)
-        {
-            return;
-        }
+        if (managedRoots == null || managedRoots.Length == 0) { return; }
 
-        for (int i = 0; i < managedRoots.Length; i++)
-        {
+        for (int i = 0; i < managedRoots.Length; i++) {
             Transform root = managedRoots[i];
-            if (root == null)
-            {
-                continue;
-            }
+            if (root == null) { continue; }
 
             Renderer[] renderers = root.GetComponentsInChildren<Renderer>(includeInactiveChildren);
-            for (int r = 0; r < renderers.Length; r++)
-            {
+            for (int r = 0; r < renderers.Length; r++) {
                 Renderer renderer = renderers[r];
-                if (renderer == null)
-                {
-                    continue;
-                }
+                if (renderer == null) { continue; }
 
-                if (renderer is ParticleSystemRenderer || renderer is LineRenderer || renderer is TrailRenderer)
-                {
-                    continue;
-                }
+                if (renderer is ParticleSystemRenderer || renderer is LineRenderer || renderer is TrailRenderer) { continue; }
 
-                if (!useGameObjectCulling || useRendererCullingFallback)
-                {
-                    _managedRenderers.Add(new ManagedRenderer
-                    {
+                if (!useGameObjectCulling || useRendererCullingFallback) {
+                    _managedRenderers.Add(new ManagedRenderer {
                         renderer = renderer,
                         initialEnabled = renderer.enabled,
                         originalShadows = renderer.shadowCastingMode
-                    });
-                }
+                    }); }
 
-                if (useGameObjectCulling)
-                {
+                if (useGameObjectCulling) {
                     Transform top = GetTopObjectUnderRoot(renderer.transform, root);
-                    if (top == null)
-                    {
-                        continue;
-                    }
+                    if (top == null) { continue; }
 
                     int id = top.GetInstanceID();
-                    if (_uniqueManagedObjectIds.Contains(id))
-                    {
-                        continue;
-                    }
+                    if (_uniqueManagedObjectIds.Contains(id)) { continue; }
 
                     _uniqueManagedObjectIds.Add(id);
-                    _managedObjects.Add(new ManagedObject
-                    {
+                    _managedObjects.Add(new ManagedObject {
                         gameObject = top.gameObject,
                         initialActive = top.gameObject.activeSelf,
                         cachedPosition = top.position
-                    });
-                }
-            }
-        }
+                    }); } } }
 
         _objectRoundRobinIndex = 0;
-        _rendererRoundRobinIndex = 0;
-    }
+        _rendererRoundRobinIndex = 0; }
 
-    private static Transform GetTopObjectUnderRoot(Transform candidate, Transform root)
-    {
-        if (candidate == null || root == null || candidate == root)
-        {
-            return null;
-        }
+    private static Transform GetTopObjectUnderRoot(Transform candidate, Transform root) { if (candidate == null || root == null || candidate == root) { return null; }
 
         Transform current = candidate;
-        while (current != null && current.parent != null && current.parent != root)
-        {
-            current = current.parent;
-        }
+        while (current != null && current.parent != null && current.parent != root) { current = current.parent; }
 
-        return current != null && current.parent == root ? current : null;
-    }
+        return current != null && current.parent == root ? current : null; }
 
-    private IEnumerator InitialObjectCullPass()
-    {
-        if (_managedObjects.Count == 0 || targetCamera == null)
-        {
-            yield break;
-        }
+    private IEnumerator InitialObjectCullPass() { if (_managedObjects.Count == 0 || targetCamera == null) { yield break; }
 
         Vector3 camPos = targetCamera.transform.position;
         float renderDistSqr = treeRenderDistance * treeRenderDistance;
         int batchSize = Mathf.Max(128, initialCullBatchSize);
 
-        for (int i = 0; i < _managedObjects.Count; i++)
-        {
+        for (int i = 0; i < _managedObjects.Count; i++) {
             ManagedObject item = _managedObjects[i];
-            if (item.gameObject == null || !item.initialActive)
-            {
-                continue;
-            }
+            if (item.gameObject == null || !item.initialActive) { continue; }
 
             bool shouldBeActive = (item.cachedPosition - camPos).sqrMagnitude <= renderDistSqr;
-            if (item.gameObject.activeSelf != shouldBeActive)
-            {
-                item.gameObject.SetActive(shouldBeActive);
-            }
+            if (item.gameObject.activeSelf != shouldBeActive) { item.gameObject.SetActive(shouldBeActive); }
 
-            if ((i + 1) % batchSize == 0)
-            {
+            if ((i + 1) % batchSize == 0) {
                 yield return null;
-                if (targetCamera != null)
-                {
-                    camPos = targetCamera.transform.position;
-                }
-            }
-        }
-    }
+                if (targetCamera != null) { camPos = targetCamera.transform.position; } } } }
 
-    private void ForceRendererCullAllNow()
-    {
-        if (_managedRenderers.Count == 0 || targetCamera == null)
-        {
-            return;
-        }
+    private void ForceRendererCullAllNow() { if (_managedRenderers.Count == 0 || targetCamera == null) { return; }
 
         Vector3 camPos = targetCamera.transform.position;
         float renderDistSqr = treeRenderDistance * treeRenderDistance;
         float shadowDistSqr = treeShadowDistance * treeShadowDistance;
 
-        for (int i = 0; i < _managedRenderers.Count; i++)
-        {
+        for (int i = 0; i < _managedRenderers.Count; i++) {
             ManagedRenderer item = _managedRenderers[i];
-            if (item.renderer == null || !item.initialEnabled)
-            {
-                continue;
-            }
+            if (item.renderer == null || !item.initialEnabled) { continue; }
 
             float distSqr = (item.renderer.bounds.center - camPos).sqrMagnitude;
             bool shouldRender = distSqr <= renderDistSqr;
             item.renderer.enabled = shouldRender;
 
-            if (shouldRender)
-            {
+            if (shouldRender) {
                 item.renderer.shadowCastingMode = distSqr <= shadowDistSqr
                     ? item.originalShadows
-                    : ShadowCastingMode.Off;
-            }
-        }
-    }
+                    : ShadowCastingMode.Off; } } }
 
-    private void ProcessObjectCullingBatch()
-    {
-        if (_managedObjects.Count == 0 || targetCamera == null)
-        {
-            return;
-        }
+    private void ProcessObjectCullingBatch() { if (_managedObjects.Count == 0 || targetCamera == null) { return; }
 
         Vector3 camPos = targetCamera.transform.position;
         float renderDistSqr = treeRenderDistance * treeRenderDistance;
         int budget = Mathf.Max(1, maxObjectsProcessedPerTick);
 
-        for (int i = 0; i < budget; i++)
-        {
-            if (_objectRoundRobinIndex >= _managedObjects.Count)
-            {
-                _objectRoundRobinIndex = 0;
-            }
+        for (int i = 0; i < budget; i++) { if (_objectRoundRobinIndex >= _managedObjects.Count) { _objectRoundRobinIndex = 0; }
 
             ManagedObject item = _managedObjects[_objectRoundRobinIndex];
             _objectRoundRobinIndex++;
 
-            if (item.gameObject == null || !item.initialActive)
-            {
-                continue;
-            }
+            if (item.gameObject == null || !item.initialActive) { continue; }
 
             bool shouldBeActive = (item.cachedPosition - camPos).sqrMagnitude <= renderDistSqr;
-            if (item.gameObject.activeSelf != shouldBeActive)
-            {
-                item.gameObject.SetActive(shouldBeActive);
-            }
-        }
-    }
+            if (item.gameObject.activeSelf != shouldBeActive) { item.gameObject.SetActive(shouldBeActive); } } }
 
-    private void ProcessRendererCullingBatch()
-    {
-        if (_managedRenderers.Count == 0 || targetCamera == null)
-        {
-            return;
-        }
+    private void ProcessRendererCullingBatch() { if (_managedRenderers.Count == 0 || targetCamera == null) { return; }
 
         Vector3 camPos = targetCamera.transform.position;
         float renderDistSqr = treeRenderDistance * treeRenderDistance;
         float shadowDistSqr = treeShadowDistance * treeShadowDistance;
         int budget = Mathf.Max(1, maxRenderersProcessedPerTick);
 
-        for (int i = 0; i < budget; i++)
-        {
-            if (_rendererRoundRobinIndex >= _managedRenderers.Count)
-            {
-                _rendererRoundRobinIndex = 0;
-            }
+        for (int i = 0; i < budget; i++) { if (_rendererRoundRobinIndex >= _managedRenderers.Count) { _rendererRoundRobinIndex = 0; }
 
             ManagedRenderer item = _managedRenderers[_rendererRoundRobinIndex];
             _rendererRoundRobinIndex++;
 
-            if (item.renderer == null || !item.initialEnabled)
-            {
-                continue;
-            }
+            if (item.renderer == null || !item.initialEnabled) { continue; }
 
             float distSqr = (item.renderer.bounds.center - camPos).sqrMagnitude;
             bool shouldRender = distSqr <= renderDistSqr;
-            if (item.renderer.enabled != shouldRender)
-            {
-                item.renderer.enabled = shouldRender;
-            }
+            if (item.renderer.enabled != shouldRender) { item.renderer.enabled = shouldRender; }
 
-            if (shouldRender)
-            {
+            if (shouldRender) {
                 ShadowCastingMode desired = distSqr <= shadowDistSqr
                     ? item.originalShadows
                     : ShadowCastingMode.Off;
 
-                if (item.renderer.shadowCastingMode != desired)
-                {
-                    item.renderer.shadowCastingMode = desired;
-                }
-            }
-        }
-    }
+                if (item.renderer.shadowCastingMode != desired) { item.renderer.shadowCastingMode = desired; } } } }
 
-    private void CollectLights()
-    {
+    private void CollectLights() {
         _managedLights.Clear();
 
-        Light[] allLights = FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < allLights.Length; i++)
-        {
+        Light[] allLights = UnitySceneSearch.FindAll<Light>();
+        for (int i = 0; i < allLights.Length; i++) {
             Light light = allLights[i];
-            if (light == null)
-            {
-                continue;
-            }
+            if (light == null) { continue; }
 
-            _managedLights.Add(new ManagedLight
-            {
+            _managedLights.Add(new ManagedLight {
                 light = light,
                 initialEnabled = light.enabled,
                 originalShadows = light.shadows,
                 type = light.type
-            });
-        }
-    }
+            }); } }
 
-    private void ProcessLights()
-    {
-        if (_managedLights.Count == 0)
-        {
+    private void ProcessLights() {
+        if (_managedLights.Count == 0) {
             CollectLights();
-            if (_managedLights.Count == 0)
-            {
-                return;
-            }
-        }
+            if (_managedLights.Count == 0) { return; } }
 
-        if (targetCamera == null)
-        {
-            return;
-        }
+        if (targetCamera == null) { return; }
 
         Vector3 camPos = targetCamera.transform.position;
         float lightDistSqr = nonDirectionalLightDistance * nonDirectionalLightDistance;
@@ -564,69 +328,36 @@ public class ResHandler : MonoBehaviour
         int shadowBudget = Mathf.Max(0, maxShadowedNonDirectionalLights);
         int shadowedCount = 0;
 
-        for (int i = 0; i < _managedLights.Count; i++)
-        {
+        for (int i = 0; i < _managedLights.Count; i++) {
             ManagedLight item = _managedLights[i];
             Light light = item.light;
-            if (light == null)
-            {
-                continue;
-            }
+            if (light == null) { continue; }
 
-            if (item.type == LightType.Directional)
-            {
-                continue;
-            }
+            if (item.type == LightType.Directional) { continue; }
 
-            if (!item.initialEnabled)
-            {
-                if (disableShadowsOnDisabledLights && light.shadows != LightShadows.None)
-                {
-                    light.shadows = LightShadows.None;
-                }
-                continue;
-            }
+            if (!item.initialEnabled) { if (disableShadowsOnDisabledLights && light.shadows != LightShadows.None) { light.shadows = LightShadows.None; }
+                continue; }
 
             bool shouldEnable = (light.transform.position - camPos).sqrMagnitude <= lightDistSqr;
-            if (light.enabled != shouldEnable)
-            {
-                light.enabled = shouldEnable;
-            }
+            if (light.enabled != shouldEnable) { light.enabled = shouldEnable; }
 
-            if (!shouldEnable)
-            {
-                if (disableShadowsOnDisabledLights && light.shadows != LightShadows.None)
-                {
-                    light.shadows = LightShadows.None;
-                }
-                continue;
-            }
+            if (!shouldEnable) { if (disableShadowsOnDisabledLights && light.shadows != LightShadows.None) { light.shadows = LightShadows.None; }
+                continue; }
 
             bool canCast = item.originalShadows != LightShadows.None &&
                            (light.transform.position - camPos).sqrMagnitude <= shadowDistSqr &&
                            shadowedCount < shadowBudget;
 
             LightShadows desired = canCast ? item.originalShadows : LightShadows.None;
-            if (light.shadows != desired)
-            {
-                light.shadows = desired;
-            }
+            if (light.shadows != desired) { light.shadows = desired; }
 
-            if (canCast)
-            {
-                shadowedCount++;
-            }
-        }
-    }
+            if (canCast) { shadowedCount++; } } }
 
-    private void AdaptDistancesFromFps()
-    {
-        if (_fpsFrameCount <= 0 || _fpsAccumTime <= 0.0001f)
-        {
+    private void AdaptDistancesFromFps() {
+        if (_fpsFrameCount <= 0 || _fpsAccumTime <= 0.0001f) {
             _fpsFrameCount = 0;
             _fpsAccumTime = 0f;
-            return;
-        }
+            return; }
 
         float fps = _fpsFrameCount / _fpsAccumTime;
         _fpsFrameCount = 0;
@@ -635,20 +366,15 @@ public class ResHandler : MonoBehaviour
         float renderBefore = treeRenderDistance;
         float shadowBefore = treeShadowDistance;
 
-        if (fps < lowFpsThreshold)
-        {
+        if (fps < lowFpsThreshold) {
             treeRenderDistance -= adaptiveStep;
             treeShadowDistance -= adaptiveStep * 0.5f;
             nonDirectionalLightDistance -= adaptiveStep * 0.4f;
-            nonDirectionalShadowDistance -= adaptiveStep * 0.3f;
-        }
-        else if (fps > highFpsThreshold)
-        {
+            nonDirectionalShadowDistance -= adaptiveStep * 0.3f; } else if (fps > highFpsThreshold) {
             treeRenderDistance += adaptiveStep;
             treeShadowDistance += adaptiveStep * 0.5f;
             nonDirectionalLightDistance += adaptiveStep * 0.4f;
-            nonDirectionalShadowDistance += adaptiveStep * 0.3f;
-        }
+            nonDirectionalShadowDistance += adaptiveStep * 0.3f; }
 
         treeRenderDistance = Mathf.Clamp(treeRenderDistance, adaptiveMinRenderDistance, adaptiveMaxRenderDistance);
         treeShadowDistance = Mathf.Clamp(treeShadowDistance, adaptiveMinShadowDistance, adaptiveMaxShadowDistance);
@@ -657,37 +383,24 @@ public class ResHandler : MonoBehaviour
 
         ClampRuntimeTuning();
 
-        if (Mathf.Abs(renderBefore - treeRenderDistance) > 0.1f || Mathf.Abs(shadowBefore - treeShadowDistance) > 0.1f)
-        {
+        if (Mathf.Abs(renderBefore - treeRenderDistance) > 0.1f || Mathf.Abs(shadowBefore - treeShadowDistance) > 0.1f) {
             _nextCullingUpdateTime = 0f;
-            _nextLightsUpdateTime = 0f;
-        }
-    }
+            _nextLightsUpdateTime = 0f; } }
 
-    private void ApplyQualityClamps()
-    {
+    private void ApplyQualityClamps() {
         QualitySettings.lodBias = qualityLodBias;
         QualitySettings.shadowDistance = Mathf.Min(QualitySettings.shadowDistance, globalShadowDistance);
         QualitySettings.pixelLightCount = 1;
 
         Terrain[] terrains = Terrain.activeTerrains;
-        for (int i = 0; i < terrains.Length; i++)
-        {
+        for (int i = 0; i < terrains.Length; i++) {
             Terrain terrain = terrains[i];
-            if (terrain == null)
-            {
-                continue;
-            }
+            if (terrain == null) { continue; }
 
             terrain.detailObjectDensity = Mathf.Clamp01(terrainDetailDensityScale);
             terrain.detailObjectDistance = terrainDetailDistance;
             terrain.treeDistance = terrainTreeDistance;
-            terrain.treeBillboardDistance = terrainBillboardStart;
-        }
-    }
-}
+            terrain.treeBillboardDistance = terrainBillboardStart; } } }
 
 // Backward compatibility for older components already referencing ForceFullHD.
-public class ForceFullHD : ResHandler
-{
-}
+public class ForceFullHD : ResHandler { }

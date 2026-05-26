@@ -1,9 +1,5 @@
-﻿using System.Collections;
-using UnityEngine;
-
-// Controls NPCDemage Script behavior.
-public class NPCDemageScript : MonoBehaviour
-{
+using System.Collections; using UnityEngine;
+public class NPCDemageScript : MonoBehaviour {
     public Animator animator;
     public NPCHealthScript npcHealthScript;
     public Material demagemat;
@@ -15,72 +11,34 @@ public class NPCDemageScript : MonoBehaviour
     public string damageStateName = "Damage";
     public string damageTriggerName = "Damage";
 
-    [Header("Sword Hit Feedback")]
-    public bool applyPracticeCapsuleHitFeedback = true;
+    [Header("Sword Hit Feedback")] public bool applyPracticeCapsuleHitFeedback = true;
     public TestHitting practiceCapsuleHitTemplate;
     public TestHitting hitFeedback;
 
     private Renderer _targetRenderer;
     private Coroutine _flashRoutine;
 
-    void Awake()
-    {
-        if (animator == null)
-        {
-            animator = GetComponentInChildren<Animator>();
-        }
+    void Awake() { if (animator == null) { animator = GetComponentInChildren<Animator>(); }
 
-        if (npcHealthScript == null)
-        {
-            npcHealthScript = GetComponent<NPCHealthScript>();
-        }
+        if (npcHealthScript == null) { npcHealthScript = GetComponent<NPCHealthScript>(); }
 
         _targetRenderer = meshRenderer != null ? meshRenderer : GetComponentInChildren<Renderer>();
-        if (origimat == null && _targetRenderer != null)
-        {
-            origimat = _targetRenderer.sharedMaterial;
-        }
+        if (origimat == null && _targetRenderer != null) { origimat = _targetRenderer.sharedMaterial; }
 
-        ConfigureSwordHitFeedback();
-    }
+        ConfigureSwordHitFeedback(); }
+    public void TakeDemage() { TakeDemage(defaultDamage); }
+    public void TakeDemage(float damage) { if (npcHealthScript != null && npcHealthScript.IsDead) { return; }
 
-    // Handle Take Demage.
-    public void TakeDemage()
-    {
-        TakeDemage(defaultDamage);
-    }
+        if (npcHealthScript != null) { npcHealthScript.TakeDemage(damage); }
 
-    // Handle Take Demage.
-    public void TakeDemage(float damage)
-    {
-        if (npcHealthScript != null && npcHealthScript.IsDead)
-        {
-            return;
-        }
-
-        if (npcHealthScript != null)
-        {
-            npcHealthScript.TakeDemage(damage);
-        }
-
-        if (npcHealthScript != null && npcHealthScript.IsDead)
-        {
-            return;
-        }
+        if (npcHealthScript != null && npcHealthScript.IsDead) { return; }
 
         PlayDamageReaction();
         LockEnemyActions();
 
-        if (_flashRoutine != null)
-        {
-            StopCoroutine(_flashRoutine);
-        }
-        _flashRoutine = StartCoroutine(FlashDamageMaterial());
-    }
-
-    // Handle Play Damage Reaction.
-    private void PlayDamageReaction()
-    {
+        if (_flashRoutine != null) { StopCoroutine(_flashRoutine); }
+        _flashRoutine = StartCoroutine(FlashDamageMaterial()); }
+    private void PlayDamageReaction() {
         if (animator == null) return;
 
         SetBoolIfExists("Walking", false);
@@ -89,114 +47,43 @@ public class NPCDemageScript : MonoBehaviour
         ResetTriggerIfExists("Attack");
 
         int damageStateHash = Animator.StringToHash(damageStateName);
-        if (!string.IsNullOrEmpty(damageStateName) && animator.HasState(0, damageStateHash))
-        {
+        if (!string.IsNullOrEmpty(damageStateName) && animator.HasState(0, damageStateHash)) {
             // Force immediate transition to damage reaction, interrupting current animation.
             animator.Play(damageStateHash, 0, 0f);
-            return;
-        }
+            return; }
 
-        if (!string.IsNullOrEmpty(damageTriggerName) && HasParameter(damageTriggerName, AnimatorControllerParameterType.Trigger))
-        {
+        if (!string.IsNullOrEmpty(damageTriggerName) && HasParameter(damageTriggerName, AnimatorControllerParameterType.Trigger)) {
             animator.ResetTrigger(damageTriggerName);
-            animator.SetTrigger(damageTriggerName);
-        }
-    }
-
-    // Handle Lock Enemy Actions.
-    private void LockEnemyActions()
-    {
+            animator.SetTrigger(damageTriggerName); } }
+    private void LockEnemyActions() {
         float lockSeconds = Mathf.Max(0f, reactionLockSeconds);
         if (lockSeconds <= 0f) return;
 
         CustomEnemyAIBase enemyAi = GetComponent<CustomEnemyAIBase>();
-        if (enemyAi == null)
-        {
-            enemyAi = GetComponentInParent<CustomEnemyAIBase>();
-        }
-        if (enemyAi != null)
-        {
-            enemyAi.LockActions(lockSeconds);
-        }
-    }
+        if (enemyAi == null) { enemyAi = GetComponentInParent<CustomEnemyAIBase>(); }
+        if (enemyAi != null) { enemyAi.LockActions(lockSeconds); } }
+    private void SetBoolIfExists(string parameterName, bool value) { if (HasParameter(parameterName, AnimatorControllerParameterType.Bool)) { animator.SetBool(parameterName, value); } }
+    private void ResetTriggerIfExists(string parameterName) { if (HasParameter(parameterName, AnimatorControllerParameterType.Trigger)) { animator.ResetTrigger(parameterName); } }
+    private bool HasParameter(string parameterName, AnimatorControllerParameterType type) { if (animator == null || string.IsNullOrEmpty(parameterName)) { return false; }
 
-    // Handle Set Bool If Exists.
-    private void SetBoolIfExists(string parameterName, bool value)
-    {
-        if (HasParameter(parameterName, AnimatorControllerParameterType.Bool))
-        {
-            animator.SetBool(parameterName, value);
-        }
-    }
+        foreach (AnimatorControllerParameter parameter in animator.parameters) { if (parameter.type == type && parameter.name == parameterName) { return true; } }
 
-    // Handle Reset Trigger If Exists.
-    private void ResetTriggerIfExists(string parameterName)
-    {
-        if (HasParameter(parameterName, AnimatorControllerParameterType.Trigger))
-        {
-            animator.ResetTrigger(parameterName);
-        }
-    }
-
-    // Handle Has Parameter.
-    private bool HasParameter(string parameterName, AnimatorControllerParameterType type)
-    {
-        if (animator == null || string.IsNullOrEmpty(parameterName))
-        {
-            return false;
-        }
-
-        foreach (AnimatorControllerParameter parameter in animator.parameters)
-        {
-            if (parameter.type == type && parameter.name == parameterName)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // Handle Flash Damage Material.
-    private IEnumerator FlashDamageMaterial()
-    {
-        if (_targetRenderer == null)
-        {
-            yield break;
-        }
+        return false; }
+    private IEnumerator FlashDamageMaterial() { if (_targetRenderer == null) { yield break; }
 
         Material restoreMaterial = origimat != null ? origimat : _targetRenderer.sharedMaterial;
-        if (demagemat != null)
-        {
-            _targetRenderer.material = demagemat;
-        }
+        if (demagemat != null) { _targetRenderer.material = demagemat; }
 
         yield return new WaitForSeconds(flashSeconds);
 
-        if (_targetRenderer != null && restoreMaterial != null)
-        {
-            _targetRenderer.material = restoreMaterial;
-        }
+        if (_targetRenderer != null && restoreMaterial != null) { _targetRenderer.material = restoreMaterial; }
 
-        _flashRoutine = null;
-    }
+        _flashRoutine = null; }
+    private void ConfigureSwordHitFeedback() { if (!applyPracticeCapsuleHitFeedback) { return; }
 
-    // Handle Configure Sword Hit Feedback.
-    private void ConfigureSwordHitFeedback()
-    {
-        if (!applyPracticeCapsuleHitFeedback)
-        {
-            return;
-        }
-
-        if (practiceCapsuleHitTemplate == null)
-        {
-            practiceCapsuleHitTemplate = TestHitting.FindPracticeTemplate();
-        }
+        if (practiceCapsuleHitTemplate == null) { practiceCapsuleHitTemplate = TestHitting.FindPracticeTemplate(); }
 
         hitFeedback = TestHitting.EnsureEnemyHitFeedback(
             gameObject,
             practiceCapsuleHitTemplate,
-            demagemat);
-    }
-}
+            demagemat); } }

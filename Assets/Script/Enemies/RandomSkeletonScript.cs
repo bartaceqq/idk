@@ -1,49 +1,19 @@
 using UnityEngine;
+public class RandomSkeletonScript : CustomEnemyAIBase {
+    [Header("Skeleton References")] public SkeletonAnimatopmScript skeletonAnimationScript;
 
-// Controls Random Skeleton Script behavior.
-public class RandomSkeletonScript : CustomEnemyAIBase
-{
-    [Header("Skeleton References")]
-    public SkeletonAnimatopmScript skeletonAnimationScript;
-
-    protected override void Awake()
-    {
+    protected override void Awake() {
         base.Awake();
 
-        if (skeletonAnimationScript == null)
-        {
+        if (skeletonAnimationScript == null) {
             skeletonAnimationScript = GetComponent<SkeletonAnimatopmScript>();
-            if (skeletonAnimationScript == null)
-            {
-                skeletonAnimationScript = GetComponentInChildren<SkeletonAnimatopmScript>();
-            }
-        }
-    }
+            if (skeletonAnimationScript == null) { skeletonAnimationScript = GetComponentInChildren<SkeletonAnimatopmScript>(); } } }
+    public void Attack() { TriggerEnemyAttack(); }
 
-    // Handle Attack.
-    public void Attack()
-    {
-        TriggerEnemyAttack();
-    }
+    protected override void OnEnemyAttack() {
+        if (debugRangeLogs) { Debug.Log($"[Skeleton:{name}] ATTACK triggered", this); }
 
-    protected override void OnEnemyAttack()
-    {
-        if (debugRangeLogs)
-        {
-            Debug.Log($"[Skeleton:{name}] ATTACK triggered", this);
-        }
+        if (skeletonAnimationScript != null) { skeletonAnimationScript.ThrowAnim(); } }
 
-        if (skeletonAnimationScript != null)
-        {
-            skeletonAnimationScript.ThrowAnim();
-        }
-    }
-
-    protected override void SetWalkAnimation(bool status)
-    {
-        if (skeletonAnimationScript != null)
-        {
-            skeletonAnimationScript.MoveAnim(status);
-        }
-    }
-}
+    protected override void SetWalkAnimation(bool status) {
+        if (skeletonAnimationScript != null) { skeletonAnimationScript.MoveAnim(status); } } }

@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.EventSystems;
+using System; using System.Collections.Generic; using UnityEngine; using UnityEngine.UI; using UnityEngine.EventSystems;
 
-public class CraftableSlot : MonoBehaviour, IPointerClickHandler
-{
+public class CraftableSlot : MonoBehaviour, IPointerClickHandler {
     public LevelingManager levelingManager;
     public CraftingManager craftingManager;
     public CraftingProcessHandler craftingProcessHandler;
@@ -21,42 +16,22 @@ public class CraftableSlot : MonoBehaviour, IPointerClickHandler
     private Button slotButton;
     private Color defaultBackgroundColor;
     private bool hasCachedDefaultBackgroundColor;
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
+    void Start() {
         ResolveReferences();
         BindButtonIfPresent();
         CacheDefaultBackgroundColor();
 
-        if (craftingManager != null && !craftingManager.slots.Contains(this))
-        {
-            craftingManager.slots.Add(this);
-        }
+        if (craftingManager != null && !craftingManager.slots.Contains(this)) { craftingManager.slots.Add(this); }
 
         SetSelectedVisual(false);
-        SetVisualVisible(occupied);
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-
-    }
-    public void AddCraftableItem(CraftableItem craftableItem)
-    {
-        if (craftableItem == null)
-        {
-            return;
-        }
+        SetVisualVisible(occupied); }
+    public void AddCraftableItem(CraftableItem craftableItem) { if (craftableItem == null) { return; }
 
         ResolveReferences();
 
-        if (imageslot == null)
-        {
+        if (imageslot == null) {
             Debug.LogWarning("CraftableSlot: Image slot is not assigned.");
-            return;
-        }
+            return; }
 
         imageslot.sprite = craftableItem.sprite;
         craftableItemReference = craftableItem;
@@ -64,147 +39,59 @@ public class CraftableSlot : MonoBehaviour, IPointerClickHandler
         occupied = true;
         neededResources = craftableItem.neededResources;
 
-        if (levelingManager == null)
-        {
-            locked = false;
-        }
-        else if (craftableItem.minlvl <= levelingManager.level)
-        {
+        if (levelingManager == null) {
+            locked = false; } else if (craftableItem.minlvl <= levelingManager.level) {
             locked = false;
 
-        }
-        else
-        {
-            locked = true;
-        }
+        } else { locked = true; }
 
         SetSelectedVisual(false);
-        SetVisualVisible(true);
-    }
-
-    // Handle Reset Runtime State.
-    public void ResetRuntimeState()
-    {
+        SetVisualVisible(true); }
+    public void ResetRuntimeState() {
         occupied = false;
         locked = false;
         neededResources = null;
         craftableItemReference = null;
         name = string.Empty;
 
-        if (imageslot != null)
-        {
-            imageslot.sprite = null;
-        }
+        if (imageslot != null) { imageslot.sprite = null; }
 
-        SetSelectedVisual(false);
-    }
+        SetSelectedVisual(false); }
+    public void SetVisualVisible(bool visible) { if (imageslot != null) { imageslot.enabled = visible; }
 
-    // Handle Set Visual Visible.
-    public void SetVisualVisible(bool visible)
-    {
-        if (imageslot != null)
-        {
-            imageslot.enabled = visible;
-        }
-
-        if (background != null)
-        {
-            background.enabled = visible;
-        }
-    }
-
-    // Handle Set Selected Visual.
-    public void SetSelectedVisual(bool selected)
-    {
-        if (background == null)
-        {
-            return;
-        }
+        if (background != null) { background.enabled = visible; } }
+    public void SetSelectedVisual(bool selected) { if (background == null) { return; }
 
         CacheDefaultBackgroundColor();
         bool shouldHighlight = selected && occupied && craftableItemReference != null;
-        background.color = shouldHighlight ? selectedBackgroundColor : defaultBackgroundColor;
-    }
+        background.color = shouldHighlight ? selectedBackgroundColor : defaultBackgroundColor; }
+    public void OnPointerClick(PointerEventData eventData) { if (eventData != null && eventData.button != PointerEventData.InputButton.Left) { return; }
 
-    // Handle On Pointer Click.
-    public void OnPointerClick(PointerEventData eventData)
-    {
-        if (eventData != null && eventData.button != PointerEventData.InputButton.Left)
-        {
-            return;
-        }
-
-        SelectCraftableItemFromSlot();
-    }
-
-    // Handle Select Craftable Item From Slot.
-    public void SelectCraftableItemFromSlot()
-    {
-        if (locked || craftableItemReference == null)
-        {
-            return;
-        }
+        SelectCraftableItemFromSlot(); }
+    public void SelectCraftableItemFromSlot() { if (locked || craftableItemReference == null) { return; }
 
         ResolveReferences();
-        if (craftingProcessHandler == null)
-        {
+        if (craftingProcessHandler == null) {
             Debug.LogWarning("CraftableSlot: CraftingProcessHandler was not found for slot click.", this);
-            return;
-        }
+            return; }
 
-        craftingProcessHandler.SelectCraftableItem(craftableItemReference);
-    }
+        craftingProcessHandler.SelectCraftableItem(craftableItemReference); }
+    private void ResolveReferences() { if (craftingManager == null) { craftingManager = GetComponentInParent<CraftingManager>(); }
 
-    // Handle Resolve References.
-    private void ResolveReferences()
-    {
-        if (craftingManager == null)
-        {
-            craftingManager = GetComponentInParent<CraftingManager>();
-        }
+        if (craftingProcessHandler == null && craftingManager != null) { craftingProcessHandler = craftingManager.GetComponent<CraftingProcessHandler>(); }
 
-        if (craftingProcessHandler == null && craftingManager != null)
-        {
-            craftingProcessHandler = craftingManager.GetComponent<CraftingProcessHandler>();
-        }
+        if (craftingProcessHandler == null) { craftingProcessHandler = GetComponentInParent<CraftingProcessHandler>(); }
 
-        if (craftingProcessHandler == null)
-        {
-            craftingProcessHandler = GetComponentInParent<CraftingProcessHandler>();
-        }
-
-        if (craftingProcessHandler == null)
-        {
-#if UNITY_2023_1_OR_NEWER
-            craftingProcessHandler = FindFirstObjectByType<CraftingProcessHandler>(FindObjectsInactive.Include);
-#else
-            craftingProcessHandler = FindObjectOfType<CraftingProcessHandler>(true);
-#endif
-        }
-    }
-
-    // Handle Bind Button If Present.
-    private void BindButtonIfPresent()
-    {
+        if (craftingProcessHandler == null) {
+            craftingProcessHandler = UnitySceneSearch.FindFirst<CraftingProcessHandler>();
+        } }
+    private void BindButtonIfPresent() {
         slotButton = GetComponent<Button>();
-        if (slotButton == null)
-        {
-            return;
-        }
+        if (slotButton == null) { return; }
 
         slotButton.onClick.RemoveListener(SelectCraftableItemFromSlot);
-        slotButton.onClick.AddListener(SelectCraftableItemFromSlot);
-    }
-
-    // Handle Cache Default Background Color.
-    private void CacheDefaultBackgroundColor()
-    {
-        if (hasCachedDefaultBackgroundColor || background == null)
-        {
-            return;
-        }
+        slotButton.onClick.AddListener(SelectCraftableItemFromSlot); }
+    private void CacheDefaultBackgroundColor() { if (hasCachedDefaultBackgroundColor || background == null) { return; }
 
         defaultBackgroundColor = background.color;
-        hasCachedDefaultBackgroundColor = true;
-    }
-}
+        hasCachedDefaultBackgroundColor = true; } }

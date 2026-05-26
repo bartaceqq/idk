@@ -1,27 +1,20 @@
-using UnityEngine;
-using UnityEngine.InputSystem;
-using InputSystemPlayerInput = UnityEngine.InputSystem.PlayerInput;
+using UnityEngine; using UnityEngine.InputSystem; using InputSystemPlayerInput = UnityEngine.InputSystem.PlayerInput;
 
-[RequireComponent(typeof(CharacterController))]
-// Controls test movement and third-person camera behavior.
-public class FPSControllerTest : MonoBehaviour
-{
-    [Header("Movement")]
-    public float moveSpeed = 6f;
+[RequireComponent(typeof(CharacterController))] // Controls test movement and third-person camera behavior.
+public class FPSControllerTest : MonoBehaviour {
+    [Header("Movement")] public float moveSpeed = 6f;
     public float runSpeed = 10f;
     public float jumpSpeed = 8f;
     public float gravity = 20f;
     public float groundedStickForce = 2f;
     public bool disableExtraCapsuleCollider = true;
 
-    [Header("Look")]
-    public float mouseSensitivity = 0.1f;
+    [Header("Look")] public float mouseSensitivity = 0.1f;
     public float minPitch = -60f;
     public float maxPitch = 75f;
     public Transform playerCamera;
 
-    [Header("Third Person Camera")]
-    public Vector3 cameraPivotOffset = new Vector3(0f, 1.6f, 0f);
+    [Header("Third Person Camera")] public Vector3 cameraPivotOffset = new Vector3(0f, 1.6f, 0f);
     public float cameraDistance = 4.5f;
     public float minCameraDistance = 1.2f;
     public float cameraCollisionRadius = 0.2f;
@@ -59,52 +52,33 @@ public class FPSControllerTest : MonoBehaviour
     private bool _isRightRun;
     private bool _sprintLocked;
 
-    void Awake()
-    {
+    void Awake() {
         _cc = GetComponent<CharacterController>();
         _extraCapsuleCollider = GetComponent<CapsuleCollider>();
         _playerInput = GetComponent<InputSystemPlayerInput>();
 
-        if (disableExtraCapsuleCollider && _extraCapsuleCollider != null)
-        {
-            _extraCapsuleCollider.enabled = false;
-        }
+        if (disableExtraCapsuleCollider && _extraCapsuleCollider != null) { _extraCapsuleCollider.enabled = false; }
 
-        if (_playerInput == null)
-        {
-            Debug.LogError("Missing PlayerInput component.");
-        }
+        if (_playerInput == null) { Debug.LogError("Missing PlayerInput component."); }
 
-        if (playerCamera == null)
-        {
-            Debug.LogWarning("Missing player camera reference.");
-        }
-    }
+        if (playerCamera == null) { Debug.LogWarning("Missing player camera reference."); } }
 
-    void OnEnable()
-    {
-        if (_playerInput != null && _playerInput.actions != null)
-        {
+    void OnEnable() {
+        if (_playerInput != null && _playerInput.actions != null) {
             _playerInput.ActivateInput();
             _moveAction = _playerInput.actions.FindAction("Move");
             _lookAction = _playerInput.actions.FindAction("Look");
             _jumpAction = _playerInput.actions.FindAction("Jump");
             _runAction = _playerInput.actions.FindAction("Sprint");
-            if (_runAction == null)
-            {
-                _runAction = _playerInput.actions.FindAction("Run");
-            }
-        }
+            if (_runAction == null) { _runAction = _playerInput.actions.FindAction("Run"); } }
 
         SyncLookAnglesFromTransforms();
         UpdateThirdPersonCamera(0f);
 
         Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
-    }
+        Cursor.visible = false; }
 
-    void OnDisable()
-    {
+    void OnDisable() {
         _playerInput?.DeactivateInput();
         _moveAction = null;
         _lookAction = null;
@@ -112,45 +86,22 @@ public class FPSControllerTest : MonoBehaviour
         _runAction = null;
 
         Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-    }
+        Cursor.visible = true; }
 
-    void Update()
-    {
-        bool uiBlocking = IsUiBlockingGameplay();
-        SetCursorStateForUiBlock(uiBlocking);
+    void Update() {
+        bool uiBlocking = GameplayUiState.IsGameplayInputBlocked;
+        GameplayUiState.ApplyCursorState();
 
-        if (_playerInput == null || _moveAction == null || _lookAction == null)
-        {
-            return;
-        }
+        if (_playerInput == null || _moveAction == null || _lookAction == null) { return; }
 
-        if (uiBlocking)
-        {
-            if (_cc.isGrounded)
-            {
-                _velocity.y = -groundedStickForce;
-            }
-            else
-            {
-                _velocity.y -= gravity * Time.deltaTime;
-            }
+        if (uiBlocking) {
+            if (_cc.isGrounded) { _velocity.y = -groundedStickForce; } else { _velocity.y -= gravity * Time.deltaTime; }
 
-            _isJumping = false;
-            _isIdle = true;
-            _isForwardWalk = false;
-            _isForwardRun = false;
-            _isBackwardWalk = false;
-            _isBackwardRun = false;
-            _isLeftWalk = false;
-            _isLeftRun = false;
-            _isRightWalk = false;
-            _isRightRun = false;
+            SetIdleMovementFlags(false);
 
             RunCallbacks();
             _cc.Move(new Vector3(0f, _velocity.y, 0f) * Time.deltaTime);
-            return;
-        }
+            return; }
 
         Vector2 look = _lookAction.ReadValue<Vector2>();
         _yaw += look.x * mouseSensitivity;
@@ -165,15 +116,9 @@ public class FPSControllerTest : MonoBehaviour
             : (Keyboard.current?.leftShiftKey?.isPressed ?? false);
         bool canSprint = true;
 
-        if (_sprintLocked && !runPressed)
-        {
-            _sprintLocked = false;
-        }
+        if (_sprintLocked && !runPressed) { _sprintLocked = false; }
 
-        if (!canSprint && runPressed)
-        {
-            _sprintLocked = true;
-        }
+        if (!canSprint && runPressed) { _sprintLocked = true; }
 
         bool isRunning = runPressed && canSprint && !_sprintLocked;
         float currentSpeed = isRunning ? runSpeed : moveSpeed;
@@ -182,39 +127,19 @@ public class FPSControllerTest : MonoBehaviour
 
         UpdateMovementFlags(moveInput, isRunning);
 
-        if (_cc.isGrounded)
-        {
+        if (_cc.isGrounded) {
             _velocity.y = -groundedStickForce;
 
-            if (_jumpAction != null && _jumpAction.triggered)
-            {
-                _velocity.y = jumpSpeed;
-            }
-        }
-        else
-        {
-            _velocity.y -= gravity * Time.deltaTime;
-        }
+            if (_jumpAction != null && _jumpAction.triggered) { _velocity.y = jumpSpeed; } } else { _velocity.y -= gravity * Time.deltaTime; }
 
         _isJumping = _jumpAction != null && _jumpAction.triggered;
         RunCallbacks();
 
         Vector3 finalVelocity = new Vector3(move.x, _velocity.y, move.z);
-        _cc.Move(finalVelocity * Time.deltaTime);
-    }
+        _cc.Move(finalVelocity * Time.deltaTime); }
 
-    void LateUpdate()
-    {
-        UpdateThirdPersonCamera(Time.deltaTime);
-    }
-
-    // Handle Update Third Person Camera.
-    private void UpdateThirdPersonCamera(float deltaTime)
-    {
-        if (playerCamera == null)
-        {
-            return;
-        }
+    void LateUpdate() { UpdateThirdPersonCamera(Time.deltaTime); }
+    private void UpdateThirdPersonCamera(float deltaTime) { if (playerCamera == null) { return; }
 
         Quaternion lookRotation = Quaternion.Euler(_pitch, _yaw, 0f);
         Vector3 pivot = transform.position + cameraPivotOffset;
@@ -231,36 +156,22 @@ public class FPSControllerTest : MonoBehaviour
             cameraCollisionMask,
             QueryTriggerInteraction.Ignore);
 
-        for (int i = 0; i < hitCount; i++)
-        {
+        for (int i = 0; i < hitCount; i++) {
             Collider hitCollider = _cameraHits[i].collider;
-            if (hitCollider == null || hitCollider.transform.IsChildOf(transform))
-            {
-                continue;
-            }
+            if (hitCollider == null || hitCollider.transform.IsChildOf(transform)) { continue; }
 
-            if (_cameraHits[i].distance > 0.001f && _cameraHits[i].distance < resolvedDistance)
-            {
-                resolvedDistance = _cameraHits[i].distance;
-            }
-        }
+            if (_cameraHits[i].distance > 0.001f && _cameraHits[i].distance < resolvedDistance) { resolvedDistance = _cameraHits[i].distance; } }
 
         float targetDistance = Mathf.Max(minCameraDistance, resolvedDistance - 0.05f);
-        if (!_cameraDistanceInitialized || deltaTime <= 0f)
-        {
+        if (!_cameraDistanceInitialized || deltaTime <= 0f) {
             _currentCameraDistance = targetDistance;
-            _cameraDistanceInitialized = true;
-        }
-        else
-        {
+            _cameraDistanceInitialized = true; } else {
             float distanceSpeed = targetDistance < _currentCameraDistance ? cameraSnapInSpeed : cameraReturnSpeed;
-            _currentCameraDistance = Mathf.MoveTowards(_currentCameraDistance, targetDistance, distanceSpeed * deltaTime);
-        }
+            _currentCameraDistance = Mathf.MoveTowards(_currentCameraDistance, targetDistance, distanceSpeed * deltaTime); }
 
         Vector3 desiredPosition = pivot + (backward * _currentCameraDistance);
 
-        if (deltaTime > 0f && cameraSmoothSpeed > 0f)
-        {
+        if (deltaTime > 0f && cameraSmoothSpeed > 0f) {
             float smoothTime = 1f / cameraSmoothSpeed;
             playerCamera.position = Vector3.SmoothDamp(
                 playerCamera.position,
@@ -268,48 +179,27 @@ public class FPSControllerTest : MonoBehaviour
                 ref _cameraVelocity,
                 smoothTime,
                 Mathf.Infinity,
-                deltaTime);
-        }
-        else
-        {
+                deltaTime); } else {
             _cameraVelocity = Vector3.zero;
-            playerCamera.position = desiredPosition;
-        }
+            playerCamera.position = desiredPosition; }
 
-        playerCamera.rotation = lookRotation;
-    }
-
-    // Handle Sync Look Angles From Transforms.
-    private void SyncLookAnglesFromTransforms()
-    {
-        if (playerCamera != null)
-        {
+        playerCamera.rotation = lookRotation; }
+    private void SyncLookAnglesFromTransforms() {
+        if (playerCamera != null) {
             _yaw = playerCamera.eulerAngles.y;
-            _pitch = Mathf.Clamp(NormalizeAngle(playerCamera.eulerAngles.x), minPitch, maxPitch);
-        }
-        else
-        {
+            _pitch = Mathf.Clamp(NormalizeAngle(playerCamera.eulerAngles.x), minPitch, maxPitch); } else {
             _yaw = transform.eulerAngles.y;
-            _pitch = 0f;
-        }
+            _pitch = 0f; }
 
         transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
         _cameraDistanceInitialized = false;
         _currentCameraDistance = Mathf.Max(minCameraDistance, cameraDistance);
-        _cameraVelocity = Vector3.zero;
-    }
-
-    // Handle Normalize Angle.
-    private static float NormalizeAngle(float angle)
-    {
+        _cameraVelocity = Vector3.zero; }
+    private static float NormalizeAngle(float angle) {
         while (angle > 180f) angle -= 360f;
         while (angle < -180f) angle += 360f;
-        return angle;
-    }
-
-    // Handle Update Movement Flags.
-    private void UpdateMovementFlags(Vector2 moveInput, bool isRunning)
-    {
+        return angle; }
+    private void UpdateMovementFlags(Vector2 moveInput, bool isRunning) {
         const float deadzone = 0.1f;
         bool hasInput = moveInput.sqrMagnitude >= deadzone * deadzone;
         bool forwardDominant = Mathf.Abs(moveInput.y) >= Mathf.Abs(moveInput.x);
@@ -327,12 +217,19 @@ public class FPSControllerTest : MonoBehaviour
         _isLeftWalk = left && !isRunning;
         _isLeftRun = left && isRunning;
         _isRightWalk = right && !isRunning;
-        _isRightRun = right && isRunning;
-    }
-
-    // Handle Run Callbacks.
-    private void RunCallbacks()
-    {
+        _isRightRun = right && isRunning; }
+    private void SetIdleMovementFlags(bool isJumping) {
+        _isJumping = isJumping;
+        _isIdle = true;
+        _isForwardWalk = false;
+        _isForwardRun = false;
+        _isBackwardWalk = false;
+        _isBackwardRun = false;
+        _isLeftWalk = false;
+        _isLeftRun = false;
+        _isRightWalk = false;
+        _isRightRun = false; }
+    private void RunCallbacks() {
         OnJump(_isJumping);
         OnIdle(_isIdle);
         OnForwardWalk(_isForwardWalk);
@@ -342,99 +239,21 @@ public class FPSControllerTest : MonoBehaviour
         OnLeftWalk(_isLeftWalk);
         OnLeftRun(_isLeftRun);
         OnRightWalk(_isRightWalk);
-        OnRightRun(_isRightRun);
-    }
+        OnRightRun(_isRightRun); }
 
     // Keep these handlers so PlayerInput Send Messages mode does not throw.
-    public void OnJump(InputValue value)
-    {
-    }
-
-    // Handle On Move.
-    public void OnMove(InputValue value)
-    {
-    }
-
-    // Handle On Look.
-    public void OnLook(InputValue value)
-    {
-    }
-
-    // Handle On Sprint.
-    public void OnSprint(InputValue value)
-    {
-    }
-
-    // Handle On Jump.
-    public void OnJump(bool active)
-    {
-    }
-
-    // Handle On Idle.
-    public void OnIdle(bool active)
-    {
-    }
-
-    // Handle On Forward Walk.
-    public void OnForwardWalk(bool active)
-    {
-    }
-
-    // Handle On Forward Run.
-    public void OnForwardRun(bool active)
-    {
-    }
-
-    // Handle On Backward Walk.
-    public void OnBackwardWalk(bool active)
-    {
-    }
-
-    // Handle On Backward Run.
-    public void OnBackwardRun(bool active)
-    {
-    }
-
-    // Handle On Left Walk.
-    public void OnLeftWalk(bool active)
-    {
-    }
-
-    // Handle On Left Run.
-    public void OnLeftRun(bool active)
-    {
-    }
-
-    // Handle On Right Walk.
-    public void OnRightWalk(bool active)
-    {
-    }
-
-    // Handle On Right Run.
-    public void OnRightRun(bool active)
-    {
-    }
-
-    // Handle Is UIBlocking Gameplay.
-    private static bool IsUiBlockingGameplay()
-    {
-        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen || DialogueState.IsConversationRunning;
-    }
-
-    // Handle Set Cursor State For UIBlock.
-    private static void SetCursorStateForUiBlock(bool uiBlocking)
-    {
-        CursorLockMode targetLockMode = uiBlocking ? CursorLockMode.None : CursorLockMode.Locked;
-        bool targetVisible = uiBlocking;
-
-        if (Cursor.lockState != targetLockMode)
-        {
-            Cursor.lockState = targetLockMode;
-        }
-
-        if (Cursor.visible != targetVisible)
-        {
-            Cursor.visible = targetVisible;
-        }
-    }
+    public void OnJump(InputValue value) { }
+    public void OnMove(InputValue value) { }
+    public void OnLook(InputValue value) { }
+    public void OnSprint(InputValue value) { }
+    public void OnJump(bool active) { }
+    public void OnIdle(bool active) { }
+    public void OnForwardWalk(bool active) { }
+    public void OnForwardRun(bool active) { }
+    public void OnBackwardWalk(bool active) { }
+    public void OnBackwardRun(bool active) { }
+    public void OnLeftWalk(bool active) { }
+    public void OnLeftRun(bool active) { }
+    public void OnRightWalk(bool active) { }
+    public void OnRightRun(bool active) { }
 }

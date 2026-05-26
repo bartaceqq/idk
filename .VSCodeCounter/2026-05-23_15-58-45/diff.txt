@@ -1,0 +1,79 @@
+Date : 2026-05-23 15:58:45
+Directory : c:\Users\adamb\Documents\GitHub\idk\Assets\Script
+Total : 35 files,  -10409 codes, -5 comments, 0 blanks, all -10414 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| C#       |         35 |    -10,409 |         -5 |          0 |    -10,414 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++----------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                   | files      | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                      |         35 |    -10,409 |         -5 |          0 |    -10,414 |
+| . (Files)                                                                              |          1 |       -271 |          0 |          0 |       -271 |
+| Animals                                                                                |          1 |       -205 |          0 |          0 |       -205 |
+| Crafting                                                                               |          3 |       -720 |          0 |          0 |       -720 |
+| Enemies                                                                                |          2 |       -503 |          0 |          0 |       -503 |
+| Inventory                                                                              |          3 |       -712 |          0 |          0 |       -712 |
+| InventoryRemake                                                                        |          2 |       -226 |          0 |          0 |       -226 |
+| Menu                                                                                   |          2 |     -1,098 |          0 |          0 |     -1,098 |
+| NPCS                                                                                   |          1 |        -87 |          0 |          0 |        -87 |
+| Player                                                                                 |         10 |     -4,087 |         -2 |          0 |     -4,089 |
+| Player (Files)                                                                         |          7 |     -2,787 |         -1 |          0 |     -2,788 |
+| Player\Gun                                                                             |          1 |       -535 |          0 |          0 |       -535 |
+| Player\Test                                                                            |          2 |       -765 |         -1 |          0 |       -766 |
+| Save                                                                                   |          1 |       -216 |          0 |          0 |       -216 |
+| Spawning                                                                               |          1 |       -260 |          0 |          0 |       -260 |
+| Stone                                                                                  |          1 |       -508 |          0 |          0 |       -508 |
+| Terrain                                                                                |          1 |       -231 |          0 |          0 |       -231 |
+| Tree                                                                                   |          4 |     -1,115 |         -3 |          0 |     -1,118 |
+| Tree (Files)                                                                           |          3 |       -783 |         -3 |          0 |       -786 |
+| Tree\Rework                                                                            |          1 |       -332 |          0 |          0 |       -332 |
+| XP                                                                                     |          2 |       -170 |          0 |          0 |       -170 |
++----------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++----------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                               | language | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Animals\Animalec.cs                  | C#       |       -205 |          0 |          0 |       -205 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Crafting\CraftableSlot.cs            | C#       |        -79 |          0 |          0 |        -79 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Crafting\CraftingManager.cs          | C#       |       -194 |          0 |          0 |       -194 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Crafting\CraftingProcessHandler.cs   | C#       |       -447 |          0 |          0 |       -447 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Enemies\NPCDemageScript.cs           | C#       |        -85 |          0 |          0 |        -85 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Enemies\RandomZombieScript.cs        | C#       |       -418 |          0 |          0 |       -418 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\InventoryRemake\InventoryManager.cs  | C#       |       -106 |          0 |          0 |       -106 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\InventoryRemake\SlotInsideUI.cs      | C#       |       -120 |          0 |          0 |       -120 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\Slot.cs                    | C#       |       -231 |          0 |          0 |       -231 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\SlotManager.cs             | C#       |       -141 |          0 |          0 |       -141 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Inventory\WeaponSlot.cs              | C#       |       -340 |          0 |          0 |       -340 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Menu\FantasyMenuController.cs        | C#       |       -729 |          0 |          0 |       -729 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Menu\GameSettings.cs                 | C#       |       -369 |          0 |          0 |       -369 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\NPCS\VisualCommunication.cs          | C#       |        -87 |          0 |          0 |        -87 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\ActionScrip.cs                | C#       |       -754 |          0 |          0 |       -754 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\FPSController.cs              | C#       |       -294 |         -1 |          0 |       -295 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\Gun\GunItem.cs                | C#       |       -535 |          0 |          0 |       -535 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\ItemSwitchScript.cs           | C#       |       -380 |          0 |          0 |       -380 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\MovementAnimationScript.cs    | C#       |       -221 |          0 |          0 |       -221 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\RadiusForAttackScript.cs      | C#       |       -250 |          0 |          0 |       -250 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\RayScript.cs                  | C#       |       -695 |          0 |          0 |       -695 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\SwordTrailEffect.cs           | C#       |       -193 |          0 |          0 |       -193 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\Test\FPSControllerTest.cs     | C#       |       -132 |         -1 |          0 |       -133 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Player\Test\TestHitting.cs           | C#       |       -633 |          0 |          0 |       -633 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\ResHandler.cs                        | C#       |       -271 |          0 |          0 |       -271 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Save\GameSaveManager.cs              | C#       |       -216 |          0 |          0 |       -216 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Spawning\SpawnNpcsAtNight.cs         | C#       |       -260 |          0 |          0 |       -260 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Stone\MineStone.cs                   | C#       |       -508 |          0 |          0 |       -508 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Terrain\TerrainTreeProxySpawner.cs   | C#       |       -231 |          0 |          0 |       -231 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Tree\CutTree.cs                      | C#       |       -167 |          0 |          0 |       -167 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Tree\Rework\TreeHandler.cs           | C#       |       -332 |          0 |          0 |       -332 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Tree\TerrainDetailPickupSpawner.cs   | C#       |       -134 |          0 |          0 |       -134 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\Tree\TerrainTreeToPrefabConverter.cs | C#       |       -482 |         -3 |          0 |       -485 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\XP\XPHandler.cs                      | C#       |        -82 |          0 |          0 |        -82 |
+| c:\Users\adamb\Documents\GitHub\idk\Assets\Script\XP\XPLevelTableLoader.cs             | C#       |        -88 |          0 |          0 |        -88 |
+| Total                                                                                  |          |    -10,409 |         -5 |          0 |    -10,414 |
++----------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+

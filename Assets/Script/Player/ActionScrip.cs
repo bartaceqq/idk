@@ -1,13 +1,9 @@
-﻿using UnityEngine;
-
-// Controls Action Script behavior.
-public class ActionScript : MonoBehaviour
-{
+using UnityEngine;
+public class ActionScript : MonoBehaviour {
     public bool enoughstamina;
     public StaminaScript staminaScript; 
     public string currentutil;
-    [Header("Animation Locks")]
-    public float swordMovementAnimationLockSeconds = 0.9f;
+    [Header("Animation Locks")] public float swordMovementAnimationLockSeconds = 0.9f;
     public float swordHeavyMovementAnimationLockSeconds = 1.35f;
     public float unarmedPunchMovementAnimationLockSeconds = 0.6f;
     public float mineUpperBodySeconds = 0.9f;
@@ -28,8 +24,7 @@ public class ActionScript : MonoBehaviour
     public string upperBodyChopStateName = "UpperChop";
     public string upperBodyChopSecondStateName = "UpperChopSecond";
 
-    [Header("Action Animation Speeds")]
-    public float lightAttackAnimationSpeed = 1f;
+    [Header("Action Animation Speeds")] public float lightAttackAnimationSpeed = 1f;
     public float heavyAttackAnimationSpeed = 1f;
     public float punchLeftAnimationSpeed = 1f;
     public float punchRightAnimationSpeed = 1f;
@@ -41,8 +36,7 @@ public class ActionScript : MonoBehaviour
     [Header("Axe Combo")]
     [Range(0f, 0.99f)] public float axeComboHoldNormalizedTime = 0.79f;
 
-    [Header("Full Body Sword Actions")]
-    public string baseLayerName = "Base Layer";
+    [Header("Full Body Sword Actions")] public string baseLayerName = "Base Layer";
     public float fullBodyActionBlendTime = 0.03f;
     [Range(0.5f, 0.999f)] public float fullBodyActionCompletionThreshold = 0.98f;
     public string swordEquipStateName = "PullOutSword";
@@ -53,13 +47,11 @@ public class ActionScript : MonoBehaviour
     public string[] lightAttackStateNames = { "SwordAttack", "SwordAttack2" };
     public string[] heavyAttackStateNames = { "SpecialAttack1", "SpecialAttack2", "SpecialAttack3" };
 
-    [Header("Emote")]
-    public string emoteStateName = "Emote";
+    [Header("Emote")] public string emoteStateName = "Emote";
     public float emoteBlendTime = 0.05f;
     public float emoteCancelBlendTime = 0f;
 
-    [Header("Emote Audio")]
-    public AudioClip emoteLoopClip;
+    [Header("Emote Audio")] public AudioClip emoteLoopClip;
     public AudioSource emoteLoopAudioSource;
     [Range(0f, 1f)] public float emoteLoopVolume = 1f;
 
@@ -96,90 +88,46 @@ public class ActionScript : MonoBehaviour
     private const string GunReloadSpeedParameterName = "GunReloadSpeed";
     private const string SwordBlockingParameterName = "SwordBlocking";
 
-    private void Awake()
-    {
+    private void Awake() {
         EnsurePlayerRootMotionDriver();
         ApplyConfiguredActionAnimationSpeeds();
-        ConfigureEmoteLoopAudioSource();
-    }
+        ConfigureEmoteLoopAudioSource(); }
 
-    private void OnEnable()
-    {
+    private void OnEnable() {
         EnsurePlayerRootMotionDriver();
         ApplyConfiguredActionAnimationSpeeds();
-        ConfigureEmoteLoopAudioSource();
-    }
+        ConfigureEmoteLoopAudioSource(); }
 
-    private void OnDisable()
-    {
-        StopEmoteLoopAudio();
-    }
+    private void OnDisable() { StopEmoteLoopAudio(); }
 
-    private void OnValidate()
-    {
+    private void OnValidate() {
         ApplyConfiguredActionAnimationSpeeds();
-        ConfigureEmoteLoopAudioSource();
-    }
+        ConfigureEmoteLoopAudioSource(); }
 
-    private void Update()
-    {
+    private void Update() {
         UpdateQueuedAxeChopState();
         UpdateUpperBodyLayerWeight();
-        UpdateAnimatorRootMotionState();
-    }
+        UpdateAnimatorRootMotionState(); }
+    public void Chop() { TryChop(); }
+    public bool CanTryChop() { if (IsUpperBodyStateActive(upperBodyChopStateName)) { return !queuedAxeChop; }
 
-    // Handle Chop.
-    public void Chop()
-    {
-        TryChop();
-    }
+        if (IsUpperBodyStateActive(upperBodyChopSecondStateName)) { return false; }
 
-    // Handle Can Try Chop.
-    public bool CanTryChop()
-    {
-        if (IsUpperBodyStateActive(upperBodyChopStateName))
-        {
-            return !queuedAxeChop;
-        }
+        if (IsUpperBodyActionLocked()) { return false; }
 
-        if (IsUpperBodyStateActive(upperBodyChopSecondStateName))
-        {
-            return false;
-        }
-
-        if (IsUpperBodyActionLocked())
-        {
-            return false;
-        }
-
-        return Time.time >= _nextChopAllowedTime;
-    }
-
-    // Handle Try Chop.
-    public bool TryChop()
-    {
+        return Time.time >= _nextChopAllowedTime; }
+    public bool TryChop() {
         CancelEmoteIfActive();
 
-        if (TryQueueActiveChop())
-        {
+        if (TryQueueActiveChop()) {
             _nextChopAllowedTime = Time.time + GetChopRepeatDelaySeconds();
-            return true;
-        }
+            return true; }
 
-        if (IsUpperBodyStateActive(upperBodyChopSecondStateName))
-        {
-            return false;
-        }
+        if (IsUpperBodyStateActive(upperBodyChopSecondStateName)) { return false; }
 
-        if (IsUpperBodyActionLocked())
-        {
-            return false;
-        }
+        if (IsUpperBodyActionLocked()) { return false; }
 
-        if (Time.time < _nextChopAllowedTime)
-        {
-            return false;
-        }
+        if (Time.time < _nextChopAllowedTime) { return false; }
 
         float repeatDelay = GetChopRepeatDelaySeconds();
         ActivateUpperBodyLayer(chopUpperBodySeconds);
@@ -188,323 +136,126 @@ public class ActionScript : MonoBehaviour
         ApplyConfiguredActionAnimationSpeeds();
 
         bool played = TryPlayUpperBodyState(upperBodyChopStateName);
-        if (!played)
-        {
-            played = TryPlayUpperBodyState(upperBodyLightAttackStateName);
-        }
+        if (!played) { played = TryPlayUpperBodyState(upperBodyLightAttackStateName); }
 
-        if (!played && axeAnimationScript != null)
-        {
-            played = axeAnimationScript.TryPlayChopAnimation();
-        }
+        if (!played && axeAnimationScript != null) { played = axeAnimationScript.TryPlayChopAnimation(); }
 
-        if (!played && swordAnimationScript != null)
-        {
+        if (!played && swordAnimationScript != null) {
             swordAnimationScript.AttackLight();
-            played = true;
-        }
+            played = true; }
 
-        if (played)
-        {
-            _nextChopAllowedTime = Time.time + repeatDelay;
-        }
+        if (played) { _nextChopAllowedTime = Time.time + repeatDelay; }
 
-        return played;
-    }
-    // Handle Walk.
-    public void Walk(bool status)
-    {
-        
-        
-         movementAnimationScript.WalkAnimation_Foreward(status);
-        
-    }
-    // Handle Sprint.
-    public void Sprint(bool status, bool playAnimation)
-    {
-        if (movementAnimationScript != null)
-        {
-            movementAnimationScript.RunAnimation_Foreward(status && playAnimation);
-        }
+        return played; }
+    public void Walk(bool status) { if (movementAnimationScript != null) { movementAnimationScript.WalkAnimation_Foreward(status); } }
+    public void Sprint(bool status, bool playAnimation) { if (movementAnimationScript != null) { movementAnimationScript.RunAnimation_Foreward(status && playAnimation); }
 
-        if (staminaScript == null)
-        {
-            return;
-        }
+        if (staminaScript == null) { return; }
 
-        if (status)
-        {
-            staminaScript.ReduceStamina();
-        }
-        else
-        {
-            staminaScript.AddStamina();
-        }
-    }
-    // Handle Idle.
-    public void Idle(bool status)
-    {
-        movementAnimationScript.IdleAnimation(status);
-    }
-    // Handle Mine.
-    public void Mine()
-    {
-        TryMine();
-    }
-
-    // Handle Try Mine.
-    public bool TryMine()
-    {
+        if (status) { staminaScript.ReduceStamina(); } else { staminaScript.AddStamina(); } }
+    public void Idle(bool status) { movementAnimationScript.IdleAnimation(status); }
+    public void Mine() { TryMine(); }
+    public bool TryMine() {
         CancelEmoteIfActive();
 
-        if (IsUpperBodyActionLocked())
-        {
-            return false;
-        }
+        if (IsUpperBodyActionLocked()) { return false; }
 
         ActivateUpperBodyLayer(mineUpperBodySeconds);
         ApplyConfiguredActionAnimationSpeeds();
         bool played = TryPlayUpperBodyState(upperBodyMiningStateName);
-        if (!played && pickaxeAnimationScript != null)
-        {
+        if (!played && pickaxeAnimationScript != null) {
             pickaxeAnimationScript.Mine();
-            played = true;
-        }
+            played = true; }
 
-        return played;
-    }
-    // Handle Attack.
-    public void Attack()
-    {
-        AttackLight();
-    }
-
-    // Handle Attack Light.
-    public void AttackLight()
-    {
-        TryAttackLight();
-    }
-
-    // Handle Try Attack Light.
-    public bool TryAttackLight()
-    {
+        return played; }
+    public void Attack() { AttackLight(); }
+    public void AttackLight() { TryAttackLight(); }
+    public bool TryAttackLight() { return TryWeaponAttack(false, -1); }
+    public void AttackHeavy() { TryAttackHeavy(); }
+    public bool TryAttackHeavy() { return TryWeaponAttack(true, -1); }
+    public bool TryAttackSpecial(int specialIndex) { return TryWeaponAttack(true, specialIndex); }
+    private bool TryWeaponAttack(bool heavyAttack, int specialIndex) {
         CancelEmoteIfActive();
 
-        if (IsUpperBodyActionLocked() || IsGameplayInputLocked())
-        {
-            return false;
-        }
+        if (IsUpperBodyActionLocked() || IsGameplayInputLocked()) { return false; }
 
         ApplyConfiguredActionAnimationSpeeds();
-        bool played = TryPlayNextFullBodyState(lightAttackStateNames, ref _nextLightAttackIndex);
-        if (!played)
-        {
-            ActivateUpperBodyLayer(swordMovementAnimationLockSeconds);
-            played = TryPlayUpperBodyState(upperBodyLightAttackStateName);
-        }
+        bool played;
+        if (specialIndex >= 0) { played = TryPlayIndexedFullBodyState(heavyAttackStateNames, specialIndex, ref _nextHeavyAttackIndex); }
+        else if (heavyAttack) { played = TryPlayNextFullBodyState(heavyAttackStateNames, ref _nextHeavyAttackIndex); }
+        else { played = TryPlayNextFullBodyState(lightAttackStateNames, ref _nextLightAttackIndex); }
 
-        if (!played && swordAnimationScript != null)
-        {
-            swordAnimationScript.AttackLight();
-            played = true;
-        }
+        if (!played) {
+            ActivateUpperBodyLayer(heavyAttack ? swordHeavyMovementAnimationLockSeconds : swordMovementAnimationLockSeconds);
+            played = TryPlayUpperBodyState(heavyAttack ? upperBodyHeavyAttackStateName : upperBodyLightAttackStateName); }
 
-        if (played)
-        {
-            ForceStopMovementAnimations();
-        }
+        if (!played && swordAnimationScript != null) {
+            if (heavyAttack) { swordAnimationScript.AttackHeavy(); } else { swordAnimationScript.AttackLight(); }
 
-        return played;
-    }
+            played = true; }
 
-    // Handle Attack Heavy.
-    public void AttackHeavy()
-    {
-        TryAttackHeavy();
-    }
+        if (played) { ForceStopMovementAnimations(); }
 
-    // Handle Try Attack Heavy.
-    public bool TryAttackHeavy()
-    {
-        CancelEmoteIfActive();
-
-        if (IsUpperBodyActionLocked() || IsGameplayInputLocked())
-        {
-            return false;
-        }
-
-        ApplyConfiguredActionAnimationSpeeds();
-        bool played = TryPlayNextFullBodyState(heavyAttackStateNames, ref _nextHeavyAttackIndex);
-        if (!played)
-        {
-            ActivateUpperBodyLayer(swordHeavyMovementAnimationLockSeconds);
-            played = TryPlayUpperBodyState(upperBodyHeavyAttackStateName);
-        }
-
-        if (!played && swordAnimationScript != null)
-        {
-            swordAnimationScript.AttackHeavy();
-            played = true;
-        }
-
-        if (played)
-        {
-            ForceStopMovementAnimations();
-        }
-
-        return played;
-    }
-
-    // Handle Try Attack Special.
-    public bool TryAttackSpecial(int specialIndex)
-    {
-        CancelEmoteIfActive();
-
-        if (IsUpperBodyActionLocked() || IsGameplayInputLocked())
-        {
-            return false;
-        }
-
-        ApplyConfiguredActionAnimationSpeeds();
-        bool played = TryPlayIndexedFullBodyState(heavyAttackStateNames, specialIndex, ref _nextHeavyAttackIndex);
-        if (!played)
-        {
-            ActivateUpperBodyLayer(swordHeavyMovementAnimationLockSeconds);
-            played = TryPlayUpperBodyState(upperBodyHeavyAttackStateName);
-        }
-
-        if (!played && swordAnimationScript != null)
-        {
-            swordAnimationScript.AttackHeavy();
-            played = true;
-        }
-
-        if (played)
-        {
-            ForceStopMovementAnimations();
-        }
-
-        return played;
-    }
-
-    // Handle Try Equip Sword.
-    public bool TryEquipSword()
-    {
+        return played; }
+    public bool TryEquipSword() {
         CancelEmoteIfActive();
         ApplyConfiguredActionAnimationSpeeds();
-        return TryPlaySwordFullBodyState(swordEquipStateName);
-    }
-
-    // Handle Try Unequip Sword.
-    public bool TryUnequipSword()
-    {
+        return TryPlaySwordFullBodyState(swordEquipStateName); }
+    public bool TryUnequipSword() {
         CancelEmoteIfActive();
         ApplyConfiguredActionAnimationSpeeds();
         Animator animator = ResolveCharacterAnimator();
         TrySetAnimatorBoolParameter(animator, SwordBlockingParameterName, false);
-        return TryPlaySwordFullBodyState(swordUnequipStateName);
-    }
-
-    // Handle Try Begin Sword Block.
-    public bool TryBeginSwordBlock()
-    {
+        return TryPlaySwordFullBodyState(swordUnequipStateName); }
+    public bool TryBeginSwordBlock() {
         CancelEmoteIfActive();
 
         Animator animator = ResolveCharacterAnimator();
-        if (animator == null)
-        {
-            return false;
-        }
+        if (animator == null) { return false; }
 
-        if (TryGetActiveSwordBlockStateInfo(animator, out _))
-        {
+        if (TryGetActiveSwordBlockStateInfo(animator, out _)) {
             TrySetAnimatorBoolParameter(animator, SwordBlockingParameterName, true);
             ForceStopMovementAnimations();
-            return true;
-        }
+            return true; }
 
-        if (IsUpperBodyActionLocked() || IsGameplayInputLocked())
-        {
-            return false;
-        }
+        if (IsUpperBodyActionLocked() || IsGameplayInputLocked()) { return false; }
 
-        if (!TryGetBaseLayerIndex(animator, out int layerIndex))
-        {
-            return false;
-        }
+        if (!TryGetBaseLayerIndex(animator, out int layerIndex)) { return false; }
 
         ApplyConfiguredActionAnimationSpeeds();
         TrySetAnimatorBoolParameter(animator, SwordBlockingParameterName, true);
 
         bool played = TryPlayAnimatorState(animator, layerIndex, swordBlockEnterStateName, fullBodyActionBlendTime);
-        if (!played)
-        {
-            played = TryPlayAnimatorState(animator, layerIndex, swordBlockLoopStateName, fullBodyActionBlendTime);
-        }
+        if (!played) { played = TryPlayAnimatorState(animator, layerIndex, swordBlockLoopStateName, fullBodyActionBlendTime); }
 
-        if (!played)
-        {
+        if (!played) {
             TrySetAnimatorBoolParameter(animator, SwordBlockingParameterName, false);
-            return false;
-        }
+            return false; }
 
         ForceStopMovementAnimations();
-        return true;
-    }
-
-    // Handle Stop Sword Block.
-    public void StopSwordBlock()
-    {
+        return true; }
+    public void StopSwordBlock() {
         Animator animator = ResolveCharacterAnimator();
-        if (animator == null)
-        {
-            return;
-        }
+        if (animator == null) { return; }
 
         TrySetAnimatorBoolParameter(animator, SwordBlockingParameterName, false);
         if (!TryGetBaseLayerIndex(animator, out int layerIndex) ||
-            !TryGetActiveSwordBlockStateInfo(animator, out AnimatorStateInfo stateInfo))
-        {
-            return;
-        }
+            !TryGetActiveSwordBlockStateInfo(animator, out AnimatorStateInfo stateInfo)) { return; }
 
-        if (MatchesStateName(stateInfo, swordBlockExitStateName))
-        {
-            return;
-        }
+        if (MatchesStateName(stateInfo, swordBlockExitStateName)) { return; }
 
-        TryPlayAnimatorState(animator, layerIndex, swordBlockExitStateName, fullBodyActionBlendTime);
-    }
-
-    // Handle Cancel Sword Block.
-    public void CancelSwordBlock()
-    {
+        TryPlayAnimatorState(animator, layerIndex, swordBlockExitStateName, fullBodyActionBlendTime); }
+    public void CancelSwordBlock() {
         Animator animator = ResolveCharacterAnimator();
-        TrySetAnimatorBoolParameter(animator, SwordBlockingParameterName, false);
-    }
-
-    // Handle Is Sword Block Active.
-    public bool IsSwordBlockActive()
-    {
+        TrySetAnimatorBoolParameter(animator, SwordBlockingParameterName, false); }
+    public bool IsSwordBlockActive() {
         Animator animator = ResolveCharacterAnimator();
-        return TryGetActiveSwordBlockStateInfo(animator, out _);
-    }
-
-    // Handle Unarmed Punch Combo.
-    public void UnarmedPunchCombo()
-    {
-        TryUnarmedPunchCombo();
-    }
-
-    // Handle Try Unarmed Punch Combo.
-    public bool TryUnarmedPunchCombo()
-    {
+        return TryGetActiveSwordBlockStateInfo(animator, out _); }
+    public void UnarmedPunchCombo() { TryUnarmedPunchCombo(); }
+    public bool TryUnarmedPunchCombo() {
         CancelEmoteIfActive();
 
-        if (IsUpperBodyActionLocked())
-        {
-            return false;
-        }
+        if (IsUpperBodyActionLocked()) { return false; }
 
         bool punchLeft = (unarmedPunchStep % 2) == 0;
         ActivateUpperBodyLayer(unarmedPunchMovementAnimationLockSeconds);
@@ -515,327 +266,135 @@ public class ActionScript : MonoBehaviour
             : upperBodyPunchRightStateName;
 
         bool played = TryPlayUpperBodyState(targetUpperBodyState);
-        if (!played && swordAnimationScript != null)
-        {
-            if (punchLeft)
-            {
-                swordAnimationScript.PunchLeft();
-            }
-            else
-            {
-                swordAnimationScript.PunchRight();
-            }
+        if (!played && swordAnimationScript != null) {
+            if (punchLeft) { swordAnimationScript.PunchLeft(); } else { swordAnimationScript.PunchRight(); }
 
-            played = true;
-        }
+            played = true; }
 
-        if (played)
-        {
-            unarmedPunchStep = (unarmedPunchStep + 1) % 4;
-        }
+        if (played) { unarmedPunchStep = (unarmedPunchStep + 1) % 4; }
 
-        return played;
-    }
-
-    // Handle Reset Unarmed Punch Combo.
-    public void ResetUnarmedPunchCombo()
-    {
-        unarmedPunchStep = 0;
-    }
-
-    // Handle Get Chop Repeat Delay Seconds.
-    public float GetChopRepeatDelaySeconds()
-    {
-        return Mathf.Max(0.01f, chopRepeatDelaySeconds);
-    }
-
-    // Handle Get Remaining Chop Cooldown.
-    public float GetRemainingChopCooldown()
-    {
-        return Mathf.Max(0f, _nextChopAllowedTime - Time.time);
-    }
-
-    // Handle Is Upper Body Action Locked.
-    public bool IsUpperBodyActionLocked()
-    {
+        return played; }
+    public void ResetUnarmedPunchCombo() { unarmedPunchStep = 0; }
+    public float GetChopRepeatDelaySeconds() { return Mathf.Max(0.01f, chopRepeatDelaySeconds); }
+    public float GetRemainingChopCooldown() { return Mathf.Max(0f, _nextChopAllowedTime - Time.time); }
+    public bool IsUpperBodyActionLocked() {
         Animator animator = ResolveCharacterAnimator();
-        if (!TryGetActionPlaybackLayerIndex(animator, out int layerIndex))
-        {
-            return false;
-        }
+        if (!TryGetActionPlaybackLayerIndex(animator, out int layerIndex)) { return false; }
 
-        return IsAnimatorLayerBlockingNewAction(animator, layerIndex);
-    }
-
-    // Handle Get Remaining Upper Body Action Lock Seconds.
-    public float GetRemainingUpperBodyActionLockSeconds()
-    {
+        return IsAnimatorLayerBlockingNewAction(animator, layerIndex); }
+    public float GetRemainingUpperBodyActionLockSeconds() {
         Animator animator = ResolveCharacterAnimator();
         if (!TryGetActionPlaybackLayerIndex(animator, out int layerIndex) ||
-            !TryGetActiveActionStateInfo(animator, layerIndex, out AnimatorStateInfo stateInfo))
-        {
-            return 0f;
-        }
+            !TryGetActiveActionStateInfo(animator, layerIndex, out AnimatorStateInfo stateInfo)) { return 0f; }
 
         float remainingNormalized = Mathf.Max(0f, GetUpperBodyActionCompletionThreshold() - stateInfo.normalizedTime);
         float playbackSpeed = Mathf.Abs(stateInfo.speed * stateInfo.speedMultiplier);
-        if (playbackSpeed < 0.01f)
-        {
-            playbackSpeed = 1f;
-        }
+        if (playbackSpeed < 0.01f) { playbackSpeed = 1f; }
 
-        return remainingNormalized * stateInfo.length / playbackSpeed;
-    }
-
-    // Handle Force End Jump Animation.
-    public void ForceEndJumpAnimation()
-    {
+        return remainingNormalized * stateInfo.length / playbackSpeed; }
+    public void ForceEndJumpAnimation() {
         movementAnimationLockUntil = 0f;
-        if (movementAnimationScript != null)
-        {
-            movementAnimationScript.ForceExitJumpAnimation();
-        }
-    }
+        if (movementAnimationScript != null) { movementAnimationScript.ForceExitJumpAnimation(); } }
 
-    public void Jump(float expectedAirTimeSeconds = -1f, bool preferRunningJumpSpeed = false)
-    {
-        if (movementAnimationScript == null)
-        {
-            return;
-        }
+    public void Jump(float expectedAirTimeSeconds = -1f, bool preferRunningJumpSpeed = false) { if (movementAnimationScript == null) { return; }
 
-        movementAnimationScript.JumpAnimation(expectedAirTimeSeconds, preferRunningJumpSpeed);
-    }
+        movementAnimationScript.JumpAnimation(expectedAirTimeSeconds, preferRunningJumpSpeed); }
+    public void SyncJumpAnimationToAirTime(float remainingAirTimeSeconds) { if (movementAnimationScript == null) { return; }
 
-    // Handle Sync Jump Animation To Air Time.
-    public void SyncJumpAnimationToAirTime(float remainingAirTimeSeconds)
-    {
-        if (movementAnimationScript == null)
-        {
-            return;
-        }
+        movementAnimationScript.SyncJumpAnimationToAirTime(remainingAirTimeSeconds); }
+    public void WalkBackwards(bool status) { movementAnimationScript.WalkBackWards(status); }
+    public void WalkLeft(bool status) { if (movementAnimationScript == null) { return; }
 
-        movementAnimationScript.SyncJumpAnimationToAirTime(remainingAirTimeSeconds);
-    }
-    public void WalkBackwards(bool status)
-    {
-        movementAnimationScript.WalkBackWards(status);
-    }
+        movementAnimationScript.WalkLeft(status); }
+    public void WalkRight(bool status) { if (movementAnimationScript == null) { return; }
 
-    // Handle Walk Left.
-    public void WalkLeft(bool status)
-    {
-        if (movementAnimationScript == null)
-        {
-            return;
-        }
+        movementAnimationScript.WalkRight(status); }
+    public void WalkForwardLeft(bool status) { if (movementAnimationScript == null) { return; }
 
-        movementAnimationScript.WalkLeft(status);
-    }
+        movementAnimationScript.WalkForwardLeft(status); }
+    public void WalkForwardRight(bool status) { if (movementAnimationScript == null) { return; }
 
-    // Handle Walk Right.
-    public void WalkRight(bool status)
-    {
-        if (movementAnimationScript == null)
-        {
-            return;
-        }
+        movementAnimationScript.WalkForwardRight(status); }
+    public void SprintForwardLeft(bool status) { if (movementAnimationScript == null) { return; }
 
-        movementAnimationScript.WalkRight(status);
-    }
+        movementAnimationScript.SprintForwardLeft(status); }
+    public void SprintForwardRight(bool status) { if (movementAnimationScript == null) { return; }
 
-    // Handle Walk Forward Left.
-    public void WalkForwardLeft(bool status)
-    {
-        if (movementAnimationScript == null)
-        {
-            return;
-        }
-
-        movementAnimationScript.WalkForwardLeft(status);
-    }
-
-    // Handle Walk Forward Right.
-    public void WalkForwardRight(bool status)
-    {
-        if (movementAnimationScript == null)
-        {
-            return;
-        }
-
-        movementAnimationScript.WalkForwardRight(status);
-    }
-
-    // Handle Sprint Forward Left.
-    public void SprintForwardLeft(bool status)
-    {
-        if (movementAnimationScript == null)
-        {
-            return;
-        }
-
-        movementAnimationScript.SprintForwardLeft(status);
-    }
-
-    // Handle Sprint Forward Right.
-    public void SprintForwardRight(bool status)
-    {
-        if (movementAnimationScript == null)
-        {
-            return;
-        }
-
-        movementAnimationScript.SprintForwardRight(status);
-    }
-
-    // Handle Is Movement Animation Locked.
-    public bool IsMovementAnimationLocked()
-    {
-        return Time.time < movementAnimationLockUntil || IsAnimatorInActionState();
-    }
-
-    // Handle Is Gameplay Input Locked.
-    public bool IsGameplayInputLocked()
-    {
+        movementAnimationScript.SprintForwardRight(status); }
+    public bool IsMovementAnimationLocked() { return Time.time < movementAnimationLockUntil || IsAnimatorInActionState(); }
+    public bool IsGameplayInputLocked() {
         Animator animator = ResolveCharacterAnimator();
-        return TryGetActiveFullBodyActionStateInfo(animator, out _);
-    }
+        return TryGetActiveFullBodyActionStateInfo(animator, out _); }
 
-    public bool TryStartEmote()
-    {
+    public bool TryStartEmote() {
         if (string.IsNullOrWhiteSpace(emoteStateName) ||
             IsUpperBodyActionLocked() ||
             IsGameplayInputLocked() ||
-            IsSwordBlockActive())
-        {
-            return false;
-        }
+            IsSwordBlockActive()) { return false; }
 
         Animator animator = ResolveCharacterAnimator();
-        if (!TryGetBaseLayerIndex(animator, out int layerIndex))
-        {
-            return false;
-        }
+        if (!TryGetBaseLayerIndex(animator, out int layerIndex)) { return false; }
 
         ApplyConfiguredActionAnimationSpeeds();
         TrySetAnimatorBoolParameter(animator, SwordBlockingParameterName, false);
 
         bool played = TryPlayAnimatorState(animator, layerIndex, emoteStateName, Mathf.Max(0f, emoteBlendTime));
-        if (played)
-        {
+        if (played) {
             ForceStopMovementAnimations();
-            PlayEmoteLoopAudio();
-        }
+            PlayEmoteLoopAudio(); }
 
-        return played;
-    }
+        return played; }
 
-    public void StopEmote()
-    {
+    public void StopEmote() {
         StopEmoteLoopAudio();
 
         Animator animator = ResolveCharacterAnimator();
         if (!TryGetBaseLayerIndex(animator, out int layerIndex) ||
-            !TryGetAnimatorStateInfo(animator, layerIndex, emoteStateName, out _))
-        {
-            return;
-        }
+            !TryGetAnimatorStateInfo(animator, layerIndex, emoteStateName, out _)) { return; }
 
-        TryPlayAnimatorState(animator, layerIndex, "Idle", Mathf.Max(0f, emoteCancelBlendTime));
-    }
+        TryPlayAnimatorState(animator, layerIndex, "Idle", Mathf.Max(0f, emoteCancelBlendTime)); }
 
-    public bool IsEmoteActive()
-    {
+    public bool IsEmoteActive() {
         Animator animator = ResolveCharacterAnimator();
         return TryGetBaseLayerIndex(animator, out int layerIndex) &&
-               TryGetAnimatorStateInfo(animator, layerIndex, emoteStateName, out _);
-    }
-
-    // Handle Get Remaining Gameplay Input Lock Seconds.
-    public float GetRemainingGameplayInputLockSeconds()
-    {
+               TryGetAnimatorStateInfo(animator, layerIndex, emoteStateName, out _); }
+    public float GetRemainingGameplayInputLockSeconds() {
         Animator animator = ResolveCharacterAnimator();
-        if (!TryGetActiveFullBodyActionStateInfo(animator, out AnimatorStateInfo stateInfo))
-        {
-            return 0f;
-        }
+        if (!TryGetActiveFullBodyActionStateInfo(animator, out AnimatorStateInfo stateInfo)) { return 0f; }
 
         float remainingNormalized = Mathf.Max(0f, GetFullBodyActionCompletionThreshold() - NormalizeStateProgress(stateInfo));
         float playbackSpeed = Mathf.Abs(stateInfo.speed * stateInfo.speedMultiplier);
-        if (playbackSpeed < 0.01f)
-        {
-            playbackSpeed = 1f;
-        }
+        if (playbackSpeed < 0.01f) { playbackSpeed = 1f; }
 
-        return remainingNormalized * stateInfo.length / playbackSpeed;
-    }
-
-    // Handle Try Get Active Sword Attack State Info.
-    public bool TryGetActiveSwordAttackStateInfo(out AnimatorStateInfo stateInfo, out bool isHeavyAttack)
-    {
+        return remainingNormalized * stateInfo.length / playbackSpeed; }
+    public bool TryGetActiveSwordAttackStateInfo(out AnimatorStateInfo stateInfo, out bool isHeavyAttack) {
         Animator animator = ResolveCharacterAnimator();
-        return TryGetActiveSwordAttackStateInfo(animator, out stateInfo, out isHeavyAttack);
-    }
-
-    // Handle Try Play Sword Full Body State.
-    private bool TryPlaySwordFullBodyState(string stateName)
-    {
-        if (string.IsNullOrWhiteSpace(stateName) || IsUpperBodyActionLocked() || IsGameplayInputLocked())
-        {
-            return false;
-        }
+        return TryGetActiveSwordAttackStateInfo(animator, out stateInfo, out isHeavyAttack); }
+    private bool TryPlaySwordFullBodyState(string stateName) { if (string.IsNullOrWhiteSpace(stateName) || IsUpperBodyActionLocked() || IsGameplayInputLocked()) { return false; }
 
         Animator animator = ResolveCharacterAnimator();
-        if (!TryGetBaseLayerIndex(animator, out int layerIndex))
-        {
-            return false;
-        }
+        if (!TryGetBaseLayerIndex(animator, out int layerIndex)) { return false; }
 
         ApplyConfiguredActionAnimationSpeeds();
         TrySetAnimatorBoolParameter(animator, SwordBlockingParameterName, false);
 
         bool played = TryPlayAnimatorState(animator, layerIndex, stateName, fullBodyActionBlendTime);
-        if (played)
-        {
-            ForceStopMovementAnimations();
-        }
+        if (played) { ForceStopMovementAnimations(); }
 
-        return played;
-    }
-
-    // Handle Should Consume Animator Root Motion.
-    public bool ShouldConsumeAnimatorRootMotion()
-    {
+        return played; }
+    public bool ShouldConsumeAnimatorRootMotion() {
         Animator animator = ResolveCharacterAnimator();
-        return TryGetActiveFullBodyRootMotionStateInfo(animator, out _);
-    }
-
-    // Handle Lock Movement Animations.
-    public void LockMovementAnimations(float seconds)
-    {
+        return TryGetActiveFullBodyRootMotionStateInfo(animator, out _); }
+    public void LockMovementAnimations(float seconds) {
         float lockDuration = Mathf.Max(0f, seconds);
-        if (lockDuration <= 0f)
-        {
-            return;
-        }
+        if (lockDuration <= 0f) { return; }
 
         // Clear movement bools immediately so attack clips cannot be interrupted by movement this frame.
         ForceStopMovementAnimations();
 
         float lockUntil = Time.time + lockDuration;
-        if (lockUntil > movementAnimationLockUntil)
-        {
-            movementAnimationLockUntil = lockUntil;
-        }
-    }
-
-    // Handle Force Stop Movement Animations.
-    private void ForceStopMovementAnimations()
-    {
-        if (movementAnimationScript == null)
-        {
-            return;
-        }
+        if (lockUntil > movementAnimationLockUntil) { movementAnimationLockUntil = lockUntil; } }
+    private void ForceStopMovementAnimations() { if (movementAnimationScript == null) { return; }
 
         movementAnimationScript.IdleAnimation(false);
         movementAnimationScript.WalkAnimation_Foreward(false);
@@ -846,136 +405,60 @@ public class ActionScript : MonoBehaviour
         movementAnimationScript.WalkForwardLeft(false);
         movementAnimationScript.WalkForwardRight(false);
         movementAnimationScript.SprintForwardLeft(false);
-        movementAnimationScript.SprintForwardRight(false);
-    }
+        movementAnimationScript.SprintForwardRight(false); }
 
-    private void CancelEmoteIfActive()
-    {
-        if (IsEmoteActive())
-        {
-            StopEmote();
-        }
-    }
+    private void CancelEmoteIfActive() { if (IsEmoteActive()) { StopEmote(); } }
 
-    private void ConfigureEmoteLoopAudioSource()
-    {
-        if (emoteLoopAudioSource == null && Application.isPlaying)
-        {
-            emoteLoopAudioSource = gameObject.AddComponent<AudioSource>();
-        }
+    private void ConfigureEmoteLoopAudioSource() { if (emoteLoopAudioSource == null && Application.isPlaying) { emoteLoopAudioSource = gameObject.AddComponent<AudioSource>(); }
 
-        if (emoteLoopAudioSource == null)
-        {
-            return;
-        }
+        if (emoteLoopAudioSource == null) { return; }
 
         emoteLoopAudioSource.playOnAwake = false;
         emoteLoopAudioSource.loop = true;
         emoteLoopAudioSource.spatialBlend = 0f;
         emoteLoopAudioSource.clip = emoteLoopClip;
-        emoteLoopAudioSource.volume = Mathf.Clamp01(emoteLoopVolume);
-    }
+        emoteLoopAudioSource.volume = Mathf.Clamp01(emoteLoopVolume); }
 
-    private void PlayEmoteLoopAudio()
-    {
+    private void PlayEmoteLoopAudio() {
         ConfigureEmoteLoopAudioSource();
-        if (emoteLoopAudioSource == null || emoteLoopClip == null)
-        {
-            return;
-        }
+        if (emoteLoopAudioSource == null || emoteLoopClip == null) { return; }
 
         emoteLoopAudioSource.clip = emoteLoopClip;
         emoteLoopAudioSource.volume = Mathf.Clamp01(emoteLoopVolume);
 
-        if (!emoteLoopClip.preloadAudioData)
-        {
-            emoteLoopClip.LoadAudioData();
-        }
+        if (!emoteLoopClip.preloadAudioData) { emoteLoopClip.LoadAudioData(); }
 
-        if (!emoteLoopAudioSource.isPlaying)
-        {
-            emoteLoopAudioSource.Play();
-        }
-    }
+        if (!emoteLoopAudioSource.isPlaying) { emoteLoopAudioSource.Play(); } }
 
-    private void StopEmoteLoopAudio()
-    {
-        if (emoteLoopAudioSource != null && emoteLoopAudioSource.isPlaying)
-        {
-            emoteLoopAudioSource.Stop();
-        }
-    }
-
-    // Handle Update Animator Root Motion State.
-    private void UpdateAnimatorRootMotionState()
-    {
-        if (movementAnimationScript == null)
-        {
-            return;
-        }
+    private void StopEmoteLoopAudio() { if (emoteLoopAudioSource != null && emoteLoopAudioSource.isPlaying) { emoteLoopAudioSource.Stop(); } }
+    private void UpdateAnimatorRootMotionState() { if (movementAnimationScript == null) { return; }
 
         EnsurePlayerRootMotionDriver();
-        movementAnimationScript.SetAnimatorRootMotionEnabled(ShouldConsumeAnimatorRootMotion());
-    }
-
-    // Handle Ensure Player Root Motion Driver.
-    private PlayerRootMotionDriver EnsurePlayerRootMotionDriver()
-    {
+        movementAnimationScript.SetAnimatorRootMotionEnabled(ShouldConsumeAnimatorRootMotion()); }
+    private PlayerRootMotionDriver EnsurePlayerRootMotionDriver() {
         Animator animator = ResolveCharacterAnimator();
-        if (animator == null)
-        {
-            return null;
-        }
+        if (animator == null) { return null; }
 
-        if (_rootMotionDriver != null)
-        {
-            if (_rootMotionDriver.gameObject == animator.gameObject)
-            {
-                return _rootMotionDriver;
-            }
+        if (_rootMotionDriver != null) { if (_rootMotionDriver.gameObject == animator.gameObject) { return _rootMotionDriver; }
 
-            _rootMotionDriver = null;
-        }
+            _rootMotionDriver = null; }
 
         _rootMotionDriver = animator.GetComponent<PlayerRootMotionDriver>();
-        if (_rootMotionDriver == null)
-        {
-            _rootMotionDriver = animator.gameObject.AddComponent<PlayerRootMotionDriver>();
-        }
+        if (_rootMotionDriver == null) { _rootMotionDriver = animator.gameObject.AddComponent<PlayerRootMotionDriver>(); }
 
-        return _rootMotionDriver;
-    }
-
-    // Handle Activate Upper Body Layer.
-    private void ActivateUpperBodyLayer(float activeSeconds)
-    {
+        return _rootMotionDriver; }
+    private void ActivateUpperBodyLayer(float activeSeconds) {
         Animator animator = ResolveCharacterAnimator();
-        if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex))
-        {
-            return;
-        }
+        if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex)) { return; }
 
         float holdSeconds = Mathf.Max(upperBodyMinimumActiveSeconds, activeSeconds);
         float activeUntil = Time.time + holdSeconds;
-        if (activeUntil > upperBodyLayerActiveUntil)
-        {
-            upperBodyLayerActiveUntil = activeUntil;
-        }
+        if (activeUntil > upperBodyLayerActiveUntil) { upperBodyLayerActiveUntil = activeUntil; }
 
-        if (animator.GetLayerWeight(layerIndex) < 1f)
-        {
-            animator.SetLayerWeight(layerIndex, 1f);
-        }
-    }
-
-    // Handle Update Upper Body Layer Weight.
-    private void UpdateUpperBodyLayerWeight()
-    {
+        if (animator.GetLayerWeight(layerIndex) < 1f) { animator.SetLayerWeight(layerIndex, 1f); } }
+    private void UpdateUpperBodyLayerWeight() {
         Animator animator = ResolveCharacterAnimator();
-        if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex))
-        {
-            return;
-        }
+        if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex)) { return; }
 
         TryForceCompletedUpperBodyActionToIdle(animator, layerIndex);
 
@@ -985,313 +468,126 @@ public class ActionScript : MonoBehaviour
         float currentWeight = animator.GetLayerWeight(layerIndex);
         float blendSpeed = Mathf.Max(1f, upperBodyLayerBlendSpeed);
         float nextWeight = Mathf.MoveTowards(currentWeight, targetWeight, blendSpeed * Time.deltaTime);
-        if (!Mathf.Approximately(currentWeight, nextWeight))
-        {
-            animator.SetLayerWeight(layerIndex, nextWeight);
-        }
-    }
-
-    // Handle Set Upper Body External Hold.
-    public void SetUpperBodyExternalHold(bool active)
-    {
-        upperBodyExternalHold = active;
-    }
-
-    // Handle Cancel Upper Body Action.
-    public void CancelUpperBodyAction()
-    {
+        if (!Mathf.Approximately(currentWeight, nextWeight)) { animator.SetLayerWeight(layerIndex, nextWeight); } }
+    public void SetUpperBodyExternalHold(bool active) { upperBodyExternalHold = active; }
+    public void CancelUpperBodyAction() {
         upperBodyExternalHold = false;
         upperBodyLayerActiveUntil = 0f;
         ResetQueuedAxeChop();
 
         Animator animator = ResolveCharacterAnimator();
-        if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex))
-        {
-            return;
-        }
+        if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex)) { return; }
 
         TryPlayUpperBodyIdle(animator, layerIndex, 0f);
-        animator.SetLayerWeight(layerIndex, 0f);
-    }
-
-    // Handle Is Animator Layer In Action State.
-    private static bool IsAnimatorLayerInActionState(Animator animator, int layerIndex)
-    {
-        if (animator == null || layerIndex < 0 || layerIndex >= animator.layerCount)
-        {
-            return false;
-        }
+        animator.SetLayerWeight(layerIndex, 0f); }
+    private static bool IsAnimatorLayerInActionState(Animator animator, int layerIndex) { if (animator == null || layerIndex < 0 || layerIndex >= animator.layerCount) { return false; }
 
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
-        if (IsActionState(current))
-        {
-            return true;
-        }
+        if (IsActionState(current)) { return true; }
 
-        if (animator.IsInTransition(layerIndex))
-        {
+        if (animator.IsInTransition(layerIndex)) {
             AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
-            if (IsActionState(next))
-            {
-                return true;
-            }
-        }
+            if (IsActionState(next)) { return true; } }
 
-        return false;
-    }
+        return false; }
+    private Animator ResolveCharacterAnimator() { if (movementAnimationScript != null && movementAnimationScript.animator != null) { return movementAnimationScript.animator; }
 
-    // Handle Resolve Character Animator.
-    private Animator ResolveCharacterAnimator()
-    {
-        if (movementAnimationScript != null && movementAnimationScript.animator != null)
-        {
-            return movementAnimationScript.animator;
-        }
+        if (swordAnimationScript != null && swordAnimationScript.animator != null) { return swordAnimationScript.animator; }
 
-        if (swordAnimationScript != null && swordAnimationScript.animator != null)
-        {
-            return swordAnimationScript.animator;
-        }
+        if (pickaxeAnimationScript != null && pickaxeAnimationScript.animator != null) { return pickaxeAnimationScript.animator; }
 
-        if (pickaxeAnimationScript != null && pickaxeAnimationScript.animator != null)
-        {
-            return pickaxeAnimationScript.animator;
-        }
+        if (axeAnimationScript != null && axeAnimationScript.axeanimator != null) { return axeAnimationScript.axeanimator; }
 
-        if (axeAnimationScript != null && axeAnimationScript.axeanimator != null)
-        {
-            return axeAnimationScript.axeanimator;
-        }
+        return null; }
+    private bool TryGetActionPlaybackLayerIndex(Animator animator, out int layerIndex) { if (TryGetUpperBodyLayerIndex(animator, out layerIndex)) { return true; }
 
-        return null;
-    }
-
-    // Handle Try Get Action Playback Layer Index.
-    private bool TryGetActionPlaybackLayerIndex(Animator animator, out int layerIndex)
-    {
-        if (TryGetUpperBodyLayerIndex(animator, out layerIndex))
-        {
-            return true;
-        }
-
-        if (animator != null && animator.layerCount > 0)
-        {
+        if (animator != null && animator.layerCount > 0) {
             layerIndex = 0;
-            return true;
-        }
+            return true; }
 
         layerIndex = -1;
-        return false;
-    }
-
-    // Handle Try Get Upper Body Layer Index.
-    private bool TryGetUpperBodyLayerIndex(Animator animator, out int layerIndex)
-    {
+        return false; }
+    private bool TryGetUpperBodyLayerIndex(Animator animator, out int layerIndex) {
         layerIndex = -1;
-        if (animator == null || string.IsNullOrWhiteSpace(upperBodyLayerName))
-        {
-            return false;
-        }
+        if (animator == null || string.IsNullOrWhiteSpace(upperBodyLayerName)) { return false; }
 
         layerIndex = animator.GetLayerIndex(upperBodyLayerName);
-        return layerIndex >= 0;
-    }
-
-    // Handle Try Get Base Layer Index.
-    private bool TryGetBaseLayerIndex(Animator animator, out int layerIndex)
-    {
+        return layerIndex >= 0; }
+    private bool TryGetBaseLayerIndex(Animator animator, out int layerIndex) {
         layerIndex = -1;
-        if (animator == null || animator.layerCount <= 0)
-        {
-            return false;
-        }
+        if (animator == null || animator.layerCount <= 0) { return false; }
 
-        if (!string.IsNullOrWhiteSpace(baseLayerName))
-        {
-            layerIndex = animator.GetLayerIndex(baseLayerName);
-        }
+        if (!string.IsNullOrWhiteSpace(baseLayerName)) { layerIndex = animator.GetLayerIndex(baseLayerName); }
 
-        if (layerIndex < 0)
-        {
-            layerIndex = 0;
-        }
+        if (layerIndex < 0) { layerIndex = 0; }
 
-        return layerIndex >= 0 && layerIndex < animator.layerCount;
-    }
-
-    // Handle Try Play Animator State.
-    private bool TryPlayAnimatorState(Animator animator, int layerIndex, string stateName, float blendTime)
-    {
-        if (animator == null || string.IsNullOrWhiteSpace(stateName))
-        {
-            return false;
-        }
+        return layerIndex >= 0 && layerIndex < animator.layerCount; }
+    private bool TryPlayAnimatorState(Animator animator, int layerIndex, string stateName, float blendTime) { if (animator == null || string.IsNullOrWhiteSpace(stateName)) { return false; }
 
         string layerName = animator.GetLayerName(layerIndex);
         int fullPathHash = Animator.StringToHash($"{layerName}.{stateName}");
         int shortNameHash = Animator.StringToHash(stateName);
         int stateHash;
 
-        if (animator.HasState(layerIndex, fullPathHash))
-        {
-            stateHash = fullPathHash;
-        }
-        else if (animator.HasState(layerIndex, shortNameHash))
-        {
-            stateHash = shortNameHash;
-        }
-        else
-        {
-            return false;
-        }
+        if (animator.HasState(layerIndex, fullPathHash)) {
+            stateHash = fullPathHash; } else if (animator.HasState(layerIndex, shortNameHash)) { stateHash = shortNameHash; } else { return false; }
 
         float resolvedBlendTime = Mathf.Max(0f, blendTime);
-        if (resolvedBlendTime > 0f)
-        {
-            animator.CrossFadeInFixedTime(stateHash, resolvedBlendTime, layerIndex);
-        }
-        else
-        {
-            animator.Play(stateHash, layerIndex, 0f);
-        }
+        if (resolvedBlendTime > 0f) { animator.CrossFadeInFixedTime(stateHash, resolvedBlendTime, layerIndex); } else { animator.Play(stateHash, layerIndex, 0f); }
 
-        return true;
-    }
-
-    // Handle Try Play Upper Body State.
-    private bool TryPlayUpperBodyState(string stateName)
-    {
+        return true; }
+    private bool TryPlayUpperBodyState(string stateName) {
         Animator animator = ResolveCharacterAnimator();
         if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex) ||
-            string.IsNullOrWhiteSpace(stateName))
-        {
-            return false;
-        }
+            string.IsNullOrWhiteSpace(stateName)) { return false; }
 
         int fullPathHash = Animator.StringToHash($"{upperBodyLayerName}.{stateName}");
         int shortNameHash = Animator.StringToHash(stateName);
         int stateHash;
 
-        if (animator.HasState(layerIndex, fullPathHash))
-        {
-            stateHash = fullPathHash;
-        }
-        else if (animator.HasState(layerIndex, shortNameHash))
-        {
-            stateHash = shortNameHash;
-        }
-        else
-        {
-            return false;
-        }
+        if (animator.HasState(layerIndex, fullPathHash)) {
+            stateHash = fullPathHash; } else if (animator.HasState(layerIndex, shortNameHash)) { stateHash = shortNameHash; } else { return false; }
 
         float blendTime = Mathf.Max(0f, upperBodyStateBlendTime);
-        if (blendTime > 0f)
-        {
-            animator.CrossFadeInFixedTime(stateHash, blendTime, layerIndex);
-        }
-        else
-        {
-            animator.Play(stateHash, layerIndex, 0f);
-        }
+        if (blendTime > 0f) { animator.CrossFadeInFixedTime(stateHash, blendTime, layerIndex); } else { animator.Play(stateHash, layerIndex, 0f); }
 
-        return true;
-    }
-
-    // Handle Try Force Completed Upper Body Action To Idle.
-    private void TryForceCompletedUpperBodyActionToIdle(Animator animator, int layerIndex)
-    {
+        return true; }
+    private void TryForceCompletedUpperBodyActionToIdle(Animator animator, int layerIndex) {
         if (animator == null ||
             upperBodyExternalHold ||
             Time.time < upperBodyLayerActiveUntil ||
-            animator.IsInTransition(layerIndex))
-        {
-            return;
-        }
+            animator.IsInTransition(layerIndex)) { return; }
 
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
-        if (!IsActionState(current))
-        {
-            return;
-        }
+        if (!IsActionState(current)) { return; }
 
-        if (current.normalizedTime < GetUpperBodyActionCompletionThreshold())
-        {
-            return;
-        }
+        if (current.normalizedTime < GetUpperBodyActionCompletionThreshold()) { return; }
 
-        if (TryPlayUpperBodyIdle(animator, layerIndex, upperBodyStateBlendTime))
-        {
-            animator.SetLayerWeight(layerIndex, 0f);
-        }
-    }
-
-    // Handle Try Play Upper Body Idle.
-    private bool TryPlayUpperBodyIdle(Animator animator, int layerIndex, float blendTime)
-    {
-        if (animator == null || layerIndex < 0 || string.IsNullOrWhiteSpace(upperBodyIdleStateName))
-        {
-            return false;
-        }
+        if (TryPlayUpperBodyIdle(animator, layerIndex, upperBodyStateBlendTime)) { animator.SetLayerWeight(layerIndex, 0f); } }
+    private bool TryPlayUpperBodyIdle(Animator animator, int layerIndex, float blendTime) { if (animator == null || layerIndex < 0 || string.IsNullOrWhiteSpace(upperBodyIdleStateName)) { return false; }
 
         int fullPathHash = Animator.StringToHash($"{upperBodyLayerName}.{upperBodyIdleStateName}");
         int shortNameHash = Animator.StringToHash(upperBodyIdleStateName);
         int stateHash;
 
-        if (animator.HasState(layerIndex, fullPathHash))
-        {
-            stateHash = fullPathHash;
-        }
-        else if (animator.HasState(layerIndex, shortNameHash))
-        {
-            stateHash = shortNameHash;
-        }
-        else
-        {
-            return false;
-        }
+        if (animator.HasState(layerIndex, fullPathHash)) {
+            stateHash = fullPathHash; } else if (animator.HasState(layerIndex, shortNameHash)) { stateHash = shortNameHash; } else { return false; }
 
         float resolvedBlend = Mathf.Max(0f, blendTime);
-        if (resolvedBlend > 0f)
-        {
-            animator.CrossFadeInFixedTime(stateHash, resolvedBlend, layerIndex);
-        }
-        else
-        {
-            animator.Play(stateHash, layerIndex, 0f);
-        }
+        if (resolvedBlend > 0f) { animator.CrossFadeInFixedTime(stateHash, resolvedBlend, layerIndex); } else { animator.Play(stateHash, layerIndex, 0f); }
 
-        return true;
-    }
-
-    // Handle Set Upper Body Chop Animation Speed.
-    private void SetUpperBodyChopAnimationSpeed()
-    {
-        SetUpperBodyChopAnimationSpeed(null);
-    }
-
-    // Handle Set Upper Body Chop Animation Speed Override.
-    private void SetUpperBodyChopAnimationSpeed(float? overrideSpeed)
-    {
+        return true; }
+    private void SetUpperBodyChopAnimationSpeed() { SetUpperBodyChopAnimationSpeed(null); }
+    private void SetUpperBodyChopAnimationSpeed(float? overrideSpeed) {
         Animator animator = ResolveCharacterAnimator();
-        if (animator == null)
-        {
-            return;
-        }
+        if (animator == null) { return; }
 
         float chopSpeed = overrideSpeed ?? ResolveChopAnimationSpeed();
 
-        TrySetAnimatorFloatParameter(animator, upperBodyChopSpeedParameterName, chopSpeed);
-    }
-
-    // Handle Apply Configured Action Animation Speeds.
-    private void ApplyConfiguredActionAnimationSpeeds()
-    {
+        TrySetAnimatorFloatParameter(animator, upperBodyChopSpeedParameterName, chopSpeed); }
+    private void ApplyConfiguredActionAnimationSpeeds() {
         Animator animator = ResolveCharacterAnimator();
-        if (animator == null)
-        {
-            return;
-        }
+        if (animator == null) { return; }
 
         float swordAnimationSpeedMultiplier = ResolveEquippedSwordAnimationSpeedMultiplier();
         TrySetAnimatorFloatParameter(animator, AttackLightSpeedParameterName, ResolveConfiguredSpeed(lightAttackAnimationSpeed) * swordAnimationSpeedMultiplier);
@@ -1302,576 +598,269 @@ public class ActionScript : MonoBehaviour
         TrySetAnimatorFloatParameter(animator, GunAimSpeedParameterName, ResolveConfiguredSpeed(gunAimAnimationSpeed));
         TrySetAnimatorFloatParameter(animator, GunShootSpeedParameterName, ResolveConfiguredSpeed(gunShootAnimationSpeed));
         TrySetAnimatorFloatParameter(animator, GunReloadSpeedParameterName, ResolveConfiguredSpeed(gunReloadAnimationSpeed));
-        SetUpperBodyChopAnimationSpeed();
-    }
-
-    // Handle Resolve Equipped Sword Animation Speed Multiplier.
-    private float ResolveEquippedSwordAnimationSpeedMultiplier()
-    {
+        SetUpperBodyChopAnimationSpeed(); }
+    private float ResolveEquippedSwordAnimationSpeedMultiplier() {
         ItemSwitchScript itemSwitchScript = ResolveItemSwitchScript();
-        if (itemSwitchScript == null || !itemSwitchScript.TryGetEquippedSword(out Sword equippedSword))
-        {
-            return 1f;
-        }
+        if (itemSwitchScript == null || !itemSwitchScript.TryGetEquippedSword(out Sword equippedSword)) { return 1f; }
 
-        return equippedSword.GetResolvedAnimationSpeed();
-    }
-
-    // Handle Try Queue Active Chop.
-    private bool TryQueueActiveChop()
-    {
+        return equippedSword.GetResolvedAnimationSpeed(); }
+    private bool TryQueueActiveChop() {
         Animator animator = ResolveCharacterAnimator();
         if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex) ||
-            !TryGetAnimatorStateInfo(animator, layerIndex, upperBodyChopStateName, out _))
-        {
-            return false;
-        }
+            !TryGetAnimatorStateInfo(animator, layerIndex, upperBodyChopStateName, out _)) { return false; }
 
         queuedAxeChop = true;
         upperBodyLayerActiveUntil = Mathf.Max(
             upperBodyLayerActiveUntil,
             Time.time + Mathf.Max(upperBodyMinimumActiveSeconds, chopUpperBodySeconds));
 
-        return true;
-    }
-
-    // Handle Try Play Next Full Body State.
-    private bool TryPlayNextFullBodyState(string[] stateNames, ref int nextStateIndex)
-    {
-        if (stateNames == null || stateNames.Length == 0)
-        {
-            return false;
-        }
+        return true; }
+    private bool TryPlayNextFullBodyState(string[] stateNames, ref int nextStateIndex) { if (stateNames == null || stateNames.Length == 0) { return false; }
 
         Animator animator = ResolveCharacterAnimator();
-        if (!TryGetBaseLayerIndex(animator, out int layerIndex))
-        {
-            return false;
-        }
+        if (!TryGetBaseLayerIndex(animator, out int layerIndex)) { return false; }
 
         int startIndex = Mathf.Clamp(nextStateIndex, 0, stateNames.Length - 1);
-        for (int offset = 0; offset < stateNames.Length; offset++)
-        {
+        for (int offset = 0; offset < stateNames.Length; offset++) {
             int index = (startIndex + offset) % stateNames.Length;
-            if (!TryPlayAnimatorState(animator, layerIndex, stateNames[index], fullBodyActionBlendTime))
-            {
-                continue;
-            }
+            if (!TryPlayAnimatorState(animator, layerIndex, stateNames[index], fullBodyActionBlendTime)) { continue; }
 
             nextStateIndex = (index + 1) % stateNames.Length;
-            return true;
-        }
+            return true; }
 
-        return false;
-    }
-
-    // Handle Try Play Indexed Full Body State.
-    private bool TryPlayIndexedFullBodyState(string[] stateNames, int stateIndex, ref int nextStateIndex)
-    {
-        if (stateNames == null || stateNames.Length == 0)
-        {
-            return false;
-        }
+        return false; }
+    private bool TryPlayIndexedFullBodyState(string[] stateNames, int stateIndex, ref int nextStateIndex) { if (stateNames == null || stateNames.Length == 0) { return false; }
 
         int clampedIndex = Mathf.Clamp(stateIndex, 0, stateNames.Length - 1);
         Animator animator = ResolveCharacterAnimator();
         if (!TryGetBaseLayerIndex(animator, out int layerIndex) ||
-            !TryPlayAnimatorState(animator, layerIndex, stateNames[clampedIndex], fullBodyActionBlendTime))
-        {
-            return false;
-        }
+            !TryPlayAnimatorState(animator, layerIndex, stateNames[clampedIndex], fullBodyActionBlendTime)) { return false; }
 
         nextStateIndex = (clampedIndex + 1) % stateNames.Length;
-        return true;
-    }
-
-    // Handle Update Queued Axe Chop State.
-    private void UpdateQueuedAxeChopState()
-    {
-        if (!queuedAxeChop)
-        {
-            return;
-        }
+        return true; }
+    private void UpdateQueuedAxeChopState() { if (!queuedAxeChop) { return; }
 
         Animator animator = ResolveCharacterAnimator();
         if (!TryGetUpperBodyLayerIndex(animator, out int layerIndex) ||
-            !TryGetAnimatorStateInfo(animator, layerIndex, upperBodyChopStateName, out AnimatorStateInfo chopState))
-        {
+            !TryGetAnimatorStateInfo(animator, layerIndex, upperBodyChopStateName, out AnimatorStateInfo chopState)) {
             ResetQueuedAxeChop();
-            return;
-        }
+            return; }
 
-        if (animator.IsInTransition(layerIndex))
-        {
-            return;
-        }
+        if (animator.IsInTransition(layerIndex)) { return; }
 
         float comboQueueThreshold = Mathf.Clamp(
             axeComboHoldNormalizedTime,
             0.01f,
             Mathf.Max(0.01f, upperBodyActionCompletionThreshold));
-        if (chopState.normalizedTime < comboQueueThreshold)
-        {
-            return;
-        }
+        if (chopState.normalizedTime < comboQueueThreshold) { return; }
 
         ActivateUpperBodyLayer(chopUpperBodySeconds);
         SetUpperBodyChopAnimationSpeed();
-        if (!TryPlayUpperBodyState(upperBodyChopSecondStateName))
-        {
+        if (!TryPlayUpperBodyState(upperBodyChopSecondStateName)) {
             ResetQueuedAxeChop();
-            return;
-        }
+            return; }
 
         queuedAxeChop = false;
-        _nextChopAllowedTime = Time.time + GetChopRepeatDelaySeconds();
-    }
-
-    // Handle Reset Queued Axe Chop.
-    private void ResetQueuedAxeChop()
-    {
-        if (!queuedAxeChop)
-        {
-            return;
-        }
+        _nextChopAllowedTime = Time.time + GetChopRepeatDelaySeconds(); }
+    private void ResetQueuedAxeChop() { if (!queuedAxeChop) { return; }
 
         queuedAxeChop = false;
-        SetUpperBodyChopAnimationSpeed();
-    }
-
-    // Handle Try Get Animator State Info.
+        SetUpperBodyChopAnimationSpeed(); }
     private bool TryGetAnimatorStateInfo(
         Animator animator,
         int layerIndex,
         string stateName,
-        out AnimatorStateInfo stateInfo)
-    {
+        out AnimatorStateInfo stateInfo) {
         stateInfo = default;
-        if (animator == null || string.IsNullOrWhiteSpace(stateName))
-        {
-            return false;
-        }
+        if (animator == null || string.IsNullOrWhiteSpace(stateName)) { return false; }
 
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
-        if (MatchesStateName(current, stateName))
-        {
+        if (MatchesStateName(current, stateName)) {
             stateInfo = current;
-            return true;
-        }
+            return true; }
 
-        if (!animator.IsInTransition(layerIndex))
-        {
-            return false;
-        }
+        if (!animator.IsInTransition(layerIndex)) { return false; }
 
         AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
-        if (!MatchesStateName(next, stateName))
-        {
-            return false;
-        }
+        if (!MatchesStateName(next, stateName)) { return false; }
 
         stateInfo = next;
-        return true;
-    }
-
-    // Handle Matches State Name.
-    private bool MatchesStateName(AnimatorStateInfo state, string stateName)
-    {
-        if (string.IsNullOrWhiteSpace(stateName))
-        {
-            return false;
-        }
+        return true; }
+    private bool MatchesStateName(AnimatorStateInfo state, string stateName) { if (string.IsNullOrWhiteSpace(stateName)) { return false; }
 
         return state.IsName(stateName) ||
                state.IsName($"{upperBodyLayerName}.{stateName}") ||
-               state.IsName($"{baseLayerName}.{stateName}");
-    }
+               state.IsName($"{baseLayerName}.{stateName}"); }
+    private bool MatchesAnyStateName(AnimatorStateInfo state, string[] stateNames) { if (stateNames == null) { return false; }
 
-    // Handle Matches Any State Name.
-    private bool MatchesAnyStateName(AnimatorStateInfo state, string[] stateNames)
-    {
-        if (stateNames == null)
-        {
-            return false;
-        }
+        for (int i = 0; i < stateNames.Length; i++) { if (MatchesStateName(state, stateNames[i])) { return true; } }
 
-        for (int i = 0; i < stateNames.Length; i++)
-        {
-            if (MatchesStateName(state, stateNames[i]))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // Handle Is Upper Body State Active.
-    private bool IsUpperBodyStateActive(string stateName)
-    {
+        return false; }
+    private bool IsUpperBodyStateActive(string stateName) {
         Animator animator = ResolveCharacterAnimator();
         return TryGetUpperBodyLayerIndex(animator, out int layerIndex) &&
-               TryGetAnimatorStateInfo(animator, layerIndex, stateName, out _);
-    }
-
-    // Handle Get Upper Body Action Completion Threshold.
-    private float GetUpperBodyActionCompletionThreshold()
-    {
-        return Mathf.Max(0.5f, Mathf.Clamp01(upperBodyActionCompletionThreshold));
-    }
-
-    // Handle Get Full Body Action Completion Threshold.
-    private float GetFullBodyActionCompletionThreshold()
-    {
-        return Mathf.Max(0.5f, Mathf.Clamp01(fullBodyActionCompletionThreshold));
-    }
-
-    // Handle Normalize State Progress.
-    private static float NormalizeStateProgress(AnimatorStateInfo state)
-    {
+               TryGetAnimatorStateInfo(animator, layerIndex, stateName, out _); }
+    private float GetUpperBodyActionCompletionThreshold() { return Mathf.Max(0.5f, Mathf.Clamp01(upperBodyActionCompletionThreshold)); }
+    private float GetFullBodyActionCompletionThreshold() { return Mathf.Max(0.5f, Mathf.Clamp01(fullBodyActionCompletionThreshold)); }
+    private static float NormalizeStateProgress(AnimatorStateInfo state) {
         float normalizedTime = state.normalizedTime;
-        if (normalizedTime > 1f)
-        {
-            normalizedTime %= 1f;
-        }
+        if (normalizedTime > 1f) { normalizedTime %= 1f; }
 
-        return Mathf.Clamp01(normalizedTime);
-    }
-
-    // Handle Is Full Body Action State.
-    private bool IsFullBodyActionState(AnimatorStateInfo state)
-    {
+        return Mathf.Clamp01(normalizedTime); }
+    private bool IsFullBodyActionState(AnimatorStateInfo state) {
         return MatchesAnyStateName(state, lightAttackStateNames) ||
                MatchesAnyStateName(state, heavyAttackStateNames) ||
                MatchesStateName(state, swordEquipStateName) ||
-               MatchesStateName(state, swordUnequipStateName);
-    }
-
-    // Handle Is Sword Attack State.
-    private bool IsSwordAttackState(AnimatorStateInfo state, out bool isHeavyAttack)
-    {
+               MatchesStateName(state, swordUnequipStateName); }
+    private bool IsSwordAttackState(AnimatorStateInfo state, out bool isHeavyAttack) {
         isHeavyAttack = false;
-        if (MatchesAnyStateName(state, lightAttackStateNames))
-        {
-            return true;
-        }
+        if (MatchesAnyStateName(state, lightAttackStateNames)) { return true; }
 
-        if (MatchesAnyStateName(state, heavyAttackStateNames))
-        {
+        if (MatchesAnyStateName(state, heavyAttackStateNames)) {
             isHeavyAttack = true;
-            return true;
-        }
+            return true; }
 
-        return false;
-    }
-
-    // Handle Is Sword Block State.
-    private bool IsSwordBlockState(AnimatorStateInfo state)
-    {
+        return false; }
+    private bool IsSwordBlockState(AnimatorStateInfo state) {
         return MatchesStateName(state, swordBlockEnterStateName) ||
                MatchesStateName(state, swordBlockLoopStateName) ||
-               MatchesStateName(state, swordBlockExitStateName);
-    }
-
-    // Handle Try Get Active Full Body Action State Info.
-    private bool TryGetActiveFullBodyActionStateInfo(Animator animator, out AnimatorStateInfo stateInfo)
-    {
+               MatchesStateName(state, swordBlockExitStateName); }
+    private bool TryGetActiveFullBodyActionStateInfo(Animator animator, out AnimatorStateInfo stateInfo) {
         stateInfo = default;
-        if (!TryGetBaseLayerIndex(animator, out int layerIndex) || !animator.isActiveAndEnabled)
-        {
-            return false;
-        }
+        if (!TryGetBaseLayerIndex(animator, out int layerIndex) || !animator.isActiveAndEnabled) { return false; }
 
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
-        if (IsFullBodyActionState(current))
-        {
+        if (IsFullBodyActionState(current)) {
             stateInfo = current;
-            return true;
-        }
+            return true; }
 
-        if (!animator.IsInTransition(layerIndex))
-        {
-            return false;
-        }
+        if (!animator.IsInTransition(layerIndex)) { return false; }
 
         AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
-        if (!IsFullBodyActionState(next))
-        {
-            return false;
-        }
+        if (!IsFullBodyActionState(next)) { return false; }
 
         stateInfo = next;
-        return true;
-    }
-
-    // Handle Try Get Active Sword Attack State Info.
-    private bool TryGetActiveSwordAttackStateInfo(Animator animator, out AnimatorStateInfo stateInfo, out bool isHeavyAttack)
-    {
+        return true; }
+    private bool TryGetActiveSwordAttackStateInfo(Animator animator, out AnimatorStateInfo stateInfo, out bool isHeavyAttack) {
         stateInfo = default;
         isHeavyAttack = false;
-        if (!TryGetBaseLayerIndex(animator, out int layerIndex) || !animator.isActiveAndEnabled)
-        {
-            return false;
-        }
+        if (!TryGetBaseLayerIndex(animator, out int layerIndex) || !animator.isActiveAndEnabled) { return false; }
 
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
-        if (IsSwordAttackState(current, out isHeavyAttack))
-        {
+        if (IsSwordAttackState(current, out isHeavyAttack)) {
             stateInfo = current;
-            return true;
-        }
+            return true; }
 
-        if (!animator.IsInTransition(layerIndex))
-        {
-            return false;
-        }
+        if (!animator.IsInTransition(layerIndex)) { return false; }
 
         AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
-        if (!IsSwordAttackState(next, out isHeavyAttack))
-        {
-            return false;
-        }
+        if (!IsSwordAttackState(next, out isHeavyAttack)) { return false; }
 
         stateInfo = next;
-        return true;
-    }
-
-    // Handle Try Get Active Sword Block State Info.
-    private bool TryGetActiveSwordBlockStateInfo(Animator animator, out AnimatorStateInfo stateInfo)
-    {
+        return true; }
+    private bool TryGetActiveSwordBlockStateInfo(Animator animator, out AnimatorStateInfo stateInfo) {
         stateInfo = default;
-        if (!TryGetBaseLayerIndex(animator, out int layerIndex) || !animator.isActiveAndEnabled)
-        {
-            return false;
-        }
+        if (!TryGetBaseLayerIndex(animator, out int layerIndex) || !animator.isActiveAndEnabled) { return false; }
 
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
-        if (IsSwordBlockState(current))
-        {
+        if (IsSwordBlockState(current)) {
             stateInfo = current;
-            return true;
-        }
+            return true; }
 
-        if (!animator.IsInTransition(layerIndex))
-        {
-            return false;
-        }
+        if (!animator.IsInTransition(layerIndex)) { return false; }
 
         AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
-        if (!IsSwordBlockState(next))
-        {
-            return false;
-        }
+        if (!IsSwordBlockState(next)) { return false; }
 
         stateInfo = next;
-        return true;
-    }
-
-    // Handle Try Get Active Full Body Root Motion State Info.
-    private bool TryGetActiveFullBodyRootMotionStateInfo(Animator animator, out AnimatorStateInfo stateInfo)
-    {
+        return true; }
+    private bool TryGetActiveFullBodyRootMotionStateInfo(Animator animator, out AnimatorStateInfo stateInfo) {
         stateInfo = default;
-        if (!TryGetBaseLayerIndex(animator, out int layerIndex) || !animator.isActiveAndEnabled)
-        {
-            return false;
-        }
+        if (!TryGetBaseLayerIndex(animator, out int layerIndex) || !animator.isActiveAndEnabled) { return false; }
 
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
-        if (!IsFullBodyActionState(current))
-        {
-            return false;
-        }
+        if (!IsFullBodyActionState(current)) { return false; }
 
-        if (!animator.IsInTransition(layerIndex))
-        {
+        if (!animator.IsInTransition(layerIndex)) {
             stateInfo = current;
-            return true;
-        }
+            return true; }
 
         AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
-        if (!IsFullBodyActionState(next))
-        {
-            return false;
-        }
+        if (!IsFullBodyActionState(next)) { return false; }
 
         stateInfo = next;
-        return true;
-    }
-
-    // Handle Try Get Active Action State Info.
-    private bool TryGetActiveActionStateInfo(Animator animator, int layerIndex, out AnimatorStateInfo stateInfo)
-    {
+        return true; }
+    private bool TryGetActiveActionStateInfo(Animator animator, int layerIndex, out AnimatorStateInfo stateInfo) {
         stateInfo = default;
-        if (animator == null || layerIndex < 0 || layerIndex >= animator.layerCount || !animator.isActiveAndEnabled)
-        {
-            return false;
-        }
+        if (animator == null || layerIndex < 0 || layerIndex >= animator.layerCount || !animator.isActiveAndEnabled) { return false; }
 
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(layerIndex);
-        if (IsActionState(current))
-        {
+        if (IsActionState(current)) {
             stateInfo = current;
-            return true;
-        }
+            return true; }
 
-        if (!animator.IsInTransition(layerIndex))
-        {
-            return false;
-        }
+        if (!animator.IsInTransition(layerIndex)) { return false; }
 
         AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(layerIndex);
-        if (!IsActionState(next))
-        {
-            return false;
-        }
+        if (!IsActionState(next)) { return false; }
 
         stateInfo = next;
-        return true;
-    }
+        return true; }
+    private bool IsAnimatorLayerBlockingNewAction(Animator animator, int layerIndex) { if (!TryGetActiveActionStateInfo(animator, layerIndex, out AnimatorStateInfo actionState)) { return false; }
 
-    // Handle Is Animator Layer Blocking New Action.
-    private bool IsAnimatorLayerBlockingNewAction(Animator animator, int layerIndex)
-    {
-        if (!TryGetActiveActionStateInfo(animator, layerIndex, out AnimatorStateInfo actionState))
-        {
-            return false;
-        }
+        if (animator.IsInTransition(layerIndex)) { return true; }
 
-        if (animator.IsInTransition(layerIndex))
-        {
-            return true;
-        }
+        return actionState.normalizedTime < GetUpperBodyActionCompletionThreshold(); }
+    private float ResolveChopAnimationSpeed() { if (axeAnimationScript != null) { return axeAnimationScript.GetResolvedSwingAnimationSpeed(); }
 
-        return actionState.normalizedTime < GetUpperBodyActionCompletionThreshold();
-    }
-
-    // Handle Resolve Chop Animation Speed.
-    private float ResolveChopAnimationSpeed()
-    {
-        if (axeAnimationScript != null)
-        {
-            return axeAnimationScript.GetResolvedSwingAnimationSpeed();
-        }
-
-        return 1f;
-    }
-
-    // Handle Resolve Item Switch Script.
-    private ItemSwitchScript ResolveItemSwitchScript()
-    {
-        if (_itemSwitchScript != null)
-        {
-            return _itemSwitchScript;
-        }
+        return 1f; }
+    private ItemSwitchScript ResolveItemSwitchScript() { if (_itemSwitchScript != null) { return _itemSwitchScript; }
 
         _itemSwitchScript = GetComponent<ItemSwitchScript>();
-        if (_itemSwitchScript != null)
-        {
-            return _itemSwitchScript;
-        }
+        if (_itemSwitchScript != null) { return _itemSwitchScript; }
 
         _itemSwitchScript = GetComponentInParent<ItemSwitchScript>();
-        if (_itemSwitchScript != null)
-        {
-            return _itemSwitchScript;
-        }
+        if (_itemSwitchScript != null) { return _itemSwitchScript; }
 
-#if UNITY_2023_1_OR_NEWER
-        _itemSwitchScript = FindFirstObjectByType<ItemSwitchScript>(FindObjectsInactive.Include);
-#else
-        _itemSwitchScript = FindObjectOfType<ItemSwitchScript>(true);
-#endif
+        _itemSwitchScript = UnitySceneSearch.FindFirst<ItemSwitchScript>();
 
-        return _itemSwitchScript;
-    }
-
-    // Handle Resolve Configured Speed.
-    private static float ResolveConfiguredSpeed(float value)
-    {
-        return value > 0f ? value : 1f;
-    }
-
-    // Handle Try Set Animator Float Parameter.
-    private static bool TrySetAnimatorFloatParameter(Animator animator, string parameterName, float value)
-    {
-        if (animator == null || string.IsNullOrWhiteSpace(parameterName))
-        {
-            return false;
-        }
+        return _itemSwitchScript; }
+    private static float ResolveConfiguredSpeed(float value) { return value > 0f ? value : 1f; }
+    private static bool TrySetAnimatorFloatParameter(Animator animator, string parameterName, float value) { if (animator == null || string.IsNullOrWhiteSpace(parameterName)) { return false; }
 
         AnimatorControllerParameter[] parameters = animator.parameters;
-        for (int i = 0; i < parameters.Length; i++)
-        {
+        for (int i = 0; i < parameters.Length; i++) {
             AnimatorControllerParameter parameter = parameters[i];
             if (parameter.type != AnimatorControllerParameterType.Float ||
-                !string.Equals(parameter.name, parameterName, System.StringComparison.Ordinal))
-            {
-                continue;
-            }
+                !string.Equals(parameter.name, parameterName, System.StringComparison.Ordinal)) { continue; }
 
             animator.SetFloat(parameterName, Mathf.Max(0.01f, value));
-            return true;
-        }
+            return true; }
 
-        return false;
-    }
-
-    // Handle Try Set Animator Bool Parameter.
-    private static bool TrySetAnimatorBoolParameter(Animator animator, string parameterName, bool value)
-    {
-        if (animator == null || string.IsNullOrWhiteSpace(parameterName))
-        {
-            return false;
-        }
+        return false; }
+    private static bool TrySetAnimatorBoolParameter(Animator animator, string parameterName, bool value) { if (animator == null || string.IsNullOrWhiteSpace(parameterName)) { return false; }
 
         AnimatorControllerParameter[] parameters = animator.parameters;
-        for (int i = 0; i < parameters.Length; i++)
-        {
+        for (int i = 0; i < parameters.Length; i++) {
             AnimatorControllerParameter parameter = parameters[i];
             if (parameter.type != AnimatorControllerParameterType.Bool ||
-                !string.Equals(parameter.name, parameterName, System.StringComparison.Ordinal))
-            {
-                continue;
-            }
+                !string.Equals(parameter.name, parameterName, System.StringComparison.Ordinal)) { continue; }
 
             animator.SetBool(parameterName, value);
-            return true;
-        }
+            return true; }
 
-        return false;
-    }
-
-    // Handle Is Animator In Action State.
-    private bool IsAnimatorInActionState()
-    {
-        if (movementAnimationScript != null && movementAnimationScript.IsBlockingActionState())
-        {
-            return true;
-        }
+        return false; }
+    private bool IsAnimatorInActionState() { if (movementAnimationScript != null && movementAnimationScript.IsBlockingActionState()) { return true; }
 
         Animator animator = movementAnimationScript != null ? movementAnimationScript.animator : null;
 
-        if (animator == null && swordAnimationScript != null)
-        {
-            animator = swordAnimationScript.animator;
-        }
+        if (animator == null && swordAnimationScript != null) { animator = swordAnimationScript.animator; }
 
         if (animator == null || !animator.isActiveAndEnabled ||
-            (movementAnimationScript != null && animator == movementAnimationScript.animator))
-        {
-            return false;
-        }
+            (movementAnimationScript != null && animator == movementAnimationScript.animator)) { return false; }
 
-        return IsAnimatorLayerInActionState(animator, 0);
-    }
-
-    // Handle Is Action State.
-    private static bool IsActionState(AnimatorStateInfo state)
-    {
-        if (state.IsTag("Action"))
-        {
-            return true;
-        }
+        return IsAnimatorLayerInActionState(animator, 0); }
+    private static bool IsActionState(AnimatorStateInfo state) { if (state.IsTag("Action")) { return true; }
 
         int stateHash = state.shortNameHash;
         return stateHash == AttackWeaponStateHash ||
@@ -1880,8 +869,7 @@ public class ActionScript : MonoBehaviour
                stateHash == PunchRightStateHash ||
                stateHash == MiningStateHash ||
                stateHash == ChopStateHash ||
-               stateHash == JumpStateHash;
-    }
+               stateHash == JumpStateHash; }
 
 }
 

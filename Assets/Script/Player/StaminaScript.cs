@@ -1,9 +1,5 @@
-﻿using UnityEngine;
-using UnityEngine.UI;
-
-// Controls Stamina Script behavior.
-public class StaminaScript : MonoBehaviour
-{
+using UnityEngine; using UnityEngine.UI;
+public class StaminaScript : MonoBehaviour {
     public bool enoughstamina;
     public Image image;
     public float valuereduce = 0.6f;
@@ -16,122 +12,63 @@ public class StaminaScript : MonoBehaviour
 
     private float _staminaRechargeBlockedUntil;
 
-    void Start()
-    {
-        if (valueadd < 0f)
-        {
-            valueadd = valuereduce;
-        }
+    void Start() {
+        if (valueadd < 0f) { valueadd = valuereduce; }
 
-        UpdateEnoughStaminaState();
-    }
-// Handle Add Stamina.
-    public void AddStamina()
-    {
-        if (image == null)
-        {
+        UpdateEnoughStaminaState(); }
+    public void AddStamina() {
+        if (image == null) {
             enoughstamina = true;
-            return;
-        }
+            return; }
 
-        if (Time.time < _staminaRechargeBlockedUntil)
-        {
+        if (Time.time < _staminaRechargeBlockedUntil) {
             UpdateEnoughStaminaState();
-            return;
-        }
+            return; }
 
         float delta = Mathf.Abs(valueadd) * Time.deltaTime;
         image.fillAmount = Mathf.Clamp01(image.fillAmount + delta);
         UpdateEnoughStaminaState();
         
     }
-    // Handle Reduce Stamina.
-    public void ReduceStamina()
-    {
-        if (image == null)
-        {
+    public void ReduceStamina() {
+        if (image == null) {
             enoughstamina = true;
-            return;
-        }
+            return; }
 
         float delta = Mathf.Abs(valuereduce) * Time.deltaTime;
         image.fillAmount = Mathf.Clamp01(image.fillAmount - delta);
         UpdateEnoughStaminaState();
 
     }
-    // Handle Sword Swing.
-    public bool SwordSwing()
-    {
-        return TryConsumeStamina(swordSwingCost);
-    }
-
-    // Handle Axe Swing.
-    public bool AxeSwing()
-    {
-        return TryConsumeStamina(axeSwingCost);
-    }
-
-    // Handle Pickaxe Swing.
-    public bool PickaxeSwing()
-    {
-        return TryConsumeStamina(pickaxeSwingCost);
-    }
-
-    // Handle Try Consume Stamina.
-    public bool TryConsumeStamina(float amount)
-    {
-        return TryConsumeStamina(amount, staminaRechargeDelaySeconds);
-    }
-
-    // Handle Try Consume Stamina With Delay.
-    public bool TryConsumeStamina(float amount, float rechargeDelaySeconds)
-    {
-        if (image == null)
-        {
+    public bool SwordSwing() { return TryConsumeStamina(swordSwingCost); }
+    public bool AxeSwing() { return TryConsumeStamina(axeSwingCost); }
+    public bool PickaxeSwing() { return TryConsumeStamina(pickaxeSwingCost); }
+    public bool TryConsumeStamina(float amount) { return TryConsumeStamina(amount, staminaRechargeDelaySeconds); }
+    public bool TryConsumeStamina(float amount, float rechargeDelaySeconds) {
+        if (image == null) {
             enoughstamina = true;
-            return true;
-        }
+            return true; }
 
         float clampedAmount = Mathf.Max(0f, amount);
-        if (clampedAmount <= 0f)
-        {
+        if (clampedAmount <= 0f) {
             BlockStaminaRegeneration(rechargeDelaySeconds);
             UpdateEnoughStaminaState();
-            return true;
-        }
+            return true; }
 
-        if ((image.fillAmount + minimumStaminaThreshold) < clampedAmount)
-        {
+        if ((image.fillAmount + minimumStaminaThreshold) < clampedAmount) {
             UpdateEnoughStaminaState();
-            return false;
-        }
+            return false; }
 
         image.fillAmount = Mathf.Clamp01(image.fillAmount - clampedAmount);
         BlockStaminaRegeneration(rechargeDelaySeconds);
         UpdateEnoughStaminaState();
-        return true;
-    }
-
-    // Handle Block Stamina Regeneration.
-    public void BlockStaminaRegeneration(float delaySeconds)
-    {
-        if (image == null)
-        {
+        return true; }
+    public void BlockStaminaRegeneration(float delaySeconds) {
+        if (image == null) {
             enoughstamina = true;
-            return;
-        }
+            return; }
 
         float blockedUntil = Time.time + Mathf.Max(0f, delaySeconds);
-        if (blockedUntil > _staminaRechargeBlockedUntil)
-        {
-            _staminaRechargeBlockedUntil = blockedUntil;
-        }
-    }
-
-    // Handle Update Enough Stamina State.
-    private void UpdateEnoughStaminaState()
-    {
-        enoughstamina = image == null || image.fillAmount > minimumStaminaThreshold;
-    }
-}
+        if (blockedUntil > _staminaRechargeBlockedUntil) { _staminaRechargeBlockedUntil = blockedUntil; } }
+    private void UpdateEnoughStaminaState() { enoughstamina = image == null || image.fillAmount > minimumStaminaThreshold; } }
 

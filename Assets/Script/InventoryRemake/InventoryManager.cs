@@ -1,11 +1,6 @@
-using System.Collections.Generic;
-using TMPro;
-using UnityEngine;
-using UnityEngine.UI;
+using System.Collections.Generic; using TMPro; using UnityEngine; using UnityEngine.UI;
 
-public class InventoryManager : MonoBehaviour
-{
-    public static bool IsInventoryOpen { get; private set; }
+public class InventoryManager : MonoBehaviour { public static bool IsInventoryOpen { get; private set; }
 
     public Image backgroundslider;
     public Image fill;
@@ -17,102 +12,58 @@ public class InventoryManager : MonoBehaviour
     public KeyCode key;
     public List<WeaponSlot> weaponSlots = new List<WeaponSlot>();
 
-    private void Awake()
-    {
-        EnsureSlotList();
-    }
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
+    private void Awake() { EnsureSlotList(); }
+    void Start() {
      EnsureSlotList();
      EnableInventory(UIShown);
 
     }
 
-    void OnDisable()
-    {
+    void OnDisable() {
         IsInventoryOpen = false;
-        ApplyCursorState();
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        if (GameSettings.GetKeyDown(GameSettings.Key.Inventory, key))
-        {
+        ApplyCursorState(); }
+    void Update() {
+        if (GameSettings.GetKeyDown(GameSettings.Key.Inventory, key)) {
             UIShown = !UIShown;
-            EnableInventory(UIShown);
-        }
-    }
-    public bool AddItem(InventoryItem item, int count)
-    {
+            EnableInventory(UIShown); } }
+    public bool AddItem(InventoryItem item, int count) {
         EnsureSlotList();
-        if (item == null || count <= 0)
-        {
-            return false;
-        }
+        if (item == null || count <= 0) { return false; }
 
         // Stack into an existing slot first.
-        for (int i = 0; i < slotlist.Count; i++)
-        {
+        for (int i = 0; i < slotlist.Count; i++) {
             SlotInsideUI slot = slotlist[i];
-            if (slot == null || !slot.occupied)
-            {
-                continue;
-            }
+            if (slot == null || !slot.occupied) { continue; }
 
-            if (!IsSameItem(slot, item))
-            {
-                continue;
-            }
+            if (!IsSameItem(slot, item)) { continue; }
 
             slot.count += count;
             slot.Item = item;
             slot.nameofslot = !string.IsNullOrWhiteSpace(item.nameofitem) ? item.nameofitem : item.name;
-            if (slot.text != null)
-            {
-                slot.text.text = slot.count.ToString();
-            }
+            if (slot.text != null) { slot.text.text = slot.count.ToString(); }
 
-            return true;
-        }
+            return true; }
 
         // Otherwise place into the lowest-id empty slot.
         int number = 30;
         SlotInsideUI finalslot = null;
-        foreach(SlotInsideUI slot in slotlist)
-        {
-            if(slot.id < number && !slot.occupied)
-            {
+        foreach(SlotInsideUI slot in slotlist) {
+            if(slot.id < number && !slot.occupied) {
                 number = slot.id;
-                finalslot =slot;
-            }
-        }
-        if (finalslot == null)
-        {
-            return false;
-        }
+                finalslot =slot; } }
+        if (finalslot == null) { return false; }
 
         finalslot.occupied = true;
-        if (finalslot.image != null)
-        {
-            finalslot.image.sprite = item.inventorysprite;
-        }
+        if (finalslot.image != null) { finalslot.image.sprite = item.inventorysprite; }
         finalslot.nameofslot = !string.IsNullOrWhiteSpace(item.nameofitem)
             ? item.nameofitem
             : item.name;
         finalslot.count = count;
         finalslot.Item = item;
-        if (finalslot.text != null)
-        {
-            finalslot.text.text = count.ToString();
-        }
-        return true;
-    }
+        if (finalslot.text != null) { finalslot.text.text = count.ToString(); }
+        return true; }
 
-    public void EnableInventory(bool status)
-    {
+    public void EnableInventory(bool status) {
         UIShown = status;
         IsInventoryOpen = status;
         ApplyCursorState();
@@ -122,118 +73,44 @@ public class InventoryManager : MonoBehaviour
         fill.enabled = status;
         text1.enabled = status;
         text2.enabled = status;
-        if (backgroundofwholeinventory != null)
-        {
-            backgroundofwholeinventory.enabled = status;
-        }
-        foreach(SlotInsideUI slot in slotlist)
-        {
-            if (slot == null)
-            {
-                continue;
-            }
+        if (backgroundofwholeinventory != null) { backgroundofwholeinventory.enabled = status; }
+        foreach(SlotInsideUI slot in slotlist) { if (slot == null) { continue; }
 
-            if (slot.image != null)
-            {
-                slot.image.enabled = status && slot.occupied;
-            }
+            if (slot.image != null) { slot.image.enabled = status && slot.occupied; }
             if (slot.background != null) slot.background.enabled = status;
-            if (slot.text != null) slot.text.enabled = status;
-        }
-        foreach(WeaponSlot weaponSlot in weaponSlots)
-        {
-            if (weaponSlot == null)
-            {
-                continue;
-            }
+            if (slot.text != null) slot.text.enabled = status; }
+        foreach(WeaponSlot weaponSlot in weaponSlots) { if (weaponSlot == null) { continue; }
 
-            if (weaponSlot.Backgroundimage != null)
-            {
-                weaponSlot.Backgroundimage.enabled = status;
-            }
+            if (weaponSlot.Backgroundimage != null) { weaponSlot.Backgroundimage.enabled = status; }
 
             weaponSlot.RefreshVisual();
-            if (!status && weaponSlot.iconImage != null)
-            {
-                weaponSlot.iconImage.enabled = false;
-            }
-        }
+            if (!status && weaponSlot.iconImage != null) { weaponSlot.iconImage.enabled = false; } }
 
         XPHandler[] xpHandlers = GetXPHandlersForInventoryUI();
-        for (int i = 0; i < xpHandlers.Length; i++)
-        {
-            if (xpHandlers[i] != null)
-            {
-                xpHandlers[i].SetVisible(status);
-            }
-        }
-    }
+        for (int i = 0; i < xpHandlers.Length; i++) { if (xpHandlers[i] != null) { xpHandlers[i].SetVisible(status); } } }
+    private static void ApplyCursorState() { GameplayUiState.ApplyCursorState(); }
+    private void EnsureSlotList() { if (slotlist == null) { slotlist = new List<SlotInsideUI>(); }
 
-    // Handle Apply Cursor State.
-    private static void ApplyCursorState()
-    {
-        GameplayUiState.ApplyCursorState();
-    }
-
-    // Handle Ensure Slot List.
-    private void EnsureSlotList()
-    {
-        if (slotlist == null)
-        {
-            slotlist = new List<SlotInsideUI>();
-        }
-
-        if (slotlist.Count > 0)
-        {
-            return;
-        }
+        if (slotlist.Count > 0) { return; }
 
         SlotInsideUI[] discovered = GetComponentsInChildren<SlotInsideUI>(true);
-        for (int i = 0; i < discovered.Length; i++)
-        {
+        for (int i = 0; i < discovered.Length; i++) {
             SlotInsideUI slot = discovered[i];
-            if (slot != null && !slotlist.Contains(slot))
-            {
-                slotlist.Add(slot);
-            }
-        }
-    }
+            if (slot != null && !slotlist.Contains(slot)) { slotlist.Add(slot); } } }
+    private static bool IsSameItem(SlotInsideUI slot, InventoryItem item) { if (slot == null || item == null) { return false; }
 
-    // Handle Is Same Item.
-    private static bool IsSameItem(SlotInsideUI slot, InventoryItem item)
-    {
-        if (slot == null || item == null)
-        {
-            return false;
-        }
-
-        if (slot.Item == item)
-        {
-            return true;
-        }
+        if (slot.Item == item) { return true; }
 
         string slotName = !string.IsNullOrWhiteSpace(slot.nameofslot)
             ? slot.nameofslot
             : (slot.Item != null ? slot.Item.nameofitem : string.Empty);
         string itemName = !string.IsNullOrWhiteSpace(item.nameofitem) ? item.nameofitem : item.name;
 
-        if (string.IsNullOrWhiteSpace(slotName) || string.IsNullOrWhiteSpace(itemName))
-        {
-            return false;
-        }
+        if (string.IsNullOrWhiteSpace(slotName) || string.IsNullOrWhiteSpace(itemName)) { return false; }
 
-        return string.Equals(slotName.Trim(), itemName.Trim(), System.StringComparison.OrdinalIgnoreCase);
-    }
-
-    // Handle Get XPHandlers For Inventory UI.
-    private XPHandler[] GetXPHandlersForInventoryUI()
-    {
+        return string.Equals(slotName.Trim(), itemName.Trim(), System.StringComparison.OrdinalIgnoreCase); }
+    private XPHandler[] GetXPHandlersForInventoryUI() {
         Canvas rootCanvas = GetComponentInParent<Canvas>();
-        if (rootCanvas != null)
-        {
-            return rootCanvas.GetComponentsInChildren<XPHandler>(true);
-        }
+        if (rootCanvas != null) { return rootCanvas.GetComponentsInChildren<XPHandler>(true); }
 
-        return GetComponentsInChildren<XPHandler>(true);
-    }
-}
+        return GetComponentsInChildren<XPHandler>(true); } }

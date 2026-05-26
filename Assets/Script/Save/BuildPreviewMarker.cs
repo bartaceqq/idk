@@ -1,5 +1,3 @@
 using UnityEngine;
 
-public sealed class BuildPreviewMarker : MonoBehaviour
-{
-}
+public sealed class BuildPreviewMarker : MonoBehaviour { }

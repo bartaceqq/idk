@@ -1,20 +1,12 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
-
-// Controls gun equip, shooting and reload-magazine visuals.
-public class GunItem : MonoBehaviour
-{
-    [Header("Input")]
-    public KeyCode key = KeyCode.Alpha4;
+using System.Collections; using System.Collections.Generic; using UnityEngine; using UnityEngine.UI;
+public class GunItem : MonoBehaviour {
+    [Header("Input")] public KeyCode key = KeyCode.Alpha4;
     [SerializeField] private KeyCode reloadKey = KeyCode.R;
     [SerializeField] private KeyCode shootKey = KeyCode.Mouse0;
     [SerializeField] private KeyCode aimKey = KeyCode.Mouse1;
 
     [Header("References")]
-    [Tooltip("Magazine object currently attached to the weapon.")]
-    public GameObject MagToRealod;
+    [Tooltip("Magazine object currently attached to the weapon.")] public GameObject MagToRealod;
     [SerializeField] private Animator characterAnimator;
     [SerializeField] private ActionScript actionScript;
     [SerializeField] private RayScript rayScript;
@@ -109,8 +101,7 @@ public class GunItem : MonoBehaviour
     [SerializeField] private Renderer[] renderersHiddenWhileAiming;
     [SerializeField] private GameObject[] rendererParentObjectsHiddenWhileAiming;
 
-    [Header("Crosshair")]
-    public Image crosshairimage;
+    [Header("Crosshair")] public Image crosshairimage;
     [SerializeField] private Image aimCrosshairImage;
     private Renderer[] _gunRenderers;
     private Collider[] _gunColliders;
@@ -141,8 +132,7 @@ public class GunItem : MonoBehaviour
     private Renderer[] _resolvedAimHiddenRenderers;
     private bool[] _aimHiddenRendererPreviousStates;
 
-    private void OnValidate()
-    {
+    private void OnValidate() {
         magazineSize = Mathf.Max(1, magazineSize);
         ammoInMagazine = Mathf.Clamp(ammoInMagazine, 0, magazineSize);
         shootCooldown = Mathf.Max(0.01f, shootCooldown);
@@ -150,11 +140,9 @@ public class GunItem : MonoBehaviour
         projectileSpeed = Mathf.Max(0.01f, projectileSpeed);
         projectileLifetime = Mathf.Max(0.1f, projectileLifetime);
         reloadDuration = Mathf.Max(0.05f, reloadDuration);
-        droppedMagazineLifetime = Mathf.Max(0.25f, droppedMagazineLifetime);
-    }
+        droppedMagazineLifetime = Mathf.Max(0.25f, droppedMagazineLifetime); }
 
-    private void Awake()
-    {
+    private void Awake() {
         CacheComponents();
         CacheMagazineAttachPose();
         ResolveLeftHandSocket();
@@ -167,106 +155,59 @@ public class GunItem : MonoBehaviour
         ApplyCombatInputBlock(startVisible);
         ApplyUpperBodyHold(startVisible);
         ApplyGunAnimatorVisibility(startVisible);
-        ToggleCrossHair();
-    }
+        ToggleCrossHair(); }
 
-    private void OnDisable()
-    {
+    private void OnDisable() {
         SetAimMode(false);
         StopReloadAndRestoreMagazine();
         ApplyGunAnimatorVisibility(false);
         ApplyCombatInputBlock(false);
         ApplyUpperBodyHold(false);
         SetHoldShoulderCamera(false);
-        ClearShotShoulderCamera();
-    }
-    public void ToggleCrossHair()
-    {
+        ClearShotShoulderCamera(); }
+    public void ToggleCrossHair() {
         bool showAimCrosshair = crossvisible && _gunVisible && _isAiming && aimCrosshairImage != null;
         bool showDefaultCrosshair = crossvisible && _gunVisible && (!_isAiming || aimCrosshairImage == null);
 
-        if (crosshairimage != null)
-        {
-            crosshairimage.enabled = showDefaultCrosshair;
-        }
+        if (crosshairimage != null) { crosshairimage.enabled = showDefaultCrosshair; }
 
-        if (aimCrosshairImage != null)
-        {
-            aimCrosshairImage.enabled = showAimCrosshair;
-        }
-    }
-    private void Update()
-    {
-        if (IsUiBlockingGameplay())
-        {
+        if (aimCrosshairImage != null) { aimCrosshairImage.enabled = showAimCrosshair; } }
+    private void Update() {
+        if (GameplayUiState.IsGameplayInputBlocked) {
             SetAimMode(false);
-            return;
-        }
+            return; }
 
-        if (Input.GetKeyDown(key) && !_isReloading)
-        {
+        if (Input.GetKeyDown(key) && !_isReloading) {
             ToggleGunVisible();
-            ToggleCrossHair();
-        }
+            ToggleCrossHair(); }
 
-        if (!_gunVisible)
-        {
+        if (!_gunVisible) {
             SetAimMode(false);
-            return;
-        }
+            return; }
 
         SetAimMode(IsAimHeld() && !_isReloading);
 
-        if (Input.GetKeyDown(reloadKey))
-        {
+        if (Input.GetKeyDown(reloadKey)) {
             TryBeginReload();
-            return;
-        }
+            return; }
 
-        if (DidPressShoot())
-        {
-            TryShoot();
-        }
-    }
+        if (DidPressShoot()) { TryShoot(); } }
 
-    private void LateUpdate()
-    {
-        if (!rotateUpperBodyToLook || !_gunVisible || _isReloading || characterAnimator == null)
-        {
-            return;
-        }
+    private void LateUpdate() { if (!rotateUpperBodyToLook || !_gunVisible || _isReloading || characterAnimator == null) { return; }
 
         UpdateProceduralRecoil(Time.deltaTime);
-        ApplyUpperBodyAimRotation();
-    }
-
-    // Handle Toggle Gun Visible.
-    private void ToggleGunVisible()
-    {
+        ApplyUpperBodyAimRotation(); }
+    private void ToggleGunVisible() {
         bool nextVisible = !_gunVisible;
         crossvisible = nextVisible;
         SetGunVisible(nextVisible);
         ApplyCombatInputBlock(nextVisible);
         ApplyUpperBodyHold(nextVisible);
-        ApplyGunAnimatorVisibility(nextVisible);
-    }
+        ApplyGunAnimatorVisibility(nextVisible); }
+    private void TryShoot() { if (_isReloading || Time.time < _nextShootTime) { return; }
 
-    // Handle Try Shoot.
-    private void TryShoot()
-    {
-        if (_isReloading || Time.time < _nextShootTime)
-        {
-            return;
-        }
-
-        if (ammoInMagazine <= 0)
-        {
-            if (autoReloadWhenEmpty)
-            {
-                TryBeginReload();
-            }
-            return;
-        }
+        if (ammoInMagazine <= 0) { if (autoReloadWhenEmpty) { TryBeginReload(); }
+            return; }
 
         ammoInMagazine--;
         _nextShootTime = Time.time + shootCooldown;
@@ -274,68 +215,33 @@ public class GunItem : MonoBehaviour
         AddRecoilKick();
         SpawnProjectile();
 
-        if (useShootAnimation)
-        {
-            if (!TrySetAnimatorTrigger(gunShootTriggerName))
-            {
+        if (useShootAnimation) {
+            if (!TrySetAnimatorTrigger(gunShootTriggerName)) {
                 _shootStateToken++;
-                StartCoroutine(PlayShootStateThenReturnToAim(_shootStateToken));
-            }
-        }
-        else
-        {
+                StartCoroutine(PlayShootStateThenReturnToAim(_shootStateToken)); } } else {
             // Keep aim pose stable when using procedural recoil-only firing.
-            TryPlayUpperBodyState(aimStateName);
-        }
+            TryPlayUpperBodyState(aimStateName); }
 
-        if (ammoInMagazine <= 0 && autoReloadWhenEmpty)
-        {
-            TryBeginReload();
-        }
-    }
+        if (ammoInMagazine <= 0 && autoReloadWhenEmpty) { TryBeginReload(); } }
+    private void TryBeginReload() { if (!_gunVisible || _isReloading) { return; }
 
-    // Handle Try Begin Reload.
-    private void TryBeginReload()
-    {
-        if (!_gunVisible || _isReloading)
-        {
-            return;
-        }
-
-        if (ammoInMagazine >= magazineSize)
-        {
-            return;
-        }
+        if (ammoInMagazine >= magazineSize) { return; }
 
         SetAimMode(false);
-        _reloadRoutine = StartCoroutine(ReloadRoutine());
-    }
-
-    // Handle Play Shoot State Then Return To Aim.
-    private IEnumerator PlayShootStateThenReturnToAim(int stateToken)
-    {
+        _reloadRoutine = StartCoroutine(ReloadRoutine()); }
+    private IEnumerator PlayShootStateThenReturnToAim(int stateToken) {
         TryPlayUpperBodyState(shootStateName);
         yield return new WaitForSeconds(shootStateDuration);
 
-        if (stateToken != _shootStateToken || !_gunVisible || _isReloading)
-        {
-            yield break;
-        }
+        if (stateToken != _shootStateToken || !_gunVisible || _isReloading) { yield break; }
 
-        TryPlayUpperBodyState(aimStateName);
-    }
-
-    // Handle Reload Routine.
-    private IEnumerator ReloadRoutine()
-    {
+        TryPlayUpperBodyState(aimStateName); }
+    private IEnumerator ReloadRoutine() {
         _isReloading = true;
         _shootStateToken++;
         bool temporarilyDisabledGunEquipped = TrySetAnimatorBool(gunEquippedBoolName, false);
 
-        if (!TrySetAnimatorTrigger(gunReloadTriggerName))
-        {
-            TryPlayUpperBodyState(reloadStateName);
-        }
+        if (!TrySetAnimatorTrigger(gunReloadTriggerName)) { TryPlayUpperBodyState(reloadStateName); }
         EjectMagazine();
         SpawnLeftHandMagazine();
 
@@ -345,46 +251,20 @@ public class GunItem : MonoBehaviour
         ammoInMagazine = magazineSize;
         _isReloading = false;
         _reloadRoutine = null;
-        if (temporarilyDisabledGunEquipped)
-        {
-            TrySetAnimatorBool(gunEquippedBoolName, _gunVisible);
-        }
+        if (temporarilyDisabledGunEquipped) { TrySetAnimatorBool(gunEquippedBoolName, _gunVisible); }
 
-        if (!HasAnimatorParameter(gunEquippedBoolName, AnimatorControllerParameterType.Bool))
-        {
-            if (_gunVisible)
-            {
-                TryPlayUpperBodyState(aimStateName);
-            }
-            else
-            {
-                TryPlayUpperBodyState(upperBodyIdleStateName);
-            }
-        }
-    }
-
-    // Handle Stop Reload And Restore Magazine.
-    private void StopReloadAndRestoreMagazine()
-    {
-        if (_reloadRoutine != null)
-        {
+        if (!HasAnimatorParameter(gunEquippedBoolName, AnimatorControllerParameterType.Bool)) {
+            if (_gunVisible) { TryPlayUpperBodyState(aimStateName); } else { TryPlayUpperBodyState(upperBodyIdleStateName); } } }
+    private void StopReloadAndRestoreMagazine() {
+        if (_reloadRoutine != null) {
             StopCoroutine(_reloadRoutine);
-            _reloadRoutine = null;
-        }
+            _reloadRoutine = null; }
 
         _isReloading = false;
         TrySetAnimatorBool(gunEquippedBoolName, _gunVisible);
         _currentRecoilPitch = 0f;
-        FinishReloadVisuals();
-    }
-
-    // Handle Eject Magazine.
-    private void EjectMagazine()
-    {
-        if (MagToRealod == null || !MagToRealod.activeInHierarchy)
-        {
-            return;
-        }
+        FinishReloadVisuals(); }
+    private void EjectMagazine() { if (MagToRealod == null || !MagToRealod.activeInHierarchy) { return; }
 
         GameObject droppedMag = Instantiate(
             MagToRealod,
@@ -395,15 +275,9 @@ public class GunItem : MonoBehaviour
         droppedMag.transform.localScale = MagToRealod.transform.lossyScale;
 
         Rigidbody rigidbody = droppedMag.GetComponent<Rigidbody>();
-        if (rigidbody == null)
-        {
-            rigidbody = droppedMag.AddComponent<Rigidbody>();
-        }
+        if (rigidbody == null) { rigidbody = droppedMag.AddComponent<Rigidbody>(); }
 
-        if (!HasAnyCollider(droppedMag))
-        {
-            droppedMag.AddComponent<BoxCollider>();
-        }
+        if (!HasAnyCollider(droppedMag)) { droppedMag.AddComponent<BoxCollider>(); }
 
         rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
         rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
@@ -415,22 +289,11 @@ public class GunItem : MonoBehaviour
 
         Destroy(droppedMag, droppedMagazineLifetime);
 
-        MagToRealod.SetActive(false);
-    }
-
-    // Handle Spawn Left Hand Magazine.
-    private void SpawnLeftHandMagazine()
-    {
-        if (leftHandSocket == null)
-        {
-            return;
-        }
+        MagToRealod.SetActive(false); }
+    private void SpawnLeftHandMagazine() { if (leftHandSocket == null) { return; }
 
         GameObject sourcePrefab = leftHandMagPrefab != null ? leftHandMagPrefab : MagToRealod;
-        if (sourcePrefab == null)
-        {
-            return;
-        }
+        if (sourcePrefab == null) { return; }
 
         _leftHandMagInstance = Instantiate(sourcePrefab, leftHandSocket);
         _leftHandMagInstance.name = $"{sourcePrefab.name}_HandMag";
@@ -439,122 +302,58 @@ public class GunItem : MonoBehaviour
         _leftHandMagInstance.transform.localScale = leftHandMagLocalScale;
 
         Rigidbody[] rigidbodies = _leftHandMagInstance.GetComponentsInChildren<Rigidbody>(true);
-        for (int i = 0; i < rigidbodies.Length; i++)
-        {
-            if (rigidbodies[i] == null)
-            {
-                continue;
-            }
+        for (int i = 0; i < rigidbodies.Length; i++) { if (rigidbodies[i] == null) { continue; }
 
             rigidbodies[i].isKinematic = true;
-            rigidbodies[i].useGravity = false;
-        }
+            rigidbodies[i].useGravity = false; }
 
         Collider[] colliders = _leftHandMagInstance.GetComponentsInChildren<Collider>(true);
-        for (int i = 0; i < colliders.Length; i++)
-        {
-            if (colliders[i] != null)
-            {
-                colliders[i].enabled = false;
-            }
-        }
-    }
-
-    // Handle Finish Reload Visuals.
-    private void FinishReloadVisuals()
-    {
-        if (_leftHandMagInstance != null)
-        {
+        for (int i = 0; i < colliders.Length; i++) { if (colliders[i] != null) { colliders[i].enabled = false; } } }
+    private void FinishReloadVisuals() {
+        if (_leftHandMagInstance != null) {
             Destroy(_leftHandMagInstance);
-            _leftHandMagInstance = null;
-        }
+            _leftHandMagInstance = null; }
 
-        if (MagToRealod == null)
-        {
-            return;
-        }
+        if (MagToRealod == null) { return; }
 
         Transform magTransform = MagToRealod.transform;
-        if (_originalMagParent != null)
-        {
-            magTransform.SetParent(_originalMagParent, false);
-        }
+        if (_originalMagParent != null) { magTransform.SetParent(_originalMagParent, false); }
 
         magTransform.localPosition = _originalMagLocalPosition;
         magTransform.localRotation = _originalMagLocalRotation;
         magTransform.localScale = _originalMagLocalScale;
-        MagToRealod.SetActive(true);
-    }
-
-    // Handle Cache Components.
-    private void CacheComponents()
-    {
+        MagToRealod.SetActive(true); }
+    private void CacheComponents() {
         _gunRenderers = GetComponentsInChildren<Renderer>(true);
         _gunColliders = GetComponentsInChildren<Collider>(true);
         _ownerColliders = transform.root != null
             ? transform.root.GetComponentsInChildren<Collider>(true)
             : GetComponentsInParent<Collider>(true);
 
-        if (characterAnimator == null)
-        {
-            characterAnimator = GetComponentInParent<Animator>();
-        }
+        if (characterAnimator == null) { characterAnimator = GetComponentInParent<Animator>(); }
 
-        if (actionScript == null)
-        {
-            actionScript = GetComponentInParent<ActionScript>();
-        }
+        if (actionScript == null) { actionScript = GetComponentInParent<ActionScript>(); }
 
-        if (rayScript == null)
-        {
+        if (rayScript == null) {
             rayScript = GetComponentInParent<RayScript>();
-            if (rayScript == null && transform.root != null)
-            {
-                rayScript = transform.root.GetComponentInChildren<RayScript>(true);
-            }
-        }
+            if (rayScript == null && transform.root != null) { rayScript = transform.root.GetComponentInChildren<RayScript>(true); } }
 
-        if (fpsController == null)
-        {
+        if (fpsController == null) {
             fpsController = GetComponentInParent<FPSController>();
-            if (fpsController == null && transform.root != null)
-            {
-                fpsController = transform.root.GetComponentInChildren<FPSController>(true);
-            }
-        }
+            if (fpsController == null && transform.root != null) { fpsController = transform.root.GetComponentInChildren<FPSController>(true); } }
 
-        CacheUpperBodyBones();
-    }
-
-    // Handle Cache Magazine Attach Pose.
-    private void CacheMagazineAttachPose()
-    {
-        if (MagToRealod == null)
-        {
-            return;
-        }
+        CacheUpperBodyBones(); }
+    private void CacheMagazineAttachPose() { if (MagToRealod == null) { return; }
 
         Transform magTransform = MagToRealod.transform;
         _originalMagParent = magTransform.parent;
         _originalMagLocalPosition = magTransform.localPosition;
         _originalMagLocalRotation = magTransform.localRotation;
-        _originalMagLocalScale = magTransform.localScale;
-    }
+        _originalMagLocalScale = magTransform.localScale; }
+    private void ResolveLeftHandSocket() { if (leftHandSocket != null || characterAnimator == null || !characterAnimator.isHuman) { return; }
 
-    // Handle Resolve Left Hand Socket.
-    private void ResolveLeftHandSocket()
-    {
-        if (leftHandSocket != null || characterAnimator == null || !characterAnimator.isHuman)
-        {
-            return;
-        }
-
-        leftHandSocket = characterAnimator.GetBoneTransform(HumanBodyBones.LeftHand);
-    }
-
-    // Handle Cache Upper Body Bones.
-    private void CacheUpperBodyBones()
-    {
+        leftHandSocket = characterAnimator.GetBoneTransform(HumanBodyBones.LeftHand); }
+    private void CacheUpperBodyBones() {
         _spineBone = null;
         _chestBone = null;
         _upperChestBone = null;
@@ -563,10 +362,7 @@ public class GunItem : MonoBehaviour
         _leftUpperArmBone = null;
         _rightUpperArmBone = null;
 
-        if (characterAnimator == null || !characterAnimator.isHuman)
-        {
-            return;
-        }
+        if (characterAnimator == null || !characterAnimator.isHuman) { return; }
 
         _spineBone = characterAnimator.GetBoneTransform(HumanBodyBones.Spine);
         _chestBone = characterAnimator.GetBoneTransform(HumanBodyBones.Chest);
@@ -574,32 +370,17 @@ public class GunItem : MonoBehaviour
         _leftShoulderBone = characterAnimator.GetBoneTransform(HumanBodyBones.LeftShoulder);
         _rightShoulderBone = characterAnimator.GetBoneTransform(HumanBodyBones.RightShoulder);
         _leftUpperArmBone = characterAnimator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
-        _rightUpperArmBone = characterAnimator.GetBoneTransform(HumanBodyBones.RightUpperArm);
-    }
-
-    // Handle Apply Upper Body Aim Rotation.
-    private void ApplyUpperBodyAimRotation()
-    {
-        if (!HasAnyAimBones())
-        {
+        _rightUpperArmBone = characterAnimator.GetBoneTransform(HumanBodyBones.RightUpperArm); }
+    private void ApplyUpperBodyAimRotation() {
+        if (!HasAnyAimBones()) {
             CacheUpperBodyBones();
-            if (!HasAnyAimBones())
-            {
-                return;
-            }
-        }
+            if (!HasAnyAimBones()) { return; } }
 
         Transform lookSource = ResolveUpperBodyAimSource();
-        if (lookSource == null)
-        {
-            return;
-        }
+        if (lookSource == null) { return; }
 
         Vector3 localLookDirection = characterAnimator.transform.InverseTransformDirection(lookSource.forward);
-        if (localLookDirection.sqrMagnitude < 0.0001f)
-        {
-            return;
-        }
+        if (localLookDirection.sqrMagnitude < 0.0001f) { return; }
 
         localLookDirection.Normalize();
 
@@ -608,25 +389,18 @@ public class GunItem : MonoBehaviour
         targetYaw = Mathf.Clamp(targetYaw, -maxUpperBodyYaw, maxUpperBodyYaw);
 
         float targetPitch = 0f;
-        if (includePitch)
-        {
+        if (includePitch) {
             float horizontalMagnitude = new Vector2(localLookDirection.x, localLookDirection.z).magnitude;
             targetPitch = -Mathf.Atan2(localLookDirection.y, Mathf.Max(0.0001f, horizontalMagnitude)) * Mathf.Rad2Deg;
             targetPitch += upperBodyPitchOffset;
-            targetPitch = Mathf.Clamp(targetPitch, -maxUpperBodyPitch, maxUpperBodyPitch);
-        }
+            targetPitch = Mathf.Clamp(targetPitch, -maxUpperBodyPitch, maxUpperBodyPitch); }
 
-        if (upperBodyAimSmoothing <= 0f || !Application.isPlaying)
-        {
+        if (upperBodyAimSmoothing <= 0f || !Application.isPlaying) {
             _smoothedAimYaw = targetYaw;
-            _smoothedAimPitch = targetPitch;
-        }
-        else
-        {
+            _smoothedAimPitch = targetPitch; } else {
             float t = 1f - Mathf.Exp(-upperBodyAimSmoothing * Time.deltaTime);
             _smoothedAimYaw = Mathf.LerpAngle(_smoothedAimYaw, targetYaw, t);
-            _smoothedAimPitch = Mathf.LerpAngle(_smoothedAimPitch, targetPitch, t);
-        }
+            _smoothedAimPitch = Mathf.LerpAngle(_smoothedAimPitch, targetPitch, t); }
 
         float recoilPitch = useProceduralRecoil ? _currentRecoilPitch : 0f;
         float finalPitch = _smoothedAimPitch - recoilPitch;
@@ -652,10 +426,7 @@ public class GunItem : MonoBehaviour
             _smoothedAimYaw * upperChestYawWeight * yawNormalization,
             finalPitch * upperChestPitchWeight * pitchNormalization);
 
-        if (!rotateShouldersAndArmsToLook)
-        {
-            return;
-        }
+        if (!rotateShouldersAndArmsToLook) { return; }
 
         ApplyBoneAimRotation(
             _leftShoulderBone,
@@ -679,342 +450,121 @@ public class GunItem : MonoBehaviour
             _rightUpperArmBone,
             characterAnimator.transform,
             _smoothedAimYaw * upperArmYawWeight,
-            finalPitch * upperArmPitchWeight);
-    }
+            finalPitch * upperArmPitchWeight); }
+    private Transform ResolveUpperBodyAimSource() { if (upperBodyAimSource != null) { return upperBodyAimSource; }
 
-    // Handle Resolve Upper Body Aim Source.
-    private Transform ResolveUpperBodyAimSource()
-    {
-        if (upperBodyAimSource != null)
-        {
-            return upperBodyAimSource;
-        }
-
-        if (fpsController != null && fpsController.playerCamera != null)
-        {
-            return fpsController.playerCamera;
-        }
+        if (fpsController != null && fpsController.playerCamera != null) { return fpsController.playerCamera; }
 
         Camera mainCamera = Camera.main;
-        return mainCamera != null ? mainCamera.transform : null;
-    }
-
-    // Handle Has Any Aim Bones.
-    private bool HasAnyAimBones()
-    {
+        return mainCamera != null ? mainCamera.transform : null; }
+    private bool HasAnyAimBones() {
         return _spineBone != null ||
                _chestBone != null ||
                _upperChestBone != null ||
                _leftShoulderBone != null ||
                _rightShoulderBone != null ||
                _leftUpperArmBone != null ||
-               _rightUpperArmBone != null;
-    }
-
-    // Handle Apply Bone Aim Rotation.
-    private static void ApplyBoneAimRotation(Transform bone, Transform characterRoot, float yawDegrees, float pitchDegrees)
-    {
-        if (bone == null || characterRoot == null)
-        {
-            return;
-        }
+               _rightUpperArmBone != null; }
+    private static void ApplyBoneAimRotation(Transform bone, Transform characterRoot, float yawDegrees, float pitchDegrees) { if (bone == null || characterRoot == null) { return; }
 
         Quaternion yawRotation = Quaternion.AngleAxis(yawDegrees, characterRoot.up);
         Quaternion pitchRotation = Quaternion.AngleAxis(pitchDegrees, characterRoot.right);
-        bone.rotation = yawRotation * pitchRotation * bone.rotation;
-    }
-
-    // Handle Get Aim Weight Normalization.
-    private static float GetAimWeightNormalization(params float[] weights)
-    {
-        if (weights == null || weights.Length == 0)
-        {
-            return 1f;
-        }
+        bone.rotation = yawRotation * pitchRotation * bone.rotation; }
+    private static float GetAimWeightNormalization(params float[] weights) { if (weights == null || weights.Length == 0) { return 1f; }
 
         float total = 0f;
-        for (int i = 0; i < weights.Length; i++)
-        {
-            total += Mathf.Max(0f, weights[i]);
-        }
+        for (int i = 0; i < weights.Length; i++) { total += Mathf.Max(0f, weights[i]); }
 
-        if (total <= 1f || total <= 0.0001f)
-        {
-            return 1f;
-        }
+        if (total <= 1f || total <= 0.0001f) { return 1f; }
 
-        return 1f / total;
-    }
-
-    // Handle Refresh Animator Layer Index.
-    private void RefreshAnimatorLayerIndex()
-    {
+        return 1f / total; }
+    private void RefreshAnimatorLayerIndex() {
         _upperBodyLayerIndex = -1;
-        if (characterAnimator == null || string.IsNullOrWhiteSpace(upperBodyLayerName))
-        {
-            return;
-        }
+        if (characterAnimator == null || string.IsNullOrWhiteSpace(upperBodyLayerName)) { return; }
 
-        _upperBodyLayerIndex = characterAnimator.GetLayerIndex(upperBodyLayerName);
-    }
-
-    // Handle Apply Combat Input Block.
-    private void ApplyCombatInputBlock(bool active)
-    {
-        if (rayScript != null)
-        {
-            rayScript.blockAttackInput = active;
-        }
-    }
-
-    // Handle Apply Upper Body Hold.
-    private void ApplyUpperBodyHold(bool active)
-    {
-        if (actionScript != null)
-        {
-            actionScript.SetUpperBodyExternalHold(active);
-        }
-    }
-
-    // Handle Apply Gun Animator Visibility.
-    private void ApplyGunAnimatorVisibility(bool visible)
-    {
+        _upperBodyLayerIndex = characterAnimator.GetLayerIndex(upperBodyLayerName); }
+    private void ApplyCombatInputBlock(bool active) { if (rayScript != null) { rayScript.blockAttackInput = active; } }
+    private void ApplyUpperBodyHold(bool active) { if (actionScript != null) { actionScript.SetUpperBodyExternalHold(active); } }
+    private void ApplyGunAnimatorVisibility(bool visible) {
         bool usedBool = TrySetAnimatorBool(gunEquippedBoolName, visible);
 
-        if (!visible)
-        {
-            ClearShotShoulderCamera();
-        }
+        if (!visible) { ClearShotShoulderCamera(); }
 
         // Fallback for controllers that do not have the gun bool parameter yet.
-        if (!usedBool)
-        {
-            if (visible)
-            {
-                TryPlayUpperBodyState(aimStateName);
-            }
-            else
-            {
-                TryPlayUpperBodyState(upperBodyIdleStateName);
-            }
-        }
-    }
-
-    // Handle Set Gun Visible.
-    private void SetGunVisible(bool visible)
-    {
+        if (!usedBool) {
+            if (visible) { TryPlayUpperBodyState(aimStateName); } else { TryPlayUpperBodyState(upperBodyIdleStateName); } } }
+    private void SetGunVisible(bool visible) {
         _gunVisible = visible;
-        if (!visible)
-        {
-            SetAimMode(false);
-        }
+        if (!visible) { SetAimMode(false); }
 
         SetHoldShoulderCamera(visible);
 
-        if (!visible)
-        {
-            _currentRecoilPitch = 0f;
-        }
+        if (!visible) { _currentRecoilPitch = 0f; }
 
-        if (_gunRenderers != null)
-        {
-            for (int i = 0; i < _gunRenderers.Length; i++)
-            {
-                if (_gunRenderers[i] != null)
-                {
-                    _gunRenderers[i].enabled = visible;
-                }
-            }
-        }
+        if (_gunRenderers != null) {
+            for (int i = 0; i < _gunRenderers.Length; i++) { if (_gunRenderers[i] != null) { _gunRenderers[i].enabled = visible; } } }
 
-        if (disableCollidersWhenHolstered && _gunColliders != null)
-        {
-            for (int i = 0; i < _gunColliders.Length; i++)
-            {
-                if (_gunColliders[i] != null)
-                {
-                    _gunColliders[i].enabled = visible;
-                }
-            }
-        }
+        if (disableCollidersWhenHolstered && _gunColliders != null) {
+            for (int i = 0; i < _gunColliders.Length; i++) { if (_gunColliders[i] != null) { _gunColliders[i].enabled = visible; } } }
 
-        ToggleCrossHair();
-    }
+        ToggleCrossHair(); }
+    private bool TryPlayUpperBodyState(string stateName) { if (characterAnimator == null || string.IsNullOrWhiteSpace(stateName)) { return false; }
 
-    // Handle Try Play Upper Body State.
-    private bool TryPlayUpperBodyState(string stateName)
-    {
-        if (characterAnimator == null || string.IsNullOrWhiteSpace(stateName))
-        {
-            return false;
-        }
-
-        if (_upperBodyLayerIndex < 0)
-        {
+        if (_upperBodyLayerIndex < 0) {
             RefreshAnimatorLayerIndex();
-            if (_upperBodyLayerIndex < 0)
-            {
-                return false;
-            }
-        }
+            if (_upperBodyLayerIndex < 0) { return false; } }
 
         int fullPathHash = Animator.StringToHash($"{upperBodyLayerName}.{stateName}");
         int shortNameHash = Animator.StringToHash(stateName);
 
         int targetStateHash;
-        if (characterAnimator.HasState(_upperBodyLayerIndex, fullPathHash))
-        {
-            targetStateHash = fullPathHash;
-        }
-        else if (characterAnimator.HasState(_upperBodyLayerIndex, shortNameHash))
-        {
-            targetStateHash = shortNameHash;
-        }
-        else
-        {
-            return false;
-        }
+        if (characterAnimator.HasState(_upperBodyLayerIndex, fullPathHash)) {
+            targetStateHash = fullPathHash; } else if (characterAnimator.HasState(_upperBodyLayerIndex, shortNameHash)) { targetStateHash = shortNameHash; } else { return false; }
 
-        if (stateBlendTime > 0f)
-        {
-            characterAnimator.CrossFadeInFixedTime(targetStateHash, stateBlendTime, _upperBodyLayerIndex);
-        }
-        else
-        {
-            characterAnimator.Play(targetStateHash, _upperBodyLayerIndex, 0f);
-        }
+        if (stateBlendTime > 0f) { characterAnimator.CrossFadeInFixedTime(targetStateHash, stateBlendTime, _upperBodyLayerIndex); } else { characterAnimator.Play(targetStateHash, _upperBodyLayerIndex, 0f); }
 
-        return true;
-    }
+        return true; }
+    private bool DidPressShoot() { if (shootKey == KeyCode.Mouse0) { return Input.GetMouseButtonDown(0); }
 
-    // Handle Did Press Shoot.
-    private bool DidPressShoot()
-    {
-        if (shootKey == KeyCode.Mouse0)
-        {
-            return Input.GetMouseButtonDown(0);
-        }
+        if (shootKey == KeyCode.Mouse1) { return Input.GetMouseButtonDown(1); }
 
-        if (shootKey == KeyCode.Mouse1)
-        {
-            return Input.GetMouseButtonDown(1);
-        }
+        if (shootKey == KeyCode.Mouse2) { return Input.GetMouseButtonDown(2); }
 
-        if (shootKey == KeyCode.Mouse2)
-        {
-            return Input.GetMouseButtonDown(2);
-        }
+        return Input.GetKeyDown(shootKey); }
+    private bool IsAimHeld() { if (aimKey == KeyCode.Mouse0) { return Input.GetMouseButton(0); }
 
-        return Input.GetKeyDown(shootKey);
-    }
+        if (aimKey == KeyCode.Mouse1) { return Input.GetMouseButton(1); }
 
-    // Handle Is Aim Held.
-    private bool IsAimHeld()
-    {
-        if (aimKey == KeyCode.Mouse0)
-        {
-            return Input.GetMouseButton(0);
-        }
+        if (aimKey == KeyCode.Mouse2) { return Input.GetMouseButton(2); }
 
-        if (aimKey == KeyCode.Mouse1)
-        {
-            return Input.GetMouseButton(1);
-        }
-
-        if (aimKey == KeyCode.Mouse2)
-        {
-            return Input.GetMouseButton(2);
-        }
-
-        return Input.GetKey(aimKey);
-    }
-
-    // Handle Has Any Collider.
-    private static bool HasAnyCollider(GameObject target)
-    {
-        if (target == null)
-        {
-            return false;
-        }
+        return Input.GetKey(aimKey); }
+    private static bool HasAnyCollider(GameObject target) { if (target == null) { return false; }
 
         Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
-        for (int i = 0; i < colliders.Length; i++)
-        {
-            if (colliders[i] != null)
-            {
-                return true;
-            }
-        }
+        for (int i = 0; i < colliders.Length; i++) { if (colliders[i] != null) { return true; } }
 
-        return false;
-    }
-
-    // Handle Has Animator Parameter.
-    private bool HasAnimatorParameter(string parameterName, AnimatorControllerParameterType type)
-    {
-        if (characterAnimator == null || string.IsNullOrWhiteSpace(parameterName))
-        {
-            return false;
-        }
+        return false; }
+    private bool HasAnimatorParameter(string parameterName, AnimatorControllerParameterType type) { if (characterAnimator == null || string.IsNullOrWhiteSpace(parameterName)) { return false; }
 
         AnimatorControllerParameter[] parameters = characterAnimator.parameters;
-        for (int i = 0; i < parameters.Length; i++)
-        {
-            if (parameters[i].type == type && parameters[i].name == parameterName)
-            {
-                return true;
-            }
-        }
+        for (int i = 0; i < parameters.Length; i++) { if (parameters[i].type == type && parameters[i].name == parameterName) { return true; } }
 
-        return false;
-    }
-
-    // Handle Try Set Animator Bool.
-    private bool TrySetAnimatorBool(string parameterName, bool value)
-    {
-        if (!HasAnimatorParameter(parameterName, AnimatorControllerParameterType.Bool))
-        {
-            return false;
-        }
+        return false; }
+    private bool TrySetAnimatorBool(string parameterName, bool value) { if (!HasAnimatorParameter(parameterName, AnimatorControllerParameterType.Bool)) { return false; }
 
         characterAnimator.SetBool(parameterName, value);
-        return true;
-    }
-
-    // Handle Try Set Animator Trigger.
-    private bool TrySetAnimatorTrigger(string parameterName)
-    {
-        if (!HasAnimatorParameter(parameterName, AnimatorControllerParameterType.Trigger))
-        {
-            return false;
-        }
+        return true; }
+    private bool TrySetAnimatorTrigger(string parameterName) { if (!HasAnimatorParameter(parameterName, AnimatorControllerParameterType.Trigger)) { return false; }
 
         characterAnimator.SetTrigger(parameterName);
-        return true;
-    }
-
-    // Handle Is UIBlocking Gameplay.
-    private static bool IsUiBlockingGameplay()
-    {
-        return GameplayUiState.IsGameplayInputBlocked;
-    }
-
-    // Handle Spawn Projectile.
-    private void SpawnProjectile()
-    {
-        if (!spawnProjectileOnShoot || projectilePrefab == null)
-        {
-            return;
-        }
+        return true; }
+    private void SpawnProjectile() { if (!spawnProjectileOnShoot || projectilePrefab == null) { return; }
 
         Transform spawnTransform = projectileSpawnPoint != null ? projectileSpawnPoint : transform;
         Vector3 spawnPosition = spawnTransform.position;
         Vector3 shootDirection = ResolveProjectileDirection(spawnPosition);
 
-        if (shootDirection.sqrMagnitude < 0.0001f)
-        {
-            shootDirection = spawnTransform.forward;
-        }
+        if (shootDirection.sqrMagnitude < 0.0001f) { shootDirection = spawnTransform.forward; }
 
         shootDirection.Normalize();
 
@@ -1022,212 +572,90 @@ public class GunItem : MonoBehaviour
         GameObject projectile = Instantiate(projectilePrefab, spawnPosition, rotation);
 
         Rigidbody projectileRigidbody = projectile.GetComponent<Rigidbody>();
-        if (projectileRigidbody != null)
-        {
+        if (projectileRigidbody != null) {
             projectileRigidbody.linearVelocity = shootDirection * projectileSpeed;
-            if (projectileGravityForce > 0f)
-            {
-                projectileRigidbody.AddForce(Vector3.down * projectileGravityForce, ForceMode.Acceleration);
-            }
-        }
+            if (projectileGravityForce > 0f) { projectileRigidbody.AddForce(Vector3.down * projectileGravityForce, ForceMode.Acceleration); } }
 
-        if (ignoreOwnerCollision)
-        {
-            IgnoreProjectileCollisions(projectile);
-        }
+        if (ignoreOwnerCollision) { IgnoreProjectileCollisions(projectile); }
 
-        Destroy(projectile, projectileLifetime);
-    }
-
-    // Handle Resolve Projectile Direction.
-    private Vector3 ResolveProjectileDirection(Vector3 spawnPosition)
-    {
+        Destroy(projectile, projectileLifetime); }
+    private Vector3 ResolveProjectileDirection(Vector3 spawnPosition) {
         Transform lookSource = ResolveUpperBodyAimSource();
-        if (lookSource == null)
-        {
-            return (projectileSpawnPoint != null ? projectileSpawnPoint.forward : transform.forward);
-        }
+        if (lookSource == null) { return (projectileSpawnPoint != null ? projectileSpawnPoint.forward : transform.forward); }
 
         Ray ray = new Ray(lookSource.position, lookSource.forward);
-        if (TryGetClosestNonOwnerHit(ray, out RaycastHit hit))
-        {
+        if (TryGetClosestNonOwnerHit(ray, out RaycastHit hit)) {
             Vector3 toHit = hit.point - spawnPosition;
-            if (toHit.sqrMagnitude > 0.0001f)
-            {
-                return toHit.normalized;
-            }
-        }
+            if (toHit.sqrMagnitude > 0.0001f) { return toHit.normalized; } }
 
-        return ray.direction.normalized;
-    }
-
-    // Handle Try Get Closest Non Owner Hit.
-    private bool TryGetClosestNonOwnerHit(Ray ray, out RaycastHit closestHit)
-    {
+        return ray.direction.normalized; }
+    private bool TryGetClosestNonOwnerHit(Ray ray, out RaycastHit closestHit) {
         RaycastHit[] hits = Physics.RaycastAll(ray, 2000f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
-        if (hits == null || hits.Length == 0)
-        {
+        if (hits == null || hits.Length == 0) {
             closestHit = default;
-            return false;
-        }
+            return false; }
 
         float bestDistance = float.MaxValue;
         int bestIndex = -1;
-        for (int i = 0; i < hits.Length; i++)
-        {
+        for (int i = 0; i < hits.Length; i++) {
             Collider collider = hits[i].collider;
-            if (collider == null || collider.transform.IsChildOf(transform.root))
-            {
-                continue;
-            }
+            if (collider == null || collider.transform.IsChildOf(transform.root)) { continue; }
 
-            if (hits[i].distance < bestDistance)
-            {
+            if (hits[i].distance < bestDistance) {
                 bestDistance = hits[i].distance;
-                bestIndex = i;
-            }
-        }
+                bestIndex = i; } }
 
-        if (bestIndex < 0)
-        {
+        if (bestIndex < 0) {
             closestHit = default;
-            return false;
-        }
+            return false; }
 
         closestHit = hits[bestIndex];
-        return true;
-    }
-
-    // Handle Ignore Projectile Collisions.
-    private void IgnoreProjectileCollisions(GameObject projectile)
-    {
-        if (projectile == null || _ownerColliders == null || _ownerColliders.Length == 0)
-        {
-            return;
-        }
+        return true; }
+    private void IgnoreProjectileCollisions(GameObject projectile) { if (projectile == null || _ownerColliders == null || _ownerColliders.Length == 0) { return; }
 
         Collider[] projectileColliders = projectile.GetComponentsInChildren<Collider>(true);
-        if (projectileColliders == null || projectileColliders.Length == 0)
-        {
-            return;
-        }
+        if (projectileColliders == null || projectileColliders.Length == 0) { return; }
 
-        for (int i = 0; i < projectileColliders.Length; i++)
-        {
+        for (int i = 0; i < projectileColliders.Length; i++) {
             Collider projectileCollider = projectileColliders[i];
-            if (projectileCollider == null)
-            {
-                continue;
-            }
+            if (projectileCollider == null) { continue; }
 
-            for (int j = 0; j < _ownerColliders.Length; j++)
-            {
+            for (int j = 0; j < _ownerColliders.Length; j++) {
                 Collider ownerCollider = _ownerColliders[j];
-                if (ownerCollider != null)
-                {
-                    Physics.IgnoreCollision(projectileCollider, ownerCollider, true);
-                }
-            }
-        }
-    }
+                if (ownerCollider != null) { Physics.IgnoreCollision(projectileCollider, ownerCollider, true); } } } }
+    private void AddRecoilKick() { if (!useProceduralRecoil || recoilPitchPerShot <= 0f) { return; }
 
-    // Handle Add Recoil Kick.
-    private void AddRecoilKick()
-    {
-        if (!useProceduralRecoil || recoilPitchPerShot <= 0f)
-        {
-            return;
-        }
-
-        _currentRecoilPitch = Mathf.Clamp(_currentRecoilPitch + recoilPitchPerShot, 0f, maxRecoilPitch);
-    }
-
-    // Handle Update Procedural Recoil.
-    private void UpdateProceduralRecoil(float deltaTime)
-    {
-        if (!useProceduralRecoil || _currentRecoilPitch <= 0f)
-        {
-            return;
-        }
+        _currentRecoilPitch = Mathf.Clamp(_currentRecoilPitch + recoilPitchPerShot, 0f, maxRecoilPitch); }
+    private void UpdateProceduralRecoil(float deltaTime) { if (!useProceduralRecoil || _currentRecoilPitch <= 0f) { return; }
 
         _currentRecoilPitch = Mathf.MoveTowards(
             _currentRecoilPitch,
             0f,
-            Mathf.Max(0f, recoilReturnSpeed) * Mathf.Max(0f, deltaTime));
-    }
-
-    // Handle Trigger Shot Shoulder Camera Pulse.
-    private void TriggerShotShoulderCameraPulse()
-    {
-        if (fpsController == null)
-        {
-            return;
-        }
+            Mathf.Max(0f, recoilReturnSpeed) * Mathf.Max(0f, deltaTime)); }
+    private void TriggerShotShoulderCameraPulse() { if (fpsController == null) { return; }
 
         float holdTime = Mathf.Max(shootCooldown, shootStateDuration);
-        fpsController.TriggerShotShoulderCamera(holdTime);
-    }
-
-    // Handle Clear Shot Shoulder Camera.
-    private void ClearShotShoulderCamera()
-    {
-        if (fpsController != null)
-        {
-            fpsController.ClearShotShoulderCamera();
-        }
-    }
-
-    // Handle Set Hold Shoulder Camera.
-    private void SetHoldShoulderCamera(bool active)
-    {
-        if (fpsController != null)
-        {
-            fpsController.SetHoldShoulderCamera(active);
-        }
-    }
-
-    // Handle Set Aim Mode.
-    private void SetAimMode(bool active)
-    {
+        fpsController.TriggerShotShoulderCamera(holdTime); }
+    private void ClearShotShoulderCamera() { if (fpsController != null) { fpsController.ClearShotShoulderCamera(); } }
+    private void SetHoldShoulderCamera(bool active) { if (fpsController != null) { fpsController.SetHoldShoulderCamera(active); } }
+    private void SetAimMode(bool active) {
         bool nextAiming = active && _gunVisible && !_isReloading;
-        if (_isAiming == nextAiming)
-        {
-            return;
-        }
+        if (_isAiming == nextAiming) { return; }
 
         _isAiming = nextAiming;
         ApplyAimHiddenRenderers(_isAiming);
 
-        if (fpsController != null)
-        {
-            if (_isAiming)
-            {
-                ApplyAimCameraSettings();
-            }
-            else
-            {
-                ClearAimCameraSettings();
-            }
+        if (fpsController != null) {
+            if (_isAiming) { ApplyAimCameraSettings(); } else { ClearAimCameraSettings(); }
 
-            fpsController.SetAimCameraActive(_isAiming);
-        }
+            fpsController.SetAimCameraActive(_isAiming); }
 
-        ToggleCrossHair();
-    }
+        ToggleCrossHair(); }
+    private void ApplyAimCameraSettings() { if (fpsController == null) { return; }
 
-    // Handle Apply Aim Camera Settings.
-    private void ApplyAimCameraSettings()
-    {
-        if (fpsController == null)
-        {
-            return;
-        }
-
-        if (!overrideAimCameraSettings)
-        {
+        if (!overrideAimCameraSettings) {
             fpsController.ClearAimCameraOverride();
-            return;
-        }
+            return; }
 
         fpsController.SetAimCameraOverride(
             aimCameraPivotOffset,
@@ -1236,133 +664,55 @@ public class GunItem : MonoBehaviour
             aimCameraTransitionSpeed,
             aimFieldOfViewTransitionSpeed,
             aimCameraAnchor,
-            aimCameraAnchorLocalOffset);
-    }
-
-    // Handle Clear Aim Camera Settings.
-    private void ClearAimCameraSettings()
-    {
-        if (fpsController != null)
-        {
-            fpsController.ClearAimCameraOverride();
-        }
-    }
-
-    // Handle Cache Aim Hidden Renderers.
-    private void CacheAimHiddenRenderers()
-    {
+            aimCameraAnchorLocalOffset); }
+    private void ClearAimCameraSettings() { if (fpsController != null) { fpsController.ClearAimCameraOverride(); } }
+    private void CacheAimHiddenRenderers() {
         var resolvedRenderers = new List<Renderer>();
         AddUniqueRenderers(resolvedRenderers, renderersHiddenWhileAiming);
         AddUniqueRenderersFromObjects(resolvedRenderers, rendererParentObjectsHiddenWhileAiming);
 
-        if (autoHideHeadAndNeckWhileAiming)
-        {
+        if (autoHideHeadAndNeckWhileAiming) {
             Transform searchRoot = characterAnimator != null ? characterAnimator.transform.root : transform.root;
-            if (searchRoot != null)
-            {
+            if (searchRoot != null) {
                 Renderer[] allRenderers = searchRoot.GetComponentsInChildren<Renderer>(true);
-                for (int i = 0; i < allRenderers.Length; i++)
-                {
+                for (int i = 0; i < allRenderers.Length; i++) {
                     Renderer renderer = allRenderers[i];
-                    if (renderer == null || IsGunRenderer(renderer))
-                    {
-                        continue;
-                    }
+                    if (renderer == null || IsGunRenderer(renderer)) { continue; }
 
-                    if (!IsHeadOrNeckRenderer(renderer))
-                    {
-                        continue;
-                    }
+                    if (!IsHeadOrNeckRenderer(renderer)) { continue; }
 
-                    AddUniqueRenderer(resolvedRenderers, renderer);
-                }
-            }
-        }
+                    AddUniqueRenderer(resolvedRenderers, renderer); } } }
 
         _resolvedAimHiddenRenderers = resolvedRenderers.ToArray();
-        _aimHiddenRendererPreviousStates = new bool[_resolvedAimHiddenRenderers.Length];
-    }
+        _aimHiddenRendererPreviousStates = new bool[_resolvedAimHiddenRenderers.Length]; }
+    private void ApplyAimHiddenRenderers(bool hidden) { if (_resolvedAimHiddenRenderers == null) { CacheAimHiddenRenderers(); }
 
-    // Handle Apply Aim Hidden Renderers.
-    private void ApplyAimHiddenRenderers(bool hidden)
-    {
-        if (_resolvedAimHiddenRenderers == null)
-        {
-            CacheAimHiddenRenderers();
-        }
+        if (_resolvedAimHiddenRenderers == null || _resolvedAimHiddenRenderers.Length == 0) { return; }
 
-        if (_resolvedAimHiddenRenderers == null || _resolvedAimHiddenRenderers.Length == 0)
-        {
-            return;
-        }
-
-        for (int i = 0; i < _resolvedAimHiddenRenderers.Length; i++)
-        {
+        for (int i = 0; i < _resolvedAimHiddenRenderers.Length; i++) {
             Renderer renderer = _resolvedAimHiddenRenderers[i];
-            if (renderer == null)
-            {
-                continue;
-            }
+            if (renderer == null) { continue; }
 
-            if (hidden)
-            {
+            if (hidden) {
                 _aimHiddenRendererPreviousStates[i] = renderer.enabled;
                 renderer.enabled = false;
-                continue;
-            }
+                continue; }
 
-            renderer.enabled = _aimHiddenRendererPreviousStates[i];
-        }
-    }
+            renderer.enabled = _aimHiddenRendererPreviousStates[i]; } }
+    private bool IsGunRenderer(Renderer renderer) { if (renderer == null || _gunRenderers == null) { return false; }
 
-    // Handle Is Gun Renderer.
-    private bool IsGunRenderer(Renderer renderer)
-    {
-        if (renderer == null || _gunRenderers == null)
-        {
-            return false;
-        }
+        for (int i = 0; i < _gunRenderers.Length; i++) { if (_gunRenderers[i] == renderer) { return true; } }
 
-        for (int i = 0; i < _gunRenderers.Length; i++)
-        {
-            if (_gunRenderers[i] == renderer)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // Handle Is Head Or Neck Renderer.
-    private static bool IsHeadOrNeckRenderer(Renderer renderer)
-    {
-        if (renderer == null)
-        {
-            return false;
-        }
+        return false; }
+    private static bool IsHeadOrNeckRenderer(Renderer renderer) { if (renderer == null) { return false; }
 
         Transform current = renderer.transform;
-        while (current != null)
-        {
-            if (MatchesAimHiddenName(current.name))
-            {
-                return true;
-            }
+        while (current != null) { if (MatchesAimHiddenName(current.name)) { return true; }
 
-            current = current.parent;
-        }
+            current = current.parent; }
 
-        return false;
-    }
-
-    // Handle Matches Aim Hidden Name.
-    private static bool MatchesAimHiddenName(string objectName)
-    {
-        if (string.IsNullOrWhiteSpace(objectName))
-        {
-            return false;
-        }
+        return false; }
+    private static bool MatchesAimHiddenName(string objectName) { if (string.IsNullOrWhiteSpace(objectName)) { return false; }
 
         return objectName.Contains("Head", System.StringComparison.OrdinalIgnoreCase) ||
                objectName.Contains("Neck", System.StringComparison.OrdinalIgnoreCase) ||
@@ -1375,61 +725,22 @@ public class GunItem : MonoBehaviour
                objectName.Contains("Face", System.StringComparison.OrdinalIgnoreCase) ||
                objectName.Contains("Mask", System.StringComparison.OrdinalIgnoreCase) ||
                objectName.Contains("Hat", System.StringComparison.OrdinalIgnoreCase) ||
-               objectName.Contains("Helmet", System.StringComparison.OrdinalIgnoreCase);
-    }
+               objectName.Contains("Helmet", System.StringComparison.OrdinalIgnoreCase); }
+    private void AddUniqueRenderersFromObjects(List<Renderer> results, GameObject[] source) { if (results == null || source == null) { return; }
 
-    // Handle Add Unique Renderers From Objects.
-    private void AddUniqueRenderersFromObjects(List<Renderer> results, GameObject[] source)
-    {
-        if (results == null || source == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < source.Length; i++)
-        {
+        for (int i = 0; i < source.Length; i++) {
             GameObject parentObject = source[i];
-            if (parentObject == null)
-            {
-                continue;
-            }
+            if (parentObject == null) { continue; }
 
             Renderer[] renderers = parentObject.GetComponentsInChildren<Renderer>(true);
-            for (int j = 0; j < renderers.Length; j++)
-            {
+            for (int j = 0; j < renderers.Length; j++) {
                 Renderer renderer = renderers[j];
-                if (renderer == null || IsGunRenderer(renderer))
-                {
-                    continue;
-                }
+                if (renderer == null || IsGunRenderer(renderer)) { continue; }
 
-                AddUniqueRenderer(results, renderer);
-            }
-        }
-    }
+                AddUniqueRenderer(results, renderer); } } }
+    private static void AddUniqueRenderers(List<Renderer> results, Renderer[] source) { if (results == null || source == null) { return; }
 
-    // Handle Add Unique Renderers.
-    private static void AddUniqueRenderers(List<Renderer> results, Renderer[] source)
-    {
-        if (results == null || source == null)
-        {
-            return;
-        }
+        for (int i = 0; i < source.Length; i++) { AddUniqueRenderer(results, source[i]); } }
+    private static void AddUniqueRenderer(List<Renderer> results, Renderer renderer) { if (results == null || renderer == null || results.Contains(renderer)) { return; }
 
-        for (int i = 0; i < source.Length; i++)
-        {
-            AddUniqueRenderer(results, source[i]);
-        }
-    }
-
-    // Handle Add Unique Renderer.
-    private static void AddUniqueRenderer(List<Renderer> results, Renderer renderer)
-    {
-        if (results == null || renderer == null || results.Contains(renderer))
-        {
-            return;
-        }
-
-        results.Add(renderer);
-    }
-}
+        results.Add(renderer); } }

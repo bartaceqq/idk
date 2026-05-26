@@ -1,11 +1,8 @@
-using System.Collections;
-using System.Collections.Generic;
+using System.Collections; using System.Collections.Generic;
 
-using UnityEngine;
-using UnityEngine.UI;
+using UnityEngine; using UnityEngine.UI;
 
-public class ChestItemGenerator : MonoBehaviour
-{
+public class ChestItemGenerator : MonoBehaviour {
     private static InfoHandler cachedInfoHandler;
 
     public List<Image> images;
@@ -15,58 +12,30 @@ public class ChestItemGenerator : MonoBehaviour
     public InventoryAddHandler inventoryAddHandler;
     public InfoHandler infoHandler;
     public bool rolling =false;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
+    void Start() { ResolveReferences(); }
+    public void GeneratedItems(string type) {
         ResolveReferences();
-    }
+        if (itemForChestsHandler == null) { return; }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-    public void GeneratedItems(string type)
-    {
-        ResolveReferences();
-        if (itemForChestsHandler == null)
-        {
-            return;
-        }
+        List<InventoryItem> items = itemForChestsHandler.ReturnRandomThree(type);
+        if (items == null || items.Count == 0) { return; }
 
-        List<InventoryItem> listofitems = itemForChestsHandler.returnrandomthree(type);
-        if (listofitems == null || listofitems.Count == 0)
-        {
-            return;
-        }
-
-        int count = Mathf.Min(3, Mathf.Min(images.Count, listofitems.Count));
-        for(int i =0; i < count; i++)
-        {
-            InventoryItem item = listofitems[i];
-            if (item == null)
-            {
-                continue;
-            }
+        int count = Mathf.Min(3, Mathf.Min(images.Count, items.Count));
+        for(int i =0; i < count; i++) {
+            InventoryItem item = items[i];
+            if (item == null) { continue; }
 
             images[i].sprite = item.inventorysprite;
 
             bool added = inventoryAddHandler != null && inventoryAddHandler.AddItemToInventory(item);
-            if (added && infoHandler != null)
-            {
-                infoHandler.QueueInfo($"Gained {ToDisplayName(item.name)}", item.inventorysprite);
-            }
-        }
+            if (added && infoHandler != null) { infoHandler.QueueInfo($"Gained {ToDisplayName(item.name)}", item.inventorysprite); } }
         
     }
-     public IEnumerator RealEnum(string type)
-    {
+     public IEnumerator RealEnum(string type) {
         GeneratedItems(type);
         yield return new WaitForSeconds(2f);
-        ChangeVisibility(false);
-    }
-     public IEnumerator WaitFiveSeconds(string type)
-    {
+        ChangeVisibility(false); }
+     public IEnumerator WaitFiveSeconds(string type) {
        ChangeVisibility(true);
         rolling = true;
         StartCoroutine(Roll(type));
@@ -75,101 +44,42 @@ public class ChestItemGenerator : MonoBehaviour
         StartCoroutine(RealEnum(type));
        
     }
-    public IEnumerator Roll(string type)
-    {
-        if (itemForChestsHandler == null)
-        {
-            yield break;
-        }
+    public IEnumerator Roll(string type) {
+        if (itemForChestsHandler == null) { yield break; }
 
-        List<InventoryItem> listofitems = itemForChestsHandler.returnrandomthree(type);
-        if (listofitems == null || listofitems.Count == 0)
-        {
-            yield break;
-        }
+        List<InventoryItem> items = itemForChestsHandler.ReturnRandomThree(type);
+        if (items == null || items.Count == 0) { yield break; }
 
-        int count = Mathf.Min(3, Mathf.Min(images.Count, listofitems.Count));
-        for(int i =0; i < count; i++)
-        {
-            InventoryItem item = listofitems[i];
-            if (item != null)
-            {
-                images[i].sprite = item.inventorysprite;
-            }
+        int count = Mathf.Min(3, Mathf.Min(images.Count, items.Count));
+        for(int i =0; i < count; i++) {
+            InventoryItem item = items[i];
+            if (item != null) { images[i].sprite = item.inventorysprite; }
             
         }
         yield return new WaitForSeconds(0.05f);
-        if (rolling)
-        {
-             StartCoroutine(Roll(type));
-        }
-    }
-    public void ChangeVisibility(bool status)
-    {
-         foreach(Image image in images)
-        {
-            image.enabled = status;
-        }
-         foreach(Image image in background)
-        {
-            image.enabled = status;
-        }
-         foreach(Image image in whitspace)
-        {
-            image.enabled = status;
-        }
-    }
+        if (rolling) { StartCoroutine(Roll(type)); } }
+    public void ChangeVisibility(bool status) {
+         foreach(Image image in images) { image.enabled = status; }
+         foreach(Image image in background) { image.enabled = status; }
+         foreach(Image image in whitspace) { image.enabled = status; } }
+    private void ResolveReferences() {
+        if (infoHandler == null) {
+            if (cachedInfoHandler == null) { cachedInfoHandler = FindInfoHandlerInScene(); }
 
-    // Handle Resolve References.
-    private void ResolveReferences()
-    {
-        if (infoHandler == null)
-        {
-            if (cachedInfoHandler == null)
-            {
-                cachedInfoHandler = FindInfoHandlerInScene();
-            }
-
-            infoHandler = cachedInfoHandler;
-        }
-        else
-        {
-            cachedInfoHandler = infoHandler;
-        }
+            infoHandler = cachedInfoHandler; } else { cachedInfoHandler = infoHandler; } }
+    private static InfoHandler FindInfoHandlerInScene() {
+        return UnitySceneSearch.FindFirst<InfoHandler>();
     }
-
-    // Handle Find Info Handler In Scene.
-    private static InfoHandler FindInfoHandlerInScene()
-    {
-#if UNITY_2023_1_OR_NEWER
-        return FindFirstObjectByType<InfoHandler>(FindObjectsInactive.Include);
-#else
-        return FindObjectOfType<InfoHandler>(true);
-#endif
-    }
-
-    // Handle To Display Name.
-    private static string ToDisplayName(string rawName)
-    {
-        if (string.IsNullOrWhiteSpace(rawName))
-        {
-            return "Item";
-        }
+    private static string ToDisplayName(string rawName) {
+        if (string.IsNullOrWhiteSpace(rawName)) { return "Item"; }
 
         string normalized = rawName.Trim().Replace('_', ' ');
         string[] parts = normalized.Split(' ');
-        for (int i = 0; i < parts.Length; i++)
-        {
-            if (string.IsNullOrWhiteSpace(parts[i]))
-            {
-                continue;
-            }
+        for (int i = 0; i < parts.Length; i++) {
+            if (string.IsNullOrWhiteSpace(parts[i])) { continue; }
 
             string lower = parts[i].ToLowerInvariant();
-            parts[i] = char.ToUpperInvariant(lower[0]) + lower.Substring(1);
-        }
+            parts[i] = char.ToUpperInvariant(lower[0]) + lower.Substring(1); }
 
-        return string.Join(" ", parts);
-    }
-}
+        return string.Join(" ", parts); } }
 

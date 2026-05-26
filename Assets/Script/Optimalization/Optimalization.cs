@@ -1,8 +1,5 @@
-﻿using UnityEngine;
-
-// Controls Optimalization behavior.
-public class Optimalization : MonoBehaviour
-{
+using UnityEngine;
+public class Optimalization : MonoBehaviour {
     [Header("When To Apply")]
     [Tooltip("If true, apply optimization settings automatically when the scene starts.")]
     [SerializeField] private bool applyOnStart = true;
@@ -19,39 +16,20 @@ public class Optimalization : MonoBehaviour
     [Header("Application")]
     [Tooltip("If true, game keeps running when not focused (useful while testing).")]
     [SerializeField] private bool runInBackground = true;
-
-    // Run setup once before the first frame.
-    private void Start()
-    {
-        if (applyOnStart)
-        {
-            ApplyOptimizationSettings();
-        }
-    }
+    private void Start() {
+        if (applyOnStart) { ApplyOptimizationSettings(); } }
 
     /// <summary>
     /// Applies simple performance-related settings.
     /// You can also call this manually from another script if needed.
     /// </summary>
-    public void ApplyOptimizationSettings()
-    {
+    public void ApplyOptimizationSettings() {
         // Let targetFrameRate control FPS by turning VSync off.
-        if (disableVSync)
-        {
-            QualitySettings.vSyncCount = 0;
-        }
+        if (disableVSync) { QualitySettings.vSyncCount = 0; }
 
         // Limit or unlock FPS depending on the value.
-        if (unlockFrameRate)
-        {
-            Application.targetFrameRate = -1;
-        }
-        else
-        {
-            Application.targetFrameRate = targetFrameRate <= 0 ? -1 : targetFrameRate;
-        }
+        if (unlockFrameRate) {
+            Application.targetFrameRate = -1; } else { Application.targetFrameRate = targetFrameRate <= 0 ? -1 : targetFrameRate; }
 
         // Keep app running when window loses focus (optional).
-        Application.runInBackground = runInBackground;
-    }
-}
+        Application.runInBackground = runInBackground; } }

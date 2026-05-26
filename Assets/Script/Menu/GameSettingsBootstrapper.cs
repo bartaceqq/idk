@@ -1,36 +1,22 @@
-using System.Collections;
-using UnityEngine;
-using UnityEngine.SceneManagement;
-using UnityEngine.UI;
+using System.Collections; using UnityEngine; using UnityEngine.SceneManagement; using UnityEngine.UI;
 
-[DefaultExecutionOrder(-10000)]
-public sealed class GameSettingsBootstrapper : MonoBehaviour
-{
+[DefaultExecutionOrder(-10000)] public sealed class GameSettingsBootstrapper : MonoBehaviour {
     private static GameSettingsBootstrapper instance;
 
     private Canvas brightnessCanvas;
     private Image brightnessOverlay;
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-    private static void RuntimeBootstrap()
-    {
-        if (instance != null)
-        {
-            return;
-        }
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)] private static void RuntimeBootstrap() {
+        if (instance != null) { return; }
 
         GameObject root = new GameObject("Game Settings Bootstrapper");
         DontDestroyOnLoad(root);
-        instance = root.AddComponent<GameSettingsBootstrapper>();
-    }
+        instance = root.AddComponent<GameSettingsBootstrapper>(); }
 
-    private void Awake()
-    {
-        if (instance != null && instance != this)
-        {
+    private void Awake() {
+        if (instance != null && instance != this) {
             Destroy(gameObject);
-            return;
-        }
+            return; }
 
         instance = this;
         DontDestroyOnLoad(gameObject);
@@ -38,51 +24,33 @@ public sealed class GameSettingsBootstrapper : MonoBehaviour
         GameSettings.SettingsChanged += OnSettingsChanged;
         EnsureBrightnessOverlay();
         GameSettings.ApplyAllSettings();
-        ApplyBrightnessOverlay();
-    }
+        ApplyBrightnessOverlay(); }
 
-    private void OnDestroy()
-    {
-        if (instance == this)
-        {
+    private void OnDestroy() {
+        if (instance == this) {
             SceneManager.sceneLoaded -= OnSceneLoaded;
             GameSettings.SettingsChanged -= OnSettingsChanged;
-            instance = null;
-        }
-    }
+            instance = null; } }
 
-    private void Start()
-    {
-        StartCoroutine(ApplyAfterSceneStart());
-    }
+    private void Start() { StartCoroutine(ApplyAfterSceneStart()); }
 
-    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode) {
         EnsureBrightnessOverlay();
         GameSettings.ApplyAllSettings();
         ApplyBrightnessOverlay();
-        StartCoroutine(ApplyAfterSceneStart());
-    }
+        StartCoroutine(ApplyAfterSceneStart()); }
 
-    private void OnSettingsChanged()
-    {
+    private void OnSettingsChanged() {
         EnsureBrightnessOverlay();
-        ApplyBrightnessOverlay();
-    }
+        ApplyBrightnessOverlay(); }
 
-    private IEnumerator ApplyAfterSceneStart()
-    {
+    private IEnumerator ApplyAfterSceneStart() {
         yield return null;
         GameSettings.ApplyAllSettings();
-        ApplyBrightnessOverlay();
-    }
+        ApplyBrightnessOverlay(); }
 
-    private void EnsureBrightnessOverlay()
-    {
-        if (brightnessOverlay != null)
-        {
-            return;
-        }
+    private void EnsureBrightnessOverlay() {
+        if (brightnessOverlay != null) { return; }
 
         GameObject canvasObject = new GameObject("Brightness Overlay Canvas");
         canvasObject.transform.SetParent(transform, false);
@@ -108,24 +76,11 @@ public sealed class GameSettingsBootstrapper : MonoBehaviour
         rect.anchorMin = Vector2.zero;
         rect.anchorMax = Vector2.one;
         rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-    }
+        rect.offsetMax = Vector2.zero; }
 
-    private void ApplyBrightnessOverlay()
-    {
-        if (brightnessOverlay == null)
-        {
-            return;
-        }
+    private void ApplyBrightnessOverlay() {
+        if (brightnessOverlay == null) { return; }
 
         float brightness = GameSettings.Brightness;
-        if (brightness < 1f)
-        {
-            brightnessOverlay.color = new Color(0f, 0f, 0f, Mathf.Clamp01((1f - brightness) * 0.7f));
-        }
-        else
-        {
-            brightnessOverlay.color = new Color(1f, 0.94f, 0.78f, Mathf.Clamp01((brightness - 1f) * 0.22f));
-        }
-    }
-}
+        if (brightness < 1f) {
+            brightnessOverlay.color = new Color(0f, 0f, 0f, Mathf.Clamp01((1f - brightness) * 0.7f)); } else { brightnessOverlay.color = new Color(1f, 0.94f, 0.78f, Mathf.Clamp01((brightness - 1f) * 0.22f)); } } }

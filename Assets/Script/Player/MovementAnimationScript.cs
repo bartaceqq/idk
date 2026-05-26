@@ -1,21 +1,15 @@
 using UnityEngine;
-
-// Controls Movement Animation Script behavior.
-public class MovementAnimationScript : MonoBehaviour
-{
-    [Header("References")]
-    public Animator animator;
+public class MovementAnimationScript : MonoBehaviour {
+    [Header("References")] public Animator animator;
     public bool autoFindAnimatorInChildren = true;
 
-    [Header("Jump")]
-    public float jumpInterruptBlendSeconds = 0.04f;
+    [Header("Jump")] public float jumpInterruptBlendSeconds = 0.04f;
     public float jumpInterruptIgnoreActionSeconds = 0.12f;
     public bool syncJumpAnimationToAirTime = true;
     public float minimumSyncedJumpAnimationSpeed = 0.05f;
     public float maximumSyncedJumpAnimationSpeed = 6f;
 
-    [Header("Animation Speeds")]
-    public float idleAnimationSpeed = 1f;
+    [Header("Animation Speeds")] public float idleAnimationSpeed = 1f;
     public float walkAnimationSpeed = 1f;
     public float runAnimationSpeed = 1f;
     public float walkBackwardAnimationSpeed = 1f;
@@ -63,255 +57,92 @@ public class MovementAnimationScript : MonoBehaviour
     private AnimationClip _runningJumpClip;
     private bool _rootMotionEnabled;
 
-    private void Awake()
-    {
+    private void Awake() {
         EnsureAnimator();
-        ApplyConfiguredAnimationSpeeds();
-    }
+        ApplyConfiguredAnimationSpeeds(); }
 
-    private void OnEnable()
-    {
+    private void OnEnable() {
         EnsureAnimator();
-        ApplyConfiguredAnimationSpeeds();
-    }
+        ApplyConfiguredAnimationSpeeds(); }
 
-    private void OnValidate()
-    {
+    private void OnValidate() {
         EnsureAnimator();
-        ApplyConfiguredAnimationSpeeds();
-    }
-
-    // Handle Walk Animation Foreward.
-    public void WalkAnimation_Foreward(bool status)
-    {
-        SetMovementBool(ForewardBoolHash, status, WalkSpeedHash, walkAnimationSpeed);
-    }
-
-    // Handle Run Animation Foreward.
-    public void RunAnimation_Foreward(bool status)
-    {
-        SetMovementBool(SprintingBoolHash, status, RunSpeedHash, runAnimationSpeed);
-    }
-
-    // Handle Idle Animation.
-    public void IdleAnimation(bool status)
-    {
-        if (!EnsureAnimator())
-        {
-            return;
-        }
+        ApplyConfiguredAnimationSpeeds(); }
+    public void WalkAnimation_Foreward(bool status) { SetMovementBool(ForewardBoolHash, status, WalkSpeedHash, walkAnimationSpeed); }
+    public void RunAnimation_Foreward(bool status) { SetMovementBool(SprintingBoolHash, status, RunSpeedHash, runAnimationSpeed); }
+    public void IdleAnimation(bool status) { if (!EnsureAnimator()) { return; }
 
         ApplyConfiguredAnimationSpeeds();
-        animator.SetBool(IdleBoolHash, status);
-    }
-
-    // Handle Jump Animation.
-    public void JumpAnimation()
-    {
-        JumpAnimation(-1f);
-    }
-
-    // Handle Jump Animation With Expected Air Time.
-    public void JumpAnimation(float expectedAirTimeSeconds, bool preferRunningJumpSpeed = false)
-    {
-        if (!EnsureAnimator())
-        {
-            return;
-        }
+        animator.SetBool(IdleBoolHash, status); }
+    public void JumpAnimation() { JumpAnimation(-1f); }
+    public void JumpAnimation(float expectedAirTimeSeconds, bool preferRunningJumpSpeed = false) { if (!EnsureAnimator()) { return; }
 
         ApplyConfiguredAnimationSpeeds();
         ApplySyncedJumpAnimationSpeed(preferRunningJumpSpeed, expectedAirTimeSeconds, 0f);
         animator.ResetTrigger(JumpTriggerHash);
 
-        if (preferRunningJumpSpeed && animator.HasState(0, RunningJumpFullPathHash))
-        {
+        if (preferRunningJumpSpeed && animator.HasState(0, RunningJumpFullPathHash)) {
             animator.CrossFadeInFixedTime(RunningJumpFullPathHash, 0.02f, 0, 0f);
-            return;
-        }
+            return; }
 
-        animator.SetTrigger(JumpTriggerHash);
-    }
+        animator.SetTrigger(JumpTriggerHash); }
+    public void SyncJumpAnimationToAirTime(float remainingAirTimeSeconds) { if (!syncJumpAnimationToAirTime || !EnsureAnimator() || !animator.isActiveAndEnabled) { return; }
 
-    // Handle Sync Jump Animation To Air Time.
-    public void SyncJumpAnimationToAirTime(float remainingAirTimeSeconds)
-    {
-        if (!syncJumpAnimationToAirTime || !EnsureAnimator() || !animator.isActiveAndEnabled)
-        {
-            return;
-        }
+        if (remainingAirTimeSeconds <= 0f) { return; }
 
-        if (remainingAirTimeSeconds <= 0f)
-        {
-            return;
-        }
-
-        if (TryGetJumpStateProgress(out bool preferRunningJumpSpeed, out float normalizedProgress))
-        {
-            ApplySyncedJumpAnimationSpeed(preferRunningJumpSpeed, remainingAirTimeSeconds, normalizedProgress);
-        }
-        else
-        {
-            ApplySyncedJumpAnimationSpeed(false, remainingAirTimeSeconds, 0f);
-        }
-    }
-
-    // Handle Walk Backwards.
-    public void WalkBackWards(bool status)
-    {
-        SetMovementBool(WalkingBackWardsBoolHash, status, WalkBackwardSpeedHash, walkBackwardAnimationSpeed);
-    }
-
-    // Handle Walk Left.
-    public void WalkLeft(bool status)
-    {
-        SetMovementBool(WalkingLeftBoolHash, status, LeftStrafeSpeedHash, leftStrafeAnimationSpeed);
-    }
-
-    // Handle Walk Right.
-    public void WalkRight(bool status)
-    {
-        SetMovementBool(WalkingRightBoolHash, status, RightStrafeSpeedHash, rightStrafeAnimationSpeed);
-    }
-
-    // Handle Walk Forward Left.
-    public void WalkForwardLeft(bool status)
-    {
-        SetMovementBool(WalkingForwardLeftBoolHash, status, LeftStrafeSpeedHash, leftStrafeAnimationSpeed);
-    }
-
-    // Handle Walk Forward Right.
-    public void WalkForwardRight(bool status)
-    {
-        SetMovementBool(WalkingForwardRightBoolHash, status, RightStrafeSpeedHash, rightStrafeAnimationSpeed);
-    }
-
-    // Handle Sprint Forward Left.
-    public void SprintForwardLeft(bool status)
-    {
-        SetMovementBool(SprintingForwardLeftBoolHash, status, RunSpeedHash, runAnimationSpeed);
-    }
-
-    // Handle Sprint Forward Right.
-    public void SprintForwardRight(bool status)
-    {
-        SetMovementBool(SprintingForwardRightBoolHash, status, RunSpeedHash, runAnimationSpeed);
-    }
-
-    // Handle Is Blocking Action State.
-    public bool IsBlockingActionState()
-    {
-        if (!EnsureAnimator() || !animator.isActiveAndEnabled)
-        {
-            return false;
-        }
+        if (TryGetJumpStateProgress(out bool preferRunningJumpSpeed, out float normalizedProgress)) { ApplySyncedJumpAnimationSpeed(preferRunningJumpSpeed, remainingAirTimeSeconds, normalizedProgress); } else { ApplySyncedJumpAnimationSpeed(false, remainingAirTimeSeconds, 0f); } }
+    public void WalkBackWards(bool status) { SetMovementBool(WalkingBackWardsBoolHash, status, WalkBackwardSpeedHash, walkBackwardAnimationSpeed); }
+    public void WalkLeft(bool status) { SetMovementBool(WalkingLeftBoolHash, status, LeftStrafeSpeedHash, leftStrafeAnimationSpeed); }
+    public void WalkRight(bool status) { SetMovementBool(WalkingRightBoolHash, status, RightStrafeSpeedHash, rightStrafeAnimationSpeed); }
+    public void WalkForwardLeft(bool status) { SetMovementBool(WalkingForwardLeftBoolHash, status, LeftStrafeSpeedHash, leftStrafeAnimationSpeed); }
+    public void WalkForwardRight(bool status) { SetMovementBool(WalkingForwardRightBoolHash, status, RightStrafeSpeedHash, rightStrafeAnimationSpeed); }
+    public void SprintForwardLeft(bool status) { SetMovementBool(SprintingForwardLeftBoolHash, status, RunSpeedHash, runAnimationSpeed); }
+    public void SprintForwardRight(bool status) { SetMovementBool(SprintingForwardRightBoolHash, status, RunSpeedHash, runAnimationSpeed); }
+    public bool IsBlockingActionState() { if (!EnsureAnimator() || !animator.isActiveAndEnabled) { return false; }
 
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(0);
-        if (IsBlockingActionState(current))
-        {
-            return true;
-        }
+        if (IsBlockingActionState(current)) { return true; }
 
-        if (animator.IsInTransition(0))
-        {
+        if (animator.IsInTransition(0)) {
             AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(0);
-            if (IsBlockingActionState(next))
-            {
-                return true;
-            }
-        }
+            if (IsBlockingActionState(next)) { return true; } }
 
-        return false;
-    }
-
-    // Handle Force Exit Jump Animation.
-    public void ForceExitJumpAnimation()
-    {
-        if (!EnsureAnimator() || !animator.isActiveAndEnabled || !IsAnimatorInJumpState())
-        {
-            return;
-        }
+        return false; }
+    public void ForceExitJumpAnimation() { if (!EnsureAnimator() || !animator.isActiveAndEnabled || !IsAnimatorInJumpState()) { return; }
 
         animator.ResetTrigger(JumpTriggerHash);
         ResetJumpAnimationSpeedParameters();
 
         float blendDuration = Mathf.Max(0f, jumpInterruptBlendSeconds);
-        if (animator.HasState(0, IdleFullPathHash))
-        {
-            animator.CrossFadeInFixedTime(IdleFullPathHash, blendDuration, 0);
-        }
-        else if (animator.HasState(0, IdleStateHash))
-        {
-            animator.CrossFadeInFixedTime(IdleStateHash, blendDuration, 0);
-        }
+        if (animator.HasState(0, IdleFullPathHash)) { animator.CrossFadeInFixedTime(IdleFullPathHash, blendDuration, 0); } else if (animator.HasState(0, IdleStateHash)) { animator.CrossFadeInFixedTime(IdleStateHash, blendDuration, 0); }
 
-        _jumpInterruptedUntil = Time.time + Mathf.Max(jumpInterruptIgnoreActionSeconds, blendDuration + 0.02f);
-    }
-
-    // Handle Set Movement Bool.
-    private void SetMovementBool(int parameterHash, bool value, int speedHash, float speedValue)
-    {
-        if (!EnsureAnimator())
-        {
-            return;
-        }
+        _jumpInterruptedUntil = Time.time + Mathf.Max(jumpInterruptIgnoreActionSeconds, blendDuration + 0.02f); }
+    private void SetMovementBool(int parameterHash, bool value, int speedHash, float speedValue) { if (!EnsureAnimator()) { return; }
 
         ApplyConfiguredAnimationSpeeds();
-        if (value)
-        {
-            SetFloatIfExists(speedHash, speedValue);
-        }
+        if (value) { SetFloatIfExists(speedHash, speedValue); }
 
-        if (value && IsBlockingActionState())
-        {
-            return;
-        }
+        if (value && IsBlockingActionState()) { return; }
 
-        animator.SetBool(parameterHash, value);
-    }
-
-    // Handle Ensure Animator.
-    private bool EnsureAnimator()
-    {
-        if (animator != null)
-        {
+        animator.SetBool(parameterHash, value); }
+    private bool EnsureAnimator() {
+        if (animator != null) {
             ApplyAnimatorRootMotionSetting();
-            return true;
-        }
+            return true; }
 
-        if (autoFindAnimatorInChildren)
-        {
-            animator = GetComponentInChildren<Animator>(true);
-        }
+        if (autoFindAnimatorInChildren) { animator = GetComponentInChildren<Animator>(true); }
 
-        if (animator == null)
-        {
-            animator = GetComponent<Animator>();
-        }
+        if (animator == null) { animator = GetComponent<Animator>(); }
 
-        if (animator == null)
-        {
-            animator = GetComponentInChildren<Animator>(true);
-        }
+        if (animator == null) { animator = GetComponentInChildren<Animator>(true); }
 
         ApplyAnimatorRootMotionSetting();
 
-        return animator != null;
-    }
-
-    // Handle Set Animator Root Motion Enabled.
-    public void SetAnimatorRootMotionEnabled(bool enabled)
-    {
+        return animator != null; }
+    public void SetAnimatorRootMotionEnabled(bool enabled) {
         _rootMotionEnabled = enabled;
-        ApplyAnimatorRootMotionSetting();
-    }
-
-    // Handle Apply Configured Animation Speeds.
-    private void ApplyConfiguredAnimationSpeeds()
-    {
-        if (animator == null)
-        {
-            return;
-        }
+        ApplyAnimatorRootMotionSetting(); }
+    private void ApplyConfiguredAnimationSpeeds() { if (animator == null) { return; }
 
         SetFloatIfExists(IdleSpeedHash, ResolveConfiguredSpeed(idleAnimationSpeed));
         SetFloatIfExists(WalkSpeedHash, ResolveConfiguredSpeed(walkAnimationSpeed));
@@ -320,59 +151,26 @@ public class MovementAnimationScript : MonoBehaviour
         SetFloatIfExists(LeftStrafeSpeedHash, ResolveConfiguredSpeed(leftStrafeAnimationSpeed));
         SetFloatIfExists(RightStrafeSpeedHash, ResolveConfiguredSpeed(rightStrafeAnimationSpeed));
         SetFloatIfExists(JumpSpeedHash, ResolveConfiguredSpeed(jumpAnimationSpeed));
-        SetFloatIfExists(RunningJumpSpeedHash, ResolveConfiguredSpeed(runningJumpAnimationSpeed));
-    }
-
-    // Handle Set Float If Exists.
-    private void SetFloatIfExists(int parameterHash, float value)
-    {
-        if (animator == null)
-        {
-            return;
-        }
+        SetFloatIfExists(RunningJumpSpeedHash, ResolveConfiguredSpeed(runningJumpAnimationSpeed)); }
+    private void SetFloatIfExists(int parameterHash, float value) { if (animator == null) { return; }
 
         AnimatorControllerParameter[] parameters = animator.parameters;
-        for (int i = 0; i < parameters.Length; i++)
-        {
+        for (int i = 0; i < parameters.Length; i++) {
             AnimatorControllerParameter parameter = parameters[i];
             if (parameter.type == AnimatorControllerParameterType.Float &&
-                parameter.nameHash == parameterHash)
-            {
+                parameter.nameHash == parameterHash) {
                 animator.SetFloat(parameterHash, Mathf.Max(0f, value));
-                return;
-            }
-        }
-    }
+                return; } } }
 
-    private static float ResolveConfiguredSpeed(float value)
-    {
-        return value > 0f ? value : 1f;
-    }
-
-    // Handle Apply Animator Root Motion Setting.
-    private void ApplyAnimatorRootMotionSetting()
-    {
-        if (animator == null)
-        {
-            return;
-        }
+    private static float ResolveConfiguredSpeed(float value) { return value > 0f ? value : 1f; }
+    private void ApplyAnimatorRootMotionSetting() { if (animator == null) { return; }
 
         animator.applyRootMotion = _rootMotionEnabled;
 
-        if (!Application.isPlaying)
-        {
-            return;
-        }
+        if (!Application.isPlaying) { return; }
 
-        if (animator.gameObject.GetComponent<PlayerRootMotionDriver>() == null)
-        {
-            animator.gameObject.AddComponent<PlayerRootMotionDriver>();
-        }
-    }
-
-    // Handle Apply Synced Jump Animation Speed.
-    private void ApplySyncedJumpAnimationSpeed(bool preferRunningJumpSpeed, float remainingAirTimeSeconds, float normalizedProgress)
-    {
+        if (animator.gameObject.GetComponent<PlayerRootMotionDriver>() == null) { animator.gameObject.AddComponent<PlayerRootMotionDriver>(); } }
+    private void ApplySyncedJumpAnimationSpeed(bool preferRunningJumpSpeed, float remainingAirTimeSeconds, float normalizedProgress) {
         CacheJumpClipsIfNeeded();
 
         int speedHash = ResolveJumpSpeedHash(preferRunningJumpSpeed);
@@ -380,18 +178,14 @@ public class MovementAnimationScript : MonoBehaviour
             speedHash == RunningJumpSpeedHash
                 ? runningJumpAnimationSpeed
                 : jumpAnimationSpeed);
-        if (!syncJumpAnimationToAirTime || remainingAirTimeSeconds <= 0f)
-        {
+        if (!syncJumpAnimationToAirTime || remainingAirTimeSeconds <= 0f) {
             SetFloatIfExists(speedHash, configuredSpeed);
-            return;
-        }
+            return; }
 
         float clipLength = GetJumpClipLength(preferRunningJumpSpeed);
-        if (clipLength <= 0f)
-        {
+        if (clipLength <= 0f) {
             SetFloatIfExists(speedHash, configuredSpeed);
-            return;
-        }
+            return; }
 
         float clampedProgress = Mathf.Clamp01(normalizedProgress);
         float remainingClipSeconds = clipLength * Mathf.Max(0.01f, 1f - clampedProgress);
@@ -402,56 +196,29 @@ public class MovementAnimationScript : MonoBehaviour
             Mathf.Max(0.01f, minimumSyncedJumpAnimationSpeed),
             Mathf.Max(minimumSyncedJumpAnimationSpeed, maximumSyncedJumpAnimationSpeed));
 
-        SetFloatIfExists(speedHash, syncedSpeed);
-    }
-
-    // Handle Reset Jump Animation Speed Parameters.
-    private void ResetJumpAnimationSpeedParameters()
-    {
+        SetFloatIfExists(speedHash, syncedSpeed); }
+    private void ResetJumpAnimationSpeedParameters() {
         SetFloatIfExists(JumpSpeedHash, ResolveConfiguredSpeed(jumpAnimationSpeed));
-        SetFloatIfExists(RunningJumpSpeedHash, ResolveConfiguredSpeed(runningJumpAnimationSpeed));
-    }
-
-    // Handle Try Get Jump State Progress.
-    private bool TryGetJumpStateProgress(out bool preferRunningJumpSpeed, out float normalizedProgress)
-    {
+        SetFloatIfExists(RunningJumpSpeedHash, ResolveConfiguredSpeed(runningJumpAnimationSpeed)); }
+    private bool TryGetJumpStateProgress(out bool preferRunningJumpSpeed, out float normalizedProgress) {
         preferRunningJumpSpeed = false;
         normalizedProgress = 0f;
 
-        if (animator == null)
-        {
-            return false;
-        }
+        if (animator == null) { return false; }
 
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(0);
-        if (IsJumpState(current, out preferRunningJumpSpeed))
-        {
+        if (IsJumpState(current, out preferRunningJumpSpeed)) {
             normalizedProgress = NormalizeStateProgress(current);
-            return true;
-        }
+            return true; }
 
-        if (!animator.IsInTransition(0))
-        {
-            return false;
-        }
+        if (!animator.IsInTransition(0)) { return false; }
 
         AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(0);
-        if (!IsJumpState(next, out preferRunningJumpSpeed))
-        {
-            return false;
-        }
+        if (!IsJumpState(next, out preferRunningJumpSpeed)) { return false; }
 
         normalizedProgress = NormalizeStateProgress(next);
-        return true;
-    }
-
-    // Handle Get Jump Clip Length.
-    private float GetJumpClipLength(bool preferRunningJumpSpeed)
-    {
-        if (!EnsureAnimator())
-        {
-            return 0f;
-        }
+        return true; }
+    private float GetJumpClipLength(bool preferRunningJumpSpeed) { if (!EnsureAnimator()) { return 0f; }
 
         CacheJumpClipsIfNeeded();
 
@@ -461,124 +228,58 @@ public class MovementAnimationScript : MonoBehaviour
                 ? _jumpClip
                 : _runningJumpClip;
 
-        return clip != null ? clip.length : 0f;
-    }
-
-    // Handle Resolve Jump Speed Hash.
-    private int ResolveJumpSpeedHash(bool preferRunningJumpSpeed)
-    {
+        return clip != null ? clip.length : 0f; }
+    private int ResolveJumpSpeedHash(bool preferRunningJumpSpeed) {
         return preferRunningJumpSpeed && _runningJumpClip != null
             ? RunningJumpSpeedHash
-            : JumpSpeedHash;
-    }
-
-    // Handle Cache Jump Clips If Needed.
-    private void CacheJumpClipsIfNeeded()
-    {
-        if (animator == null)
-        {
+            : JumpSpeedHash; }
+    private void CacheJumpClipsIfNeeded() {
+        if (animator == null) {
             _cachedAnimatorController = null;
             _jumpClip = null;
             _runningJumpClip = null;
-            return;
-        }
+            return; }
 
         RuntimeAnimatorController controller = animator.runtimeAnimatorController;
-        if (controller == _cachedAnimatorController && (_jumpClip != null || _runningJumpClip != null))
-        {
-            return;
-        }
+        if (controller == _cachedAnimatorController && (_jumpClip != null || _runningJumpClip != null)) { return; }
 
         _cachedAnimatorController = controller;
         _jumpClip = null;
         _runningJumpClip = null;
-        if (controller == null)
-        {
-            return;
-        }
+        if (controller == null) { return; }
 
         AnimationClip[] clips = controller.animationClips;
-        for (int i = 0; i < clips.Length; i++)
-        {
+        for (int i = 0; i < clips.Length; i++) {
             AnimationClip clip = clips[i];
-            if (clip == null)
-            {
-                continue;
-            }
+            if (clip == null) { continue; }
 
-            if (_jumpClip == null && clip.name == "Jump")
-            {
-                _jumpClip = clip;
-            }
+            if (_jumpClip == null && clip.name == "Jump") { _jumpClip = clip; }
 
-            if (_runningJumpClip == null && clip.name == "RunningJump")
-            {
-                _runningJumpClip = clip;
-            }
-        }
-    }
-
-    // Handle Is Jump State.
-    private static bool IsJumpState(AnimatorStateInfo state, out bool preferRunningJumpSpeed)
-    {
+            if (_runningJumpClip == null && clip.name == "RunningJump") { _runningJumpClip = clip; } } }
+    private static bool IsJumpState(AnimatorStateInfo state, out bool preferRunningJumpSpeed) {
         preferRunningJumpSpeed = state.shortNameHash == RunningJumpStateHash;
-        return state.shortNameHash == JumpStateHash || preferRunningJumpSpeed;
-    }
-
-    // Handle Normalize State Progress.
-    private static float NormalizeStateProgress(AnimatorStateInfo state)
-    {
+        return state.shortNameHash == JumpStateHash || preferRunningJumpSpeed; }
+    private static float NormalizeStateProgress(AnimatorStateInfo state) {
         float normalizedTime = state.normalizedTime;
-        if (normalizedTime > 1f)
-        {
-            normalizedTime %= 1f;
-        }
+        if (normalizedTime > 1f) { normalizedTime %= 1f; }
 
-        return Mathf.Clamp01(normalizedTime);
-    }
-
-    // Handle Is Blocking Action State For State.
-    private bool IsBlockingActionState(AnimatorStateInfo state)
-    {
-        if (!IsActionState(state))
-        {
-            return false;
-        }
+        return Mathf.Clamp01(normalizedTime); }
+    private bool IsBlockingActionState(AnimatorStateInfo state) { if (!IsActionState(state)) { return false; }
 
         if ((state.shortNameHash == JumpStateHash || state.shortNameHash == RunningJumpStateHash) &&
-            Time.time < _jumpInterruptedUntil)
-        {
-            return false;
-        }
+            Time.time < _jumpInterruptedUntil) { return false; }
 
-        return true;
-    }
-
-    // Handle Is Animator In Jump State.
-    private bool IsAnimatorInJumpState()
-    {
+        return true; }
+    private bool IsAnimatorInJumpState() {
         AnimatorStateInfo current = animator.GetCurrentAnimatorStateInfo(0);
-        if (current.shortNameHash == JumpStateHash || current.shortNameHash == RunningJumpStateHash)
-        {
-            return true;
-        }
+        if (current.shortNameHash == JumpStateHash || current.shortNameHash == RunningJumpStateHash) { return true; }
 
-        if (animator.IsInTransition(0))
-        {
+        if (animator.IsInTransition(0)) {
             AnimatorStateInfo next = animator.GetNextAnimatorStateInfo(0);
-            return next.shortNameHash == JumpStateHash || next.shortNameHash == RunningJumpStateHash;
-        }
+            return next.shortNameHash == JumpStateHash || next.shortNameHash == RunningJumpStateHash; }
 
-        return false;
-    }
-
-    // Handle Is Action State.
-    private static bool IsActionState(AnimatorStateInfo state)
-    {
-        if (state.IsTag("Action"))
-        {
-            return true;
-        }
+        return false; }
+    private static bool IsActionState(AnimatorStateInfo state) { if (state.IsTag("Action")) { return true; }
 
         int stateHash = state.shortNameHash;
         return stateHash == AttackWeaponStateHash ||
@@ -588,6 +289,4 @@ public class MovementAnimationScript : MonoBehaviour
                stateHash == MiningStateHash ||
                stateHash == ChopStateHash ||
                stateHash == JumpStateHash ||
-               stateHash == RunningJumpStateHash;
-    }
-}
+               stateHash == RunningJumpStateHash; } }

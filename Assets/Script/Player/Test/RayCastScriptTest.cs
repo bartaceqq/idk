@@ -1,10 +1,5 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
-
-// Controls Ray Cast Script Test behavior.
-public class RayCastScriptTest : MonoBehaviour
-{
-    private enum BuildType { Wall, Floor, Stair }
+using System.Collections.Generic; using UnityEngine;
+public class RayCastScriptTest : MonoBehaviour { private enum BuildType { Wall, Floor, Stair }
     private static readonly Vector3 CenterViewportPoint = new Vector3(0.5f, 0.5f, 0f);
     private const float TinyValue = 0.000001f;
     private const float MinSize = 0.01f;
@@ -12,41 +7,33 @@ public class RayCastScriptTest : MonoBehaviour
     private const float RotationToleranceDegrees = 1f;
     private const float MissingControllerResolveInterval = 1f;
 
-    [Header("Placement")]
-    public Camera camera;
+    [Header("Placement")] public Camera camera;
     public LayerMask hitMask = ~0;
     public float range = 100f;
     public GameObject wall;
     public GameObject floor;
     public GameObject stair;
 
-    [Header("Raycast Filtering")]
-    public bool ignorePlayerColliderInBuildRaycast = true;
+    [Header("Raycast Filtering")] public bool ignorePlayerColliderInBuildRaycast = true;
     public string playerTag = "Player";
     public Transform playerRoot;
 
-    [Header("Input")]
-    public KeyCode rotateKey = KeyCode.R;
+    [Header("Input")] public KeyCode rotateKey = KeyCode.R;
     public KeyCode destroyModeKey = KeyCode.X;
 
-    [Header("Rotation")]
-    public float rotateStep = 90f;
+    [Header("Rotation")] public float rotateStep = 90f;
 
-    [Header("Visuals")]
-    public Material buildingMaterial;
+    [Header("Visuals")] public Material buildingMaterial;
     public Material doneBuildMaterial;
     public Material destroyBuildMaterial;
 
-    [Header("Placed Build Visuals")]
-    public bool usePrefabMaterialsOnPlacedObjects = true;
+    [Header("Placed Build Visuals")] public bool usePrefabMaterialsOnPlacedObjects = true;
 
-    [Header("Build Capsule")]
-    public bool autoSwitchToBuildingCapsule = true;
+    [Header("Build Capsule")] public bool autoSwitchToBuildingCapsule = true;
     public LookingController lookingController;
     public bool requireBuildingCapsuleForBuildControls = true;
 
-    [Header("Table Right Click")]
-    public bool enableTableRightClickShortcut = true;
+    [Header("Table Right Click")] public bool enableTableRightClickShortcut = true;
     public string tableTag = "Table";
     public string tableNameContains = "table";
     public GameObject tableRightClickBuildPrefab;
@@ -54,8 +41,7 @@ public class RayCastScriptTest : MonoBehaviour
     public Vector3 tableBuildRotationEuler = Vector3.zero;
     public Vector3 tableBuildScale = Vector3.one;
 
-    [Header("Snapping")]
-    public bool enableTwoPointSnap = true;
+    [Header("Snapping")] public bool enableTwoPointSnap = true;
     public float snapEngageDistance = 0.8f;
     public float snapReleaseDistance = 1.2f;
     public float snapYOffset = 0f;
@@ -68,19 +54,16 @@ public class RayCastScriptTest : MonoBehaviour
     public bool enableStairSinglePointSnapFallback = true;
     public float stairSinglePointSnapEngageDistance = 1f;
 
-    [Header("Snap Performance")]
-    public float snapSearchRadius = 8f;
+    [Header("Snap Performance")] public float snapSearchRadius = 8f;
     public float snapSearchRefreshInterval = 0.12f;
     public bool restrictSnapSearchToRadius = true;
 
-    [Header("Floor Height Assist")]
-    public bool floorPreferNearestPointY = true;
+    [Header("Floor Height Assist")] public bool floorPreferNearestPointY = true;
     public Transform floorHeightReference;
     public float floorNearestPointRadius = 8f;
     public bool floorNearestPointUseXZ = true;
 
-    [Header("Extrude")]
-    public KeyCode extrudeKey = KeyCode.G;
+    [Header("Extrude")] public KeyCode extrudeKey = KeyCode.G;
     public bool extrudeModeStaysOn = true;
     public bool wallExtrudeUseFloorSpacing = true;
     public float wallExtrudeSpacingScale = 1f;
@@ -90,8 +73,7 @@ public class RayCastScriptTest : MonoBehaviour
     public float stairExtrudeOccupyToleranceXZ = 0.05f;
     public float extrudeOccupyToleranceY = 0.05f;
 
-    [Header("Debug")]
-    public bool logClosestPair = false;
+    [Header("Debug")] public bool logClosestPair = false;
     public bool logDetectionState = false;
     public float logDistanceDelta = 0.005f;
     public float logInterval = 0.15f;
@@ -155,202 +137,106 @@ public class RayCastScriptTest : MonoBehaviour
     private bool _hasSnapTargetCache;
     private bool _hasFloorHeightSnapPointCache;
 
-    private struct PairCandidate
-    {
+    private struct PairCandidate {
         public SnapPoint preview;
         public SnapPoint target;
         public Vector3 previewWorld;
         public Vector3 targetWorld;
-        public float distance;
-    }
-
-    // Run setup once before the first frame.
-    private void Start()
-    {
+        public float distance; }
+    private void Start() {
         EnsureCamera();
         InitializeBuildType();
-        CreatePreviewObject();
-    }
-
-    // Run this logic every frame.
-    private void Update()
-    {
-        if (IsUiBlockingGameplay())
-        {
+        CreatePreviewObject(); }
+    private void Update() {
+        if (GameplayUiState.IsGameplayInputBlocked) {
             HidePreviewAndCancelBuildInteraction();
-            return;
-        }
+            return; }
 
-        if (!CanUseBuildControls())
-        {
+        if (!CanUseBuildControls()) {
             HidePreviewAndCancelBuildInteraction();
-            return;
-        }
+            return; }
 
         // 1) Handle global mode input, 2) update preview, 3) place/extrude.
         if (!EnsureCamera()) return;
 
         HandleDestroyModeInput();
-        if (_isDestroyMode)
-        {
+        if (_isDestroyMode) {
             HandleDestroyMode();
-            return;
-        }
+            return; }
 
-        if (!TryPrepareBuildPreview(out GameObject activePrefab))
-        {
-            return;
-        }
+        if (!TryPrepareBuildPreview(out GameObject activePrefab)) { return; }
 
         HandleBuildTypeCycleInput(ref activePrefab);
-        if (activePrefab == null)
-        {
-            return;
-        }
+        if (activePrefab == null) { return; }
 
         HandleExtrudeAndRotationInput();
-        if (_isExtruding)
-        {
+        if (_isExtruding) {
             HandleExtrudeDrag();
-            return;
-        }
+            return; }
 
         MovePreviewObject();
-        if (_isExtrudeMode)
-        {
+        if (_isExtrudeMode) {
             HandleExtrudeIdleInput();
-            return;
-        }
+            return; }
 
-        TryPlaceSingleObject(activePrefab);
-    }
+        TryPlaceSingleObject(activePrefab); }
+    private bool EnsureCamera() {
+        if (camera == null) { camera = Camera.main; }
 
-    // Handle Ensure Camera.
-    private bool EnsureCamera()
-    {
-        if (camera == null)
-        {
-            camera = Camera.main;
-        }
-
-        return camera != null;
-    }
-
-    // Handle Can Use Build Controls.
-    private bool CanUseBuildControls()
-    {
-        if (!requireBuildingCapsuleForBuildControls)
-        {
-            return true;
-        }
+        return camera != null; }
+    private bool CanUseBuildControls() {
+        if (!requireBuildingCapsuleForBuildControls) { return true; }
 
         LookingController controller = ResolveLookingController();
-        if (controller == null)
-        {
-            return true;
-        }
+        if (controller == null) { return true; }
 
-        return controller.switched;
-    }
+        return controller.switched; }
+    private LookingController ResolveLookingController(bool forceSearch = false) {
+        if (lookingController != null) { return lookingController; }
 
-    // Handle Resolve Looking Controller.
-    private LookingController ResolveLookingController(bool forceSearch = false)
-    {
-        if (lookingController != null)
-        {
-            return lookingController;
-        }
-
-        if (!forceSearch && Time.unscaledTime < _nextLookingControllerResolveTime)
-        {
-            return null;
-        }
+        if (!forceSearch && Time.unscaledTime < _nextLookingControllerResolveTime) { return null; }
 
         _nextLookingControllerResolveTime = Time.unscaledTime + MissingControllerResolveInterval;
 
-#if UNITY_2023_1_OR_NEWER
-        lookingController = FindAnyObjectByType<LookingController>(FindObjectsInactive.Include);
-#else
-        lookingController = FindObjectOfType<LookingController>(true);
-#endif
-        return lookingController;
-    }
-
-    // Handle Hide Preview And Cancel Build Interaction.
-    private void HidePreviewAndCancelBuildInteraction()
-    {
-        if (_isDestroyMode)
-        {
+        lookingController = UnitySceneSearch.FindFirst<LookingController>();
+        return lookingController; }
+    private void HidePreviewAndCancelBuildInteraction() {
+        if (_isDestroyMode) {
             _isDestroyMode = false;
-            ClearDestroyTargetHighlight();
-        }
+            ClearDestroyTargetHighlight(); }
 
         _isExtrudeMode = false;
-        if (_isExtruding)
-        {
-            CancelExtrudeState();
-        }
-        else
-        {
-            ClearExtrudeGhosts();
-        }
+        if (_isExtruding) {
+            CancelExtrudeState(); } else { ClearExtrudeGhosts(); }
 
-        if (_previewObject != null && _previewObject.activeSelf)
-        {
-            _previewObject.SetActive(false);
-        }
+        if (_previewObject != null && _previewObject.activeSelf) { _previewObject.SetActive(false); }
 
-        ClearSnapLock();
-    }
-
-    // Handle Handle Destroy Mode Input.
-    private void HandleDestroyModeInput()
-    {
-        if (Input.GetKeyDown(destroyModeKey))
-        {
-            ToggleDestroyMode();
-        }
-    }
-
-    // Handle Try Select Inventory Building Prefab.
-    public bool TrySelectInventoryBuildingPrefab(GameObject prefab, string sourceItemName)
-    {
+        ClearSnapLock(); }
+    private void HandleDestroyModeInput() {
+        if (Input.GetKeyDown(destroyModeKey)) { ToggleDestroyMode(); } }
+    public bool TrySelectInventoryBuildingPrefab(GameObject prefab, string sourceItemName) {
         return TrySelectBuildPrefabDirect(
             prefab,
             sourceItemName,
             Vector3.zero,
             Vector3.one,
-            autoSwitchToBuildingCapsule);
-    }
-
-    // Handle Try Select Inventory Building Item.
-    public bool TrySelectInventoryBuildingItem(InventoryItem inventoryItem)
-    {
-        if (inventoryItem == null || inventoryItem.itemPrefab == null)
-        {
-            return false;
-        }
+            autoSwitchToBuildingCapsule); }
+    public bool TrySelectInventoryBuildingItem(InventoryItem inventoryItem) {
+        if (inventoryItem == null || inventoryItem.itemPrefab == null) { return false; }
 
         return TrySelectBuildPrefabDirect(
             inventoryItem.itemPrefab,
             inventoryItem.name,
             inventoryItem.buildRotationEuler,
             inventoryItem.buildScale,
-            autoSwitchToBuildingCapsule);
-    }
-
-    // Handle Try Select Build Prefab Direct.
+            autoSwitchToBuildingCapsule); }
     private bool TrySelectBuildPrefabDirect(
         GameObject prefab,
         string sourceItemName,
         Vector3 buildRotationEuler,
         Vector3 buildScale,
-        bool switchToBuildingCapsule)
-    {
-        if (prefab == null)
-        {
-            return false;
-        }
+        bool switchToBuildingCapsule) {
+        if (prefab == null) { return false; }
 
         _inventoryBuildPrefab = prefab;
         _inventoryBuildItemName = string.IsNullOrWhiteSpace(sourceItemName) ? prefab.name : sourceItemName.Trim();
@@ -358,304 +244,156 @@ public class RayCastScriptTest : MonoBehaviour
         _inventoryBuildScale = SanitizeScale(buildScale);
         _buildType = ResolveBuildTypeForPrefab(prefab, _buildType);
 
-        if (switchToBuildingCapsule)
-        {
-            EnsureBuildingCapsuleActive();
-        }
+        if (switchToBuildingCapsule) { EnsureBuildingCapsuleActive(); }
 
-        if (_isDestroyMode)
-        {
-            ToggleDestroyMode();
-        }
+        if (_isDestroyMode) { ToggleDestroyMode(); }
 
         _isExtrudeMode = false;
         CancelExtrudeState();
         CreatePreviewObject();
 
-        if (_previewObject == null)
-        {
-            return false;
-        }
+        if (_previewObject == null) { return false; }
 
         _previewObject.SetActive(true);
         LogDetectionState("Build mode: " + _inventoryBuildItemName);
-        return true;
-    }
-
-    // Handle Try Prepare Build Preview.
-    private bool TryPrepareBuildPreview(out GameObject activePrefab)
-    {
+        return true; }
+    private bool TryPrepareBuildPreview(out GameObject activePrefab) {
         // We always need both: selected prefab + preview instance in scene.
         activePrefab = GetActivePrefab();
-        if (activePrefab == null)
-        {
-            return false;
-        }
+        if (activePrefab == null) { return false; }
 
-        if (_previewObject != null)
-        {
-            if (!_previewObject.activeSelf)
-            {
-                _previewObject.SetActive(true);
-            }
+        if (_previewObject != null) {
+            if (!_previewObject.activeSelf) { _previewObject.SetActive(true); }
 
-            return true;
-        }
+            return true; }
 
         CreatePreviewObject();
-        return _previewObject != null;
-    }
+        return _previewObject != null; }
+    private void HandleBuildTypeCycleInput(ref GameObject activePrefab) {
+        if (!Input.GetMouseButtonDown(1)) { return; }
 
-    // Handle Handle Build Type Cycle Input.
-    private void HandleBuildTypeCycleInput(ref GameObject activePrefab)
-    {
-        if (!Input.GetMouseButtonDown(1))
-        {
-            return;
-        }
+        if (TryHandleTableRightClickShortcut(ref activePrefab)) { return; }
 
-        if (TryHandleTableRightClickShortcut(ref activePrefab))
-        {
-            return;
-        }
+        if (_isExtruding) { CancelExtrudeState(); }
 
-        if (_isExtruding)
-        {
-            CancelExtrudeState();
-        }
-
-        if (_inventoryBuildPrefab != null)
-        {
-            ClearInventoryBuildSelection();
-        }
+        if (_inventoryBuildPrefab != null) { ClearInventoryBuildSelection(); }
 
         ToggleBuildType();
-        activePrefab = GetActivePrefab();
-    }
+        activePrefab = GetActivePrefab(); }
+    private void HandleExtrudeAndRotationInput() {
+        if (Input.GetKeyDown(extrudeKey)) { ToggleExtrudeMode(); }
 
-    // Handle Handle Extrude And Rotation Input.
-    private void HandleExtrudeAndRotationInput()
-    {
-        if (Input.GetKeyDown(extrudeKey))
-        {
-            ToggleExtrudeMode();
-        }
-
-        if (!_isExtruding && Input.GetKeyDown(rotateKey))
-        {
-            _previewYRotation += rotateStep;
-        }
-    }
-
-    // Handle Try Place Single Object.
-    private void TryPlaceSingleObject(GameObject activePrefab)
-    {
-        if (!Input.GetMouseButtonDown(0))
-        {
-            return;
-        }
+        if (!_isExtruding && Input.GetKeyDown(rotateKey)) { _previewYRotation += rotateStep; } }
+    private void TryPlaceSingleObject(GameObject activePrefab) {
+        if (!Input.GetMouseButtonDown(0)) { return; }
 
         GameObject created = Instantiate(activePrefab, _previewObject.transform.position, _previewObject.transform.rotation);
         ApplyScaleMultiplier(created, GetActiveBuildScale());
         RuntimeBuildPiece.Mark(created, GetActiveBuildPieceKind());
         ApplyPlacedObjectVisuals(created);
-        InvalidateSnapTargetCache();
-    }
-
-    // Handle Initialize Build Type.
-    private void InitializeBuildType()
-    {
+        InvalidateSnapTargetCache(); }
+    private void InitializeBuildType() {
         RefreshAvailableBuildTypes();
-        if (_availableBuildTypes.Count > 0) _buildType = _availableBuildTypes[0];
-    }
+        if (_availableBuildTypes.Count > 0) _buildType = _availableBuildTypes[0]; }
+    private GameObject GetActivePrefab() {
+        if (_inventoryBuildPrefab != null) { return _inventoryBuildPrefab; }
 
-    // Handle Get Active Prefab.
-    private GameObject GetActivePrefab()
-    {
-        if (_inventoryBuildPrefab != null)
-        {
-            return _inventoryBuildPrefab;
-        }
-
-        return _buildType switch
-        {
+        return _buildType switch {
             BuildType.Wall => wall,
             BuildType.Floor => floor,
             BuildType.Stair => stair,
-            _ => null,
-        };
-    }
-
-    // Handle Toggle Build Type.
-    private void ToggleBuildType()
-    {
+            _ => null, }; }
+    private void ToggleBuildType() {
         RefreshAvailableBuildTypes();
-        if (_availableBuildTypes.Count < 2)
-        {
+        if (_availableBuildTypes.Count < 2) {
             LogDetectionState("Assign at least 2 prefabs (wall/floor/stair) to switch build mode.");
-            return;
-        }
+            return; }
 
         int currentIndex = _availableBuildTypes.IndexOf(_buildType);
         if (currentIndex < 0) currentIndex = 0;
         _buildType = _availableBuildTypes[(currentIndex + 1) % _availableBuildTypes.Count];
 
         CreatePreviewObject();
-        LogDetectionState("Build mode: " + _buildType);
-    }
-
-    // Handle Clear Inventory Build Selection.
-    private void ClearInventoryBuildSelection()
-    {
+        LogDetectionState("Build mode: " + _buildType); }
+    private void ClearInventoryBuildSelection() {
         _inventoryBuildPrefab = null;
         _inventoryBuildItemName = string.Empty;
         _inventoryBuildRotationEuler = Vector3.zero;
-        _inventoryBuildScale = Vector3.one;
-    }
+        _inventoryBuildScale = Vector3.one; }
+    private static BuildType ResolveBuildTypeForPrefab(GameObject prefab, BuildType fallback) {
+        if (prefab == null) { return fallback; }
 
-    // Handle Resolve Build Type For Prefab.
-    private static BuildType ResolveBuildTypeForPrefab(GameObject prefab, BuildType fallback)
-    {
-        if (prefab == null)
-        {
-            return fallback;
-        }
+        if (prefab.GetComponentInChildren<FloorScript>(true) != null) { return BuildType.Floor; }
 
-        if (prefab.GetComponentInChildren<FloorScript>(true) != null)
-        {
-            return BuildType.Floor;
-        }
+        if (prefab.GetComponentInChildren<StairScript>(true) != null) { return BuildType.Stair; }
 
-        if (prefab.GetComponentInChildren<StairScript>(true) != null)
-        {
-            return BuildType.Stair;
-        }
+        if (prefab.GetComponentInChildren<WallSnapPoints>(true) != null) { return BuildType.Wall; }
 
-        if (prefab.GetComponentInChildren<WallSnapPoints>(true) != null)
-        {
-            return BuildType.Wall;
-        }
-
-        return fallback;
-    }
-
-    // Handle Try Handle Table Right Click Shortcut.
-    private bool TryHandleTableRightClickShortcut(ref GameObject activePrefab)
-    {
-        if (!enableTableRightClickShortcut)
-        {
-            return false;
-        }
+        return fallback; }
+    private bool TryHandleTableRightClickShortcut(ref GameObject activePrefab) {
+        if (!enableTableRightClickShortcut) { return false; }
 
         Ray ray = GetCenterRay();
-        if (!TryGetClosestTableHit(ray, out _))
-        {
-            return false;
-        }
+        if (!TryGetClosestTableHit(ray, out _)) { return false; }
 
         bool changed = false;
-        if (autoSwitchToBuildingCapsule)
-        {
+        if (autoSwitchToBuildingCapsule) {
             EnsureBuildingCapsuleActive();
-            changed = true;
-        }
+            changed = true; }
 
-        if (tableRightClickBuildPrefab != null)
-        {
+        if (tableRightClickBuildPrefab != null) {
             changed |= TrySelectBuildPrefabDirect(
                 tableRightClickBuildPrefab,
                 tableRightClickBuildName,
                 tableBuildRotationEuler,
                 tableBuildScale,
                 false);
-            activePrefab = GetActivePrefab();
-        }
+            activePrefab = GetActivePrefab(); }
 
-        return changed;
-    }
-
-    // Handle Try Get Closest Table Hit.
-    private bool TryGetClosestTableHit(Ray ray, out RaycastHit closestTableHit)
-    {
+        return changed; }
+    private bool TryGetClosestTableHit(Ray ray, out RaycastHit closestTableHit) {
         closestTableHit = default;
         int hitCount = Physics.RaycastNonAlloc(ray, _placementHits, range, hitMask, QueryTriggerInteraction.Ignore);
-        if (hitCount <= 0)
-        {
-            return false;
-        }
+        if (hitCount <= 0) { return false; }
 
         float closestDistance = float.MaxValue;
         bool found = false;
-        for (int i = 0; i < hitCount; i++)
-        {
+        for (int i = 0; i < hitCount; i++) {
             RaycastHit hit = _placementHits[i];
             Collider collider = hit.collider;
-            if (ShouldSkipPlacementCollider(collider))
-            {
-                continue;
-            }
+            if (ShouldSkipPlacementCollider(collider)) { continue; }
 
-            if (!IsTableTransform(collider.transform))
-            {
-                continue;
-            }
+            if (!IsTableTransform(collider.transform)) { continue; }
 
-            if (hit.distance >= closestDistance)
-            {
-                continue;
-            }
+            if (hit.distance >= closestDistance) { continue; }
 
             closestDistance = hit.distance;
             closestTableHit = hit;
-            found = true;
-        }
+            found = true; }
 
-        return found;
-    }
-
-    // Handle Is Table Transform.
-    private bool IsTableTransform(Transform startTransform)
-    {
-        if (startTransform == null)
-        {
-            return false;
-        }
+        return found; }
+    private bool IsTableTransform(Transform startTransform) {
+        if (startTransform == null) { return false; }
 
         string contains = string.IsNullOrWhiteSpace(tableNameContains) ? string.Empty : tableNameContains.Trim();
         bool hasTagFilter = !string.IsNullOrWhiteSpace(tableTag);
         bool hasNameFilter = !string.IsNullOrEmpty(contains);
 
         Transform current = startTransform;
-        while (current != null)
-        {
-            if (hasTagFilter && string.Equals(current.tag, tableTag, System.StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+        while (current != null) {
+            if (hasTagFilter && string.Equals(current.tag, tableTag, System.StringComparison.OrdinalIgnoreCase)) { return true; }
 
-            if (hasNameFilter && current.name.IndexOf(contains, System.StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                return true;
-            }
+            if (hasNameFilter && current.name.IndexOf(contains, System.StringComparison.OrdinalIgnoreCase) >= 0) { return true; }
 
-            current = current.parent;
-        }
+            current = current.parent; }
 
-        return false;
-    }
-
-    // Handle Refresh Available Build Types.
-    private void RefreshAvailableBuildTypes()
-    {
+        return false; }
+    private void RefreshAvailableBuildTypes() {
         _availableBuildTypes.Clear();
         if (wall != null) _availableBuildTypes.Add(BuildType.Wall);
         if (floor != null) _availableBuildTypes.Add(BuildType.Floor);
-        if (stair != null) _availableBuildTypes.Add(BuildType.Stair);
-    }
-
-    // Handle Create Preview Object.
-    private void CreatePreviewObject()
-    {
+        if (stair != null) _availableBuildTypes.Add(BuildType.Stair); }
+    private void CreatePreviewObject() {
         GameObject activePrefab = GetActivePrefab();
         if (activePrefab == null) return;
 
@@ -669,12 +407,8 @@ public class RayCastScriptTest : MonoBehaviour
         _bottomOffset = GetBottomOffset(_previewObject);
         ClearSnapLock();
         InvalidateSnapTargetCache();
-        CancelExtrudeState();
-    }
-
-    // Handle Move Preview Object.
-    private void MovePreviewObject()
-    {
+        CancelExtrudeState(); }
+    private void MovePreviewObject() {
         Ray ray = GetCenterRay();
         if (!TryGetPlacementHit(ray, out RaycastHit hit)) return;
 
@@ -683,466 +417,229 @@ public class RayCastScriptTest : MonoBehaviour
         Quaternion placementRotation = ApplyBuildRotationOffset(baseRotation);
         _previewObject.transform.SetPositionAndRotation(rawPosition, placementRotation);
 
-        if (!enableTwoPointSnap)
-        {
+        if (!enableTwoPointSnap) {
             if (_isSnapLocked) ClearSnapLock();
-            return;
-        }
+            return; }
 
-        HandleStickyTwoPointSnap(rawPosition, placementRotation);
-    }
-
-    // Handle Get Raw Placement Position.
-    private Vector3 GetRawPlacementPosition(RaycastHit hit)
-    {
+        HandleStickyTwoPointSnap(rawPosition, placementRotation); }
+    private Vector3 GetRawPlacementPosition(RaycastHit hit) {
         Vector3 rawPosition = hit.point;
 
-        if (_buildType == BuildType.Floor)
-        {
-            rawPosition.y = GetFloorPlacementY(hit);
-        }
+        if (_buildType == BuildType.Floor) { rawPosition.y = GetFloorPlacementY(hit); }
 
         rawPosition.y += _bottomOffset;
-        return rawPosition;
-    }
-
-    // Handle Get Center Ray.
-    private Ray GetCenterRay()
-    {
-        return camera.ViewportPointToRay(CenterViewportPoint);
-    }
-
-    // Handle Try Get Placement Hit.
-    private bool TryGetPlacementHit(Ray ray, out RaycastHit closestHit)
-    {
+        return rawPosition; }
+    private Ray GetCenterRay() { return camera.ViewportPointToRay(CenterViewportPoint); }
+    private bool TryGetPlacementHit(Ray ray, out RaycastHit closestHit) {
         closestHit = default;
         int hitCount = Physics.RaycastNonAlloc(ray, _placementHits, range, hitMask, QueryTriggerInteraction.Ignore);
-        if (hitCount <= 0)
-        {
-            return false;
-        }
+        if (hitCount <= 0) { return false; }
 
         float closestDistance = float.MaxValue;
         bool found = false;
-        for (int i = 0; i < hitCount; i++)
-        {
+        for (int i = 0; i < hitCount; i++) {
             RaycastHit candidate = _placementHits[i];
             Collider collider = candidate.collider;
-            if (ShouldSkipPlacementCollider(collider))
-            {
-                continue;
-            }
+            if (ShouldSkipPlacementCollider(collider)) { continue; }
 
-            if (candidate.distance >= closestDistance)
-            {
-                continue;
-            }
+            if (candidate.distance >= closestDistance) { continue; }
 
             closestDistance = candidate.distance;
             closestHit = candidate;
-            found = true;
-        }
+            found = true; }
 
-        return found;
-    }
+        return found; }
+    private bool ShouldSkipPlacementCollider(Collider collider) {
+        if (collider == null) { return true; }
 
-    // Handle Should Skip Placement Collider.
-    private bool ShouldSkipPlacementCollider(Collider collider)
-    {
-        if (collider == null)
-        {
-            return true;
-        }
+        if (IsSnapMarkerCollider(collider)) { return true; }
 
-        if (IsSnapMarkerCollider(collider))
-        {
-            return true;
-        }
+        if (_previewObject != null && collider.transform.IsChildOf(_previewObject.transform)) { return true; }
 
-        if (_previewObject != null && collider.transform.IsChildOf(_previewObject.transform))
-        {
-            return true;
-        }
-
-        return IsPlayerCollider(collider);
-    }
-
-    // Handle Is Player Collider.
-    private bool IsPlayerCollider(Collider collider)
-    {
-        if (!ignorePlayerColliderInBuildRaycast || collider == null)
-        {
-            return false;
-        }
+        return IsPlayerCollider(collider); }
+    private bool IsPlayerCollider(Collider collider) {
+        if (!ignorePlayerColliderInBuildRaycast || collider == null) { return false; }
 
         Transform colliderTransform = collider.transform;
-        if (playerRoot != null && colliderTransform.IsChildOf(playerRoot))
-        {
-            return true;
-        }
+        if (playerRoot != null && colliderTransform.IsChildOf(playerRoot)) { return true; }
 
         if (!string.IsNullOrWhiteSpace(playerTag) &&
-            string.Equals(collider.tag, playerTag, System.StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
+            string.Equals(collider.tag, playerTag, System.StringComparison.OrdinalIgnoreCase)) { return true; }
 
-        if (camera != null && camera.transform != null)
-        {
+        if (camera != null && camera.transform != null) {
             Transform cameraRoot = camera.transform.root;
-            if (cameraRoot != null && colliderTransform.IsChildOf(cameraRoot))
-            {
-                return true;
-            }
-        }
+            if (cameraRoot != null && colliderTransform.IsChildOf(cameraRoot)) { return true; } }
 
-        return false;
-    }
-
-    // Handle Apply Build Rotation Offset.
-    private Quaternion ApplyBuildRotationOffset(Quaternion baseRotation)
-    {
+        return false; }
+    private Quaternion ApplyBuildRotationOffset(Quaternion baseRotation) {
         Vector3 rotationOffset = GetActiveBuildRotationEuler();
-        if (rotationOffset.sqrMagnitude < TinyValue)
-        {
-            return baseRotation;
-        }
+        if (rotationOffset.sqrMagnitude < TinyValue) { return baseRotation; }
 
-        return baseRotation * Quaternion.Euler(rotationOffset);
-    }
+        return baseRotation * Quaternion.Euler(rotationOffset); }
+    private Vector3 GetActiveBuildRotationEuler() {
+        if (_inventoryBuildPrefab != null) { return _inventoryBuildRotationEuler; }
 
-    // Handle Get Active Build Rotation Euler.
-    private Vector3 GetActiveBuildRotationEuler()
-    {
-        if (_inventoryBuildPrefab != null)
-        {
-            return _inventoryBuildRotationEuler;
-        }
+        return Vector3.zero; }
+    private Vector3 GetActiveBuildScale() {
+        if (_inventoryBuildPrefab != null) { return _inventoryBuildScale; }
 
-        return Vector3.zero;
-    }
-
-    // Handle Get Active Build Scale.
-    private Vector3 GetActiveBuildScale()
-    {
-        if (_inventoryBuildPrefab != null)
-        {
-            return _inventoryBuildScale;
-        }
-
-        return Vector3.one;
-    }
-
-    // Handle Sanitize Scale.
-    private static Vector3 SanitizeScale(Vector3 scale)
-    {
+        return Vector3.one; }
+    private static Vector3 SanitizeScale(Vector3 scale) {
         scale.x = Mathf.Abs(scale.x) < TinyValue ? 1f : scale.x;
         scale.y = Mathf.Abs(scale.y) < TinyValue ? 1f : scale.y;
         scale.z = Mathf.Abs(scale.z) < TinyValue ? 1f : scale.z;
-        return scale;
-    }
-
-    // Handle Apply Scale Multiplier.
-    private static void ApplyScaleMultiplier(GameObject target, Vector3 scaleMultiplier)
-    {
-        if (target == null)
-        {
-            return;
-        }
+        return scale; }
+    private static void ApplyScaleMultiplier(GameObject target, Vector3 scaleMultiplier) {
+        if (target == null) { return; }
 
         Vector3 cleanScale = SanitizeScale(scaleMultiplier);
-        target.transform.localScale = Vector3.Scale(target.transform.localScale, cleanScale);
-    }
+        target.transform.localScale = Vector3.Scale(target.transform.localScale, cleanScale); }
+    private void ApplyPlacedObjectVisuals(GameObject target) {
+        if (target == null) { return; }
 
-    // Handle Apply Placed Object Visuals.
-    private void ApplyPlacedObjectVisuals(GameObject target)
-    {
-        if (target == null)
-        {
-            return;
-        }
+        if (usePrefabMaterialsOnPlacedObjects) { return; }
 
-        if (usePrefabMaterialsOnPlacedObjects)
-        {
-            return;
-        }
-
-        ApplyMaterialToMeshRenderers(target, doneBuildMaterial);
-    }
-
-    // Handle Ensure Building Capsule Active.
-    private void EnsureBuildingCapsuleActive()
-    {
-        if (!autoSwitchToBuildingCapsule)
-        {
-            return;
-        }
+        ApplyMaterialToMeshRenderers(target, doneBuildMaterial); }
+    private void EnsureBuildingCapsuleActive() {
+        if (!autoSwitchToBuildingCapsule) { return; }
 
         LookingController controller = ResolveLookingController(forceSearch: true);
-        if (controller == null)
-        {
-            return;
-        }
+        if (controller == null) { return; }
 
-        controller.SwitchToBuildingMode();
-    }
-
-    // Handle On Disable.
-    private void OnDisable()
-    {
-        HidePreviewAndCancelBuildInteraction();
-    }
-
-    // Handle On Destroy.
-    private void OnDestroy()
-    {
+        controller.SwitchToBuildingMode(); }
+    private void OnDisable() { HidePreviewAndCancelBuildInteraction(); }
+    private void OnDestroy() {
         ClearDestroyTargetHighlight();
         ClearExtrudeGhosts();
 
-        if (_previewObject != null)
-        {
+        if (_previewObject != null) {
             Destroy(_previewObject);
-            _previewObject = null;
-        }
-    }
-
-    // Handle Get Floor Placement Y.
-    private float GetFloorPlacementY(RaycastHit hit)
-    {
+            _previewObject = null; } }
+    private float GetFloorPlacementY(RaycastHit hit) {
         float targetY = hit.point.y;
 
         // If we are aiming at a built object, snap to that object's level first.
-        if (TryGetSnapOwnerFromColliderCached(hit.collider, out GameObject owner))
-        {
-            if (owner.TryGetComponent(out FloorScript _))
-            {
-                return GetBottomY(owner);
-            }
+        if (TryGetSnapOwnerFromColliderCached(hit.collider, out GameObject owner)) {
+            if (owner.TryGetComponent(out FloorScript _)) { return GetBottomY(owner); }
 
-            return GetTopY(owner);
-        }
+            return GetTopY(owner); }
 
-        if (floorPreferNearestPointY && TryGetNearestSnapPointYNearReference(out float nearestPointY))
-        {
-            return nearestPointY;
-        }
+        if (floorPreferNearestPointY && TryGetNearestSnapPointYNearReference(out float nearestPointY)) { return nearestPointY; }
 
-        return targetY;
-    }
-
-    // Handle Toggle Destroy Mode.
-    private void ToggleDestroyMode()
-    {
+        return targetY; }
+    private void ToggleDestroyMode() {
         _isDestroyMode = !_isDestroyMode;
-        if (_isDestroyMode)
-        {
+        if (_isDestroyMode) {
             _isExtrudeMode = false;
             if (_isExtruding) CancelExtrudeState();
             if (_previewObject != null) _previewObject.SetActive(false);
             ClearSnapLock();
             ClearDestroyTargetHighlight();
             LogDetectionState("Destroy mode: ON");
-            return;
-        }
+            return; }
 
         ClearDestroyTargetHighlight();
-        if (_previewObject == null)
-        {
-            CreatePreviewObject();
-        }
-        else
-        {
-            _previewObject.SetActive(true);
-        }
+        if (_previewObject == null) {
+            CreatePreviewObject(); } else { _previewObject.SetActive(true); }
 
-        LogDetectionState("Destroy mode: OFF");
-    }
-
-    // Handle Handle Destroy Mode.
-    private void HandleDestroyMode()
-    {
+        LogDetectionState("Destroy mode: OFF"); }
+    private void HandleDestroyMode() {
         Ray ray = GetCenterRay();
-        if (TryGetLookedAtBuildTarget(ray, out GameObject target))
-        {
-            SetDestroyTargetHighlight(target);
-        }
-        else
-        {
-            ClearDestroyTargetHighlight();
-        }
+        if (TryGetLookedAtBuildTarget(ray, out GameObject target)) {
+            SetDestroyTargetHighlight(target); } else { ClearDestroyTargetHighlight(); }
 
-        if (!Input.GetMouseButtonDown(0) || _destroyTarget == null)
-        {
-            return;
-        }
+        if (!Input.GetMouseButtonDown(0) || _destroyTarget == null) { return; }
 
         GameObject destroyNow = _destroyTarget;
         ClearDestroyTargetHighlight();
         Destroy(destroyNow);
-        InvalidateSnapTargetCache();
-    }
-
-    // Handle Try Get Looked At Build Target.
-    private bool TryGetLookedAtBuildTarget(Ray ray, out GameObject target)
-    {
+        InvalidateSnapTargetCache(); }
+    private bool TryGetLookedAtBuildTarget(Ray ray, out GameObject target) {
         target = null;
         int hitCount = Physics.RaycastNonAlloc(ray, _placementHits, range, hitMask, QueryTriggerInteraction.Ignore);
-        if (hitCount <= 0)
-        {
-            return false;
-        }
+        if (hitCount <= 0) { return false; }
 
         float bestDistance = float.MaxValue;
-        for (int i = 0; i < hitCount; i++)
-        {
+        for (int i = 0; i < hitCount; i++) {
             Collider collider = _placementHits[i].collider;
-            if (ShouldSkipPlacementCollider(collider))
-            {
-                continue;
-            }
+            if (ShouldSkipPlacementCollider(collider)) { continue; }
 
-            if (!TryGetSnapOwnerFromColliderCached(collider, out GameObject owner))
-            {
-                continue;
-            }
+            if (!TryGetSnapOwnerFromColliderCached(collider, out GameObject owner)) { continue; }
 
-            if (owner == null || owner == _previewObject || !owner.activeInHierarchy)
-            {
-                continue;
-            }
+            if (owner == null || owner == _previewObject || !owner.activeInHierarchy) { continue; }
 
-            if (_placementHits[i].distance >= bestDistance)
-            {
-                continue;
-            }
+            if (_placementHits[i].distance >= bestDistance) { continue; }
 
             bestDistance = _placementHits[i].distance;
-            target = owner;
-        }
+            target = owner; }
 
-        return target != null;
-    }
-
-    // Handle Set Destroy Target Highlight.
-    private void SetDestroyTargetHighlight(GameObject target)
-    {
-        if (_destroyTarget == target)
-        {
-            return;
-        }
+        return target != null; }
+    private void SetDestroyTargetHighlight(GameObject target) {
+        if (_destroyTarget == target) { return; }
 
         ClearDestroyTargetHighlight();
         _destroyTarget = target;
-        if (_destroyTarget == null || destroyBuildMaterial == null)
-        {
-            return;
-        }
+        if (_destroyTarget == null || destroyBuildMaterial == null) { return; }
 
         MeshRenderer[] renderers = _destroyTarget.GetComponentsInChildren<MeshRenderer>(true);
-        for (int i = 0; i < renderers.Length; i++)
-        {
+        for (int i = 0; i < renderers.Length; i++) {
             MeshRenderer renderer = renderers[i];
-            if (renderer == null || IsSnapMarkerTransform(renderer.transform))
-            {
-                continue;
-            }
+            if (renderer == null || IsSnapMarkerTransform(renderer.transform)) { continue; }
 
             Material[] original = renderer.sharedMaterials;
             if (original == null) original = new Material[0];
             _destroyHighlightedRenderers.Add(renderer);
             _destroyOriginalMaterials.Add((Material[])original.Clone());
 
-            if (original.Length == 0)
-            {
+            if (original.Length == 0) {
                 renderer.sharedMaterial = destroyBuildMaterial;
-                continue;
-            }
+                continue; }
 
             Material[] highlight = new Material[original.Length];
-            for (int j = 0; j < highlight.Length; j++)
-            {
-                highlight[j] = destroyBuildMaterial;
-            }
+            for (int j = 0; j < highlight.Length; j++) { highlight[j] = destroyBuildMaterial; }
 
-            renderer.sharedMaterials = highlight;
-        }
-    }
-
-    // Handle Clear Destroy Target Highlight.
-    private void ClearDestroyTargetHighlight()
-    {
-        for (int i = 0; i < _destroyHighlightedRenderers.Count; i++)
-        {
+            renderer.sharedMaterials = highlight; } }
+    private void ClearDestroyTargetHighlight() {
+        for (int i = 0; i < _destroyHighlightedRenderers.Count; i++) {
             MeshRenderer renderer = _destroyHighlightedRenderers[i];
-            if (renderer == null)
-            {
-                continue;
-            }
+            if (renderer == null) { continue; }
 
             Material[] original = _destroyOriginalMaterials[i];
-            if (original == null)
-            {
-                continue;
-            }
+            if (original == null) { continue; }
 
-            renderer.sharedMaterials = original;
-        }
+            renderer.sharedMaterials = original; }
 
         _destroyHighlightedRenderers.Clear();
         _destroyOriginalMaterials.Clear();
-        _destroyTarget = null;
-    }
-
-    // Handle Toggle Extrude Mode.
-    private void ToggleExtrudeMode()
-    {
-        if (GetActivePrefab() == null)
-        {
+        _destroyTarget = null; }
+    private void ToggleExtrudeMode() {
+        if (GetActivePrefab() == null) {
             LogDetectionState("No active prefab for extrude mode.");
-            return;
-        }
+            return; }
 
         _isExtrudeMode = !_isExtrudeMode;
         if (!_isExtrudeMode) CancelExtrudeState();
 
-        LogDetectionState(_buildType + " extrude: " + (_isExtrudeMode ? "ON" : "OFF"));
-    }
-
-    // Handle Handle Extrude Idle Input.
-    private void HandleExtrudeIdleInput()
-    {
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
+        LogDetectionState(_buildType + " extrude: " + (_isExtrudeMode ? "ON" : "OFF")); }
+    private void HandleExtrudeIdleInput() {
+        if (Input.GetKeyDown(KeyCode.Escape)) {
             _isExtrudeMode = false;
             CancelExtrudeState();
-            return;
-        }
+            return; }
 
-        if (Input.GetMouseButtonDown(0)) BeginExtrude();
-    }
-
-    // Handle Handle Extrude Drag.
-    private void HandleExtrudeDrag()
-    {
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
+        if (Input.GetMouseButtonDown(0)) BeginExtrude(); }
+    private void HandleExtrudeDrag() {
+        if (Input.GetKeyDown(KeyCode.Escape)) {
             CancelExtrudeState();
-            return;
-        }
+            return; }
 
         UpdateExtrudePreview();
-        if (Input.GetMouseButtonUp(0))
-        {
+        if (Input.GetMouseButtonUp(0)) {
             CommitExtrude();
             _isExtruding = false;
             ClearExtrudeGhosts();
-            if (!extrudeModeStaysOn) _isExtrudeMode = false;
-        }
-    }
-
-    // Handle Begin Extrude.
-    private void BeginExtrude()
-    {
+            if (!extrudeModeStaysOn) _isExtrudeMode = false; } }
+    private void BeginExtrude() {
         _extrudePrefab = GetActivePrefab();
         if (_previewObject == null || _extrudePrefab == null) return;
 
@@ -1162,12 +659,8 @@ public class RayCastScriptTest : MonoBehaviour
 
         _extrudeCellSize = GetExtrudeCellSize(_previewObject, _extrudeRight, _extrudeForward);
         _previewObject.transform.SetPositionAndRotation(_extrudeStartPosition, _extrudeStartRotation);
-        ClearExtrudeGhosts();
-    }
-
-    // Handle Update Extrude Preview.
-    private void UpdateExtrudePreview()
-    {
+        ClearExtrudeGhosts(); }
+    private void UpdateExtrudePreview() {
         if (!TryGetCursorPointForExtrude(out Vector3 cursorPoint)) return;
 
         Vector3 delta = cursorPoint - _extrudeStartPosition;
@@ -1181,34 +674,21 @@ public class RayCastScriptTest : MonoBehaviour
             + (_extrudeForward * (zCells * _extrudeCellSize.y));
         snappedPosition.y = _extrudeStartPosition.y;
         _previewObject.transform.SetPositionAndRotation(snappedPosition, _extrudeStartRotation);
-        UpdateExtrudeGhosts();
-    }
-
-    // Handle Try Get Cursor Point For Extrude.
-    private bool TryGetCursorPointForExtrude(out Vector3 point)
-    {
+        UpdateExtrudeGhosts(); }
+    private bool TryGetCursorPointForExtrude(out Vector3 point) {
         point = Vector3.zero;
         if (camera == null) return false;
 
         Ray ray = GetCenterRay();
-        if (TryGetPlacementHit(ray, out RaycastHit hit))
-        {
+        if (TryGetPlacementHit(ray, out RaycastHit hit)) {
             point = hit.point;
-            return true;
-        }
+            return true; }
 
-        if (TryGetCursorPointOnHorizontalPlane(_extrudeStartPosition.y, out point))
-        {
-            return true;
-        }
+        if (TryGetCursorPointOnHorizontalPlane(_extrudeStartPosition.y, out point)) { return true; }
 
         point = ray.GetPoint(Mathf.Max(1f, range * 0.5f));
-        return true;
-    }
-
-    // Handle Commit Extrude.
-    private void CommitExtrude()
-    {
+        return true; }
+    private void CommitExtrude() {
         if (_extrudePrefab == null) return;
         ClearExtrudeGhosts();
 
@@ -1223,67 +703,43 @@ public class RayCastScriptTest : MonoBehaviour
         int placedCount = 0;
         int skippedAsDuplicateCount = 0;
 
-        for (int x = minX; x <= maxX; x++)
-        {
-            for (int z = minZ; z <= maxZ; z++)
-            {
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
                 Vector3 placementPosition =
                     _extrudeStartPosition
                     + (_extrudeRight * (x * _extrudeCellSize.x))
                     + (_extrudeForward * (z * _extrudeCellSize.y));
 
                 if (extrudePreventDuplicates &&
-                    HasObjectAtPosition(existing, placementPosition, _extrudeStartRotation, occupyToleranceXZ, occupyToleranceY))
-                {
+                    HasObjectAtPosition(existing, placementPosition, _extrudeStartRotation, occupyToleranceXZ, occupyToleranceY)) {
                     skippedAsDuplicateCount++;
-                    continue;
-                }
+                    continue; }
 
                 GameObject created = Instantiate(_extrudePrefab, placementPosition, _extrudeStartRotation);
                 ApplyScaleMultiplier(created, GetActiveBuildScale());
                 RuntimeBuildPiece.Mark(created, ToBuildPieceKind(_extrudeBuildType));
                 ApplyPlacedObjectVisuals(created);
                 existing.Add(created.transform);
-                placedCount++;
-            }
+                placedCount++; }
             
         }
 
-        if (placedCount > 0)
-        {
-            InvalidateSnapTargetCache();
-        }
+        if (placedCount > 0) { InvalidateSnapTargetCache(); }
 
-        if (placedCount == 0 && skippedAsDuplicateCount > 0)
-        {
-            LogDetectionState("Extrude skipped: all cells seen as occupied. Lower wall/floor/stair extrude occupy tolerance.");
-        }
+        if (placedCount == 0 && skippedAsDuplicateCount > 0) { LogDetectionState("Extrude skipped: all cells seen as occupied. Lower wall/floor/stair extrude occupy tolerance."); }
 
-        UpdateExtrudePreview();
-    }
-
-    // Handle Cancel Extrude State.
-    private void CancelExtrudeState()
-    {
+        UpdateExtrudePreview(); }
+    private void CancelExtrudeState() {
         _isExtruding = false;
         _extrudePrefab = null;
         _extrudeCellOffset = Vector2Int.zero;
-        ClearExtrudeGhosts();
-    }
-
-    // Handle Update Extrude Ghosts.
-    private void UpdateExtrudeGhosts()
-    {
-        if (!_isExtruding || _extrudePrefab == null)
-        {
+        ClearExtrudeGhosts(); }
+    private void UpdateExtrudeGhosts() {
+        if (!_isExtruding || _extrudePrefab == null) {
             ClearExtrudeGhosts();
-            return;
-        }
+            return; }
 
-        if (_hasExtrudeGhostLayout && _extrudeCellOffset == _lastExtrudeGhostOffset)
-        {
-            return;
-        }
+        if (_hasExtrudeGhostLayout && _extrudeCellOffset == _lastExtrudeGhostOffset) { return; }
 
         _hasExtrudeGhostLayout = true;
         _lastExtrudeGhostOffset = _extrudeCellOffset;
@@ -1294,108 +750,56 @@ public class RayCastScriptTest : MonoBehaviour
         int maxZ = Mathf.Max(0, _extrudeCellOffset.y);
 
         _neededExtrudeCells.Clear();
-        for (int x = minX; x <= maxX; x++)
-        {
-            for (int z = minZ; z <= maxZ; z++)
-            {
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
                 Vector2Int cell = new Vector2Int(x, z);
-                if (cell == _extrudeCellOffset)
-                {
-                    continue;
-                }
+                if (cell == _extrudeCellOffset) { continue; }
 
                 _neededExtrudeCells.Add(cell);
                 Vector3 cellPosition = GetExtrudeCellWorldPosition(x, z);
-                if (_extrudeGhostByCell.TryGetValue(cell, out GameObject ghost))
-                {
-                    if (ghost == null)
-                    {
-                        _extrudeGhostByCell[cell] = CreateExtrudeGhost(cellPosition);
-                    }
-                    else
-                    {
-                        ghost.transform.SetPositionAndRotation(cellPosition, _extrudeStartRotation);
-                    }
-                }
-                else
-                {
-                    _extrudeGhostByCell[cell] = CreateExtrudeGhost(cellPosition);
-                }
-            }
-        }
+                if (_extrudeGhostByCell.TryGetValue(cell, out GameObject ghost)) {
+                    if (ghost == null) {
+                        _extrudeGhostByCell[cell] = CreateExtrudeGhost(cellPosition); } else {
+                        ghost.transform.SetPositionAndRotation(cellPosition, _extrudeStartRotation); } } else { _extrudeGhostByCell[cell] = CreateExtrudeGhost(cellPosition); } } }
 
         _extrudeCellsToRemove.Clear();
-        foreach (KeyValuePair<Vector2Int, GameObject> pair in _extrudeGhostByCell)
-        {
-            if (!_neededExtrudeCells.Contains(pair.Key))
-            {
-                if (pair.Value != null)
-                {
+        foreach (KeyValuePair<Vector2Int, GameObject> pair in _extrudeGhostByCell) {
+            if (!_neededExtrudeCells.Contains(pair.Key)) {
+                if (pair.Value != null) {
                     pair.Value.SetActive(false);
-                    Destroy(pair.Value);
-                }
+                    Destroy(pair.Value); }
 
-                _extrudeCellsToRemove.Add(pair.Key);
-            }
-        }
+                _extrudeCellsToRemove.Add(pair.Key); } }
 
-        for (int i = 0; i < _extrudeCellsToRemove.Count; i++)
-        {
-            _extrudeGhostByCell.Remove(_extrudeCellsToRemove[i]);
-        }
-    }
-
-    // Handle Create Extrude Ghost.
-    private GameObject CreateExtrudeGhost(Vector3 position)
-    {
+        for (int i = 0; i < _extrudeCellsToRemove.Count; i++) { _extrudeGhostByCell.Remove(_extrudeCellsToRemove[i]); } }
+    private GameObject CreateExtrudeGhost(Vector3 position) {
         GameObject ghost = Instantiate(_extrudePrefab, position, _extrudeStartRotation);
         ApplyScaleMultiplier(ghost, GetActiveBuildScale());
         SetPreviewMode(ghost, true);
         ApplyMaterialToMeshRenderers(ghost, buildingMaterial);
-        return ghost;
-    }
-
-    // Handle Get Extrude Cell World Position.
-    private Vector3 GetExtrudeCellWorldPosition(int xCell, int zCell)
-    {
+        return ghost; }
+    private Vector3 GetExtrudeCellWorldPosition(int xCell, int zCell) {
         return _extrudeStartPosition
             + (_extrudeRight * (xCell * _extrudeCellSize.x))
-            + (_extrudeForward * (zCell * _extrudeCellSize.y));
-    }
-
-    // Handle Clear Extrude Ghosts.
-    private void ClearExtrudeGhosts()
-    {
+            + (_extrudeForward * (zCell * _extrudeCellSize.y)); }
+    private void ClearExtrudeGhosts() {
         _neededExtrudeCells.Clear();
         _extrudeCellsToRemove.Clear();
         _hasExtrudeGhostLayout = false;
 
-        if (_extrudeGhostByCell.Count == 0)
-        {
-            return;
-        }
+        if (_extrudeGhostByCell.Count == 0) { return; }
 
-        foreach (KeyValuePair<Vector2Int, GameObject> pair in _extrudeGhostByCell)
-        {
-            if (pair.Value == null)
-            {
-                continue;
-            }
+        foreach (KeyValuePair<Vector2Int, GameObject> pair in _extrudeGhostByCell) {
+            if (pair.Value == null) { continue; }
 
             pair.Value.SetActive(false);
-            Destroy(pair.Value);
-        }
+            Destroy(pair.Value); }
 
-        _extrudeGhostByCell.Clear();
-    }
-
-    // Handle Get Existing Transforms For Build Type.
-    private List<Transform> GetExistingTransformsForBuildType(BuildType type)
-    {
+        _extrudeGhostByCell.Clear(); }
+    private List<Transform> GetExistingTransformsForBuildType(BuildType type) {
         List<Transform> transforms = new List<Transform>(128);
 
-        switch (type)
-        {
+        switch (type) {
             case BuildType.Wall:
                 AddActiveTransforms(WallSnapPoints.Instances, transforms);
                 break;
@@ -1404,36 +808,25 @@ public class RayCastScriptTest : MonoBehaviour
                 break;
             case BuildType.Stair:
                 AddActiveTransforms(StairScript.Instances, transforms);
-                break;
-        }
+                break; }
 
-        return transforms;
-    }
+        return transforms; }
 
-    private void AddActiveTransforms<T>(IReadOnlyList<T> components, List<Transform> destination) where T : Component
-    {
-        for (int i = 0; i < components.Count; i++)
-        {
+    private void AddActiveTransforms<T>(IReadOnlyList<T> components, List<Transform> destination) where T : Component {
+        for (int i = 0; i < components.Count; i++) {
             T component = components[i];
-            if (component == null || component.gameObject == _previewObject || !component.gameObject.activeInHierarchy)
-            {
-                continue;
-            }
+            if (component == null || component.gameObject == _previewObject || !component.gameObject.activeInHierarchy) { continue; }
 
-            destination.Add(component.transform);
-        }
-    }
+            destination.Add(component.transform); } }
 
     private static bool HasObjectAtPosition(
         List<Transform> existing,
         Vector3 position,
         Quaternion rotation,
         float toleranceXZ,
-        float toleranceY)
-    {
+        float toleranceY) {
         float toleranceXZSq = toleranceXZ * toleranceXZ;
-        for (int i = 0; i < existing.Count; i++)
-        {
+        for (int i = 0; i < existing.Count; i++) {
             Transform candidate = existing[i];
             if (candidate == null || !candidate.gameObject.activeInHierarchy) continue;
 
@@ -1444,15 +837,10 @@ public class RayCastScriptTest : MonoBehaviour
             if (Mathf.Abs(existingPosition.y - position.y) > toleranceY) continue;
             if (Quaternion.Angle(candidate.rotation, rotation) > RotationToleranceDegrees) continue;
 
-            return true;
-        }
+            return true; }
 
-        return false;
-    }
-
-    // Handle Try Get Cursor Point On Horizontal Plane.
-    private bool TryGetCursorPointOnHorizontalPlane(float planeY, out Vector3 point)
-    {
+        return false; }
+    private bool TryGetCursorPointOnHorizontalPlane(float planeY, out Vector3 point) {
         point = Vector3.zero;
         if (camera == null) return false;
 
@@ -1461,99 +849,55 @@ public class RayCastScriptTest : MonoBehaviour
         if (!plane.Raycast(ray, out float enter)) return false;
 
         point = ray.GetPoint(enter);
-        return true;
-    }
-
-    // Handle Get Preview Cell Size.
-    private Vector2 GetPreviewCellSize(GameObject target, Vector3 axisRight, Vector3 axisForward)
-    {
+        return true; }
+    private Vector2 GetPreviewCellSize(GameObject target, Vector3 axisRight, Vector3 axisForward) {
         if (TryGetSnapPoints(target, out SnapPoint[] snapPoints) &&
-            TryGetCellSizeFromSnapPoints(snapPoints, axisRight, axisForward, out Vector2 snapSize))
-        {
-            return snapSize;
-        }
+            TryGetCellSizeFromSnapPoints(snapPoints, axisRight, axisForward, out Vector2 snapSize)) { return snapSize; }
 
-        if (TryGetProjectedBoundsSize(target, axisRight, axisForward, out Vector2 projectedSize))
-        {
-            return projectedSize;
-        }
+        if (TryGetProjectedBoundsSize(target, axisRight, axisForward, out Vector2 projectedSize)) { return projectedSize; }
 
-        return Vector2.one;
-    }
-
-    // Handle Get Extrude Cell Size.
-    private Vector2 GetExtrudeCellSize(GameObject target, Vector3 axisRight, Vector3 axisForward)
-    {
+        return Vector2.one; }
+    private Vector2 GetExtrudeCellSize(GameObject target, Vector3 axisRight, Vector3 axisForward) {
         Vector2 cellSize = GetPreviewCellSize(target, axisRight, axisForward);
-        if (_extrudeBuildType != BuildType.Wall || !wallExtrudeUseFloorSpacing)
-        {
-            return cellSize;
-        }
+        if (_extrudeBuildType != BuildType.Wall || !wallExtrudeUseFloorSpacing) { return cellSize; }
 
-        if (TryGetWallExtrudeReferenceFloor(out GameObject referenceFloor))
-        {
+        if (TryGetWallExtrudeReferenceFloor(out GameObject referenceFloor)) {
             Vector2 floorCell = GetPreviewCellSize(referenceFloor, axisRight, axisForward);
-            if (floorCell.x > MinSize && floorCell.y > MinSize)
-            {
-                cellSize = floorCell;
-            }
-        }
+            if (floorCell.x > MinSize && floorCell.y > MinSize) { cellSize = floorCell; } }
 
         float spacingScale = Mathf.Max(MinSize, wallExtrudeSpacingScale);
         cellSize.x = Mathf.Max(MinSize, cellSize.x * spacingScale);
         cellSize.y = Mathf.Max(MinSize, cellSize.y * spacingScale);
-        return cellSize;
-    }
-
-    // Handle Try Get Wall Extrude Reference Floor.
-    private bool TryGetWallExtrudeReferenceFloor(out GameObject floorReference)
-    {
+        return cellSize; }
+    private bool TryGetWallExtrudeReferenceFloor(out GameObject floorReference) {
         floorReference = null;
 
         IReadOnlyList<FloorScript> floors = FloorScript.Instances;
-        if (floors.Count == 0)
-        {
+        if (floors.Count == 0) {
             floorReference = floor;
-            return floorReference != null;
-        }
+            return floorReference != null; }
 
         float bestDistanceSqr = float.MaxValue;
         Vector3 from = _extrudeStartPosition;
-        for (int i = 0; i < floors.Count; i++)
-        {
+        for (int i = 0; i < floors.Count; i++) {
             FloorScript floorScript = floors[i];
-            if (floorScript == null || !floorScript.gameObject.activeInHierarchy || floorScript.gameObject == _previewObject)
-            {
-                continue;
-            }
+            if (floorScript == null || !floorScript.gameObject.activeInHierarchy || floorScript.gameObject == _previewObject) { continue; }
 
             Vector3 to = floorScript.transform.position;
             float dx = to.x - from.x;
             float dz = to.z - from.z;
             float distanceSqr = (dx * dx) + (dz * dz);
-            if (distanceSqr >= bestDistanceSqr)
-            {
-                continue;
-            }
+            if (distanceSqr >= bestDistanceSqr) { continue; }
 
             bestDistanceSqr = distanceSqr;
-            floorReference = floorScript.gameObject;
-        }
+            floorReference = floorScript.gameObject; }
 
-        if (floorReference != null)
-        {
-            return true;
-        }
+        if (floorReference != null) { return true; }
 
         floorReference = floor;
-        return floorReference != null;
-    }
-
-    // Handle Get Extrude Occupy Tolerance XZ.
-    private float GetExtrudeOccupyToleranceXZ(BuildType type)
-    {
-        switch (type)
-        {
+        return floorReference != null; }
+    private float GetExtrudeOccupyToleranceXZ(BuildType type) {
+        switch (type) {
             case BuildType.Wall:
                 return Mathf.Max(MinTolerance, wallExtrudeOccupyToleranceXZ);
             case BuildType.Floor:
@@ -1561,16 +905,13 @@ public class RayCastScriptTest : MonoBehaviour
             case BuildType.Stair:
                 return Mathf.Max(MinTolerance, stairExtrudeOccupyToleranceXZ);
             default:
-                return 0.02f;
-        }
-    }
+                return 0.02f; } }
 
     private static bool TryGetCellSizeFromSnapPoints(
         SnapPoint[] snapPoints,
         Vector3 axisRight,
         Vector3 axisForward,
-        out Vector2 size)
-    {
+        out Vector2 size) {
         size = Vector2.zero;
         if (snapPoints == null || snapPoints.Length == 0) return false;
         if (axisRight.sqrMagnitude < TinyValue || axisForward.sqrMagnitude < TinyValue) return false;
@@ -1584,8 +925,7 @@ public class RayCastScriptTest : MonoBehaviour
         float minForward = float.MaxValue;
         float maxForward = float.MinValue;
 
-        for (int i = 0; i < snapPoints.Length; i++)
-        {
+        for (int i = 0; i < snapPoints.Length; i++) {
             SnapPoint snapPoint = snapPoints[i];
             if (snapPoint == null) continue;
 
@@ -1596,8 +936,7 @@ public class RayCastScriptTest : MonoBehaviour
             maxRight = Mathf.Max(maxRight, rightDot);
             minForward = Mathf.Min(minForward, forwardDot);
             maxForward = Mathf.Max(maxForward, forwardDot);
-            hasPoint = true;
-        }
+            hasPoint = true; }
 
         if (!hasPoint) return false;
 
@@ -1606,15 +945,13 @@ public class RayCastScriptTest : MonoBehaviour
         if (sizeRight < MinSize || sizeForward < MinSize) return false;
 
         size = new Vector2(sizeRight, sizeForward);
-        return true;
-    }
+        return true; }
 
     private static bool TryGetProjectedBoundsSize(
         GameObject target,
         Vector3 axisRight,
         Vector3 axisForward,
-        out Vector2 size)
-    {
+        out Vector2 size) {
         size = Vector2.zero;
         if (!TryGetRenderableBoundsWithoutSnapMarkers(target, out Bounds bounds)) return false;
         if (axisRight.sqrMagnitude < TinyValue || axisForward.sqrMagnitude < TinyValue) return false;
@@ -1624,8 +961,7 @@ public class RayCastScriptTest : MonoBehaviour
 
         Vector3 min = bounds.min;
         Vector3 max = bounds.max;
-        Vector3[] corners =
-        {
+        Vector3[] corners = {
             new Vector3(min.x, min.y, min.z),
             new Vector3(min.x, min.y, max.z),
             new Vector3(min.x, max.y, min.z),
@@ -1633,39 +969,30 @@ public class RayCastScriptTest : MonoBehaviour
             new Vector3(max.x, min.y, min.z),
             new Vector3(max.x, min.y, max.z),
             new Vector3(max.x, max.y, min.z),
-            new Vector3(max.x, max.y, max.z),
-        };
+            new Vector3(max.x, max.y, max.z), };
 
         float minRight = float.MaxValue;
         float maxRight = float.MinValue;
         float minForward = float.MaxValue;
         float maxForward = float.MinValue;
 
-        for (int i = 0; i < corners.Length; i++)
-        {
+        for (int i = 0; i < corners.Length; i++) {
             float rightDot = Vector3.Dot(corners[i], axisRight);
             float forwardDot = Vector3.Dot(corners[i], axisForward);
             minRight = Mathf.Min(minRight, rightDot);
             maxRight = Mathf.Max(maxRight, rightDot);
             minForward = Mathf.Min(minForward, forwardDot);
-            maxForward = Mathf.Max(maxForward, forwardDot);
-        }
+            maxForward = Mathf.Max(maxForward, forwardDot); }
 
         float sizeRight = maxRight - minRight;
         float sizeForward = maxForward - minForward;
         if (sizeRight < MinSize || sizeForward < MinSize) return false;
 
         size = new Vector2(sizeRight, sizeForward);
-        return true;
-    }
-
-    // Handle Handle Sticky Two Point Snap.
-    private void HandleStickyTwoPointSnap(Vector3 rawPosition, Quaternion rawRotation)
-    {
-        if (_isSnapLocked)
-        {
-            if (TrySolveFromLockedPairs(rawPosition, rawRotation, out Vector3 lockedPosition, out Quaternion lockedRotation, out float lockedDistanceA, out float lockedDistanceB))
-            {
+        return true; }
+    private void HandleStickyTwoPointSnap(Vector3 rawPosition, Quaternion rawRotation) {
+        if (_isSnapLocked) {
+            if (TrySolveFromLockedPairs(rawPosition, rawRotation, out Vector3 lockedPosition, out Quaternion lockedRotation, out float lockedDistanceA, out float lockedDistanceB)) {
                 _previewObject.transform.SetPositionAndRotation(lockedPosition, lockedRotation);
                 DrawAndLogDistances(
                     _lockedPreviewA.transform.position,
@@ -1677,15 +1004,10 @@ public class RayCastScriptTest : MonoBehaviour
                     "Closest pairs(solved-lock)");
 
                 GetRawLockedPairDistances(rawPosition, rawRotation, out float rawDistanceA, out float rawDistanceB);
-                if (rawDistanceA <= snapReleaseDistance && rawDistanceB <= snapReleaseDistance)
-                {
-                    return;
-                }
-            }
+                if (rawDistanceA <= snapReleaseDistance && rawDistanceB <= snapReleaseDistance) { return; } }
 
             ClearSnapLock();
-            _previewObject.transform.SetPositionAndRotation(rawPosition, rawRotation);
-        }
+            _previewObject.transform.SetPositionAndRotation(rawPosition, rawRotation); }
 
         if (!TryGetClosestTwoPairsOnSameObject(
             out PairCandidate pairA,
@@ -1694,20 +1016,16 @@ public class RayCastScriptTest : MonoBehaviour
             out bool foundFallbackPair,
             out int scannedTargets,
             out int validTargets,
-            out int totalCandidates))
-        {
+            out int totalCandidates)) {
             LogDetectionState($"No valid 2-point pairs. ScannedTargets={scannedTargets}, ValidTargets={validTargets}, Candidates={totalCandidates}");
             TryApplySinglePointSnapFallback(fallbackPair, foundFallbackPair, rawRotation);
-            return;
-        }
+            return; }
 
         DrawAndLogDistances(pairA.previewWorld, pairA.targetWorld, pairB.previewWorld, pairB.targetWorld, pairA.distance, pairB.distance);
 
-        if (pairA.distance > snapEngageDistance || pairB.distance > snapEngageDistance)
-        {
+        if (pairA.distance > snapEngageDistance || pairB.distance > snapEngageDistance) {
             TryApplySinglePointSnapFallback(fallbackPair, foundFallbackPair, rawRotation);
-            return;
-        }
+            return; }
 
         _isSnapLocked = true;
         _lockedPreviewA = pairA.preview;
@@ -1717,8 +1035,7 @@ public class RayCastScriptTest : MonoBehaviour
         _lockedPreviewOffsetA = GetScaledLocalPoint(_lockedPreviewA);
         _lockedPreviewOffsetB = GetScaledLocalPoint(_lockedPreviewB);
 
-        if (TrySolveFromLockedPairs(rawPosition, rawRotation, out Vector3 snappedPosition, out Quaternion snappedRotation, out float snappedDistanceA, out float snappedDistanceB))
-        {
+        if (TrySolveFromLockedPairs(rawPosition, rawRotation, out Vector3 snappedPosition, out Quaternion snappedRotation, out float snappedDistanceA, out float snappedDistanceB)) {
             _previewObject.transform.SetPositionAndRotation(snappedPosition, snappedRotation);
             DrawAndLogDistances(
                 _lockedPreviewA.transform.position,
@@ -1727,24 +1044,15 @@ public class RayCastScriptTest : MonoBehaviour
                 _lockedTargetB.transform.position,
                 snappedDistanceA,
                 snappedDistanceB,
-                "Closest pairs(solved-snap)");
-        }
-    }
+                "Closest pairs(solved-snap)"); } }
 
-    private bool TryApplySinglePointSnapFallback(PairCandidate pair, bool foundPair, Quaternion rawRotation)
-    {
-        if (!enableStairSinglePointSnapFallback || _buildType != BuildType.Stair || !foundPair || pair.preview == null || pair.target == null)
-        {
-            return false;
-        }
+    private bool TryApplySinglePointSnapFallback(PairCandidate pair, bool foundPair, Quaternion rawRotation) {
+        if (!enableStairSinglePointSnapFallback || _buildType != BuildType.Stair || !foundPair || pair.preview == null || pair.target == null) { return false; }
 
         float engageDistance = stairSinglePointSnapEngageDistance > MinTolerance
             ? stairSinglePointSnapEngageDistance
             : snapEngageDistance;
-        if (pair.distance > engageDistance)
-        {
-            return false;
-        }
+        if (pair.distance > engageDistance) { return false; }
 
         Vector3 previewOffset = GetScaledLocalPoint(pair.preview);
         Vector3 snappedPosition = pair.target.transform.position - (rawRotation * previewOffset);
@@ -1759,28 +1067,22 @@ public class RayCastScriptTest : MonoBehaviour
             pair.distance,
             pair.distance,
             "Closest pair(single-snap)");
-        return true;
-    }
+        return true; }
 
     private void GetRawLockedPairDistances(
         Vector3 rawPosition,
         Quaternion rawRotation,
         out float rawDistanceA,
-        out float rawDistanceB)
-    {
+        out float rawDistanceB) {
         rawDistanceA = float.MaxValue;
         rawDistanceB = float.MaxValue;
 
-        if (_lockedPreviewA == null || _lockedPreviewB == null || _lockedTargetA == null || _lockedTargetB == null)
-        {
-            return;
-        }
+        if (_lockedPreviewA == null || _lockedPreviewB == null || _lockedTargetA == null || _lockedTargetB == null) { return; }
 
         Vector3 rawWorldA = rawPosition + (rawRotation * _lockedPreviewOffsetA);
         Vector3 rawWorldB = rawPosition + (rawRotation * _lockedPreviewOffsetB);
         rawDistanceA = GetSnapPointDistance(rawWorldA, _lockedTargetA.transform.position);
-        rawDistanceB = GetSnapPointDistance(rawWorldB, _lockedTargetB.transform.position);
-    }
+        rawDistanceB = GetSnapPointDistance(rawWorldB, _lockedTargetB.transform.position); }
 
     private bool TryGetClosestTwoPairsOnSameObject(
         out PairCandidate bestA,
@@ -1789,8 +1091,7 @@ public class RayCastScriptTest : MonoBehaviour
         out bool foundSingle,
         out int scannedTargets,
         out int validTargets,
-        out int totalCandidates)
-    {
+        out int totalCandidates) {
         bestA = default;
         bestB = default;
         bestSingle = default;
@@ -1799,11 +1100,9 @@ public class RayCastScriptTest : MonoBehaviour
         validTargets = 0;
         totalCandidates = 0;
 
-        if (!TryGetSnapPoints(_previewObject, out SnapPoint[] previewSnapPoints))
-        {
+        if (!TryGetSnapPoints(_previewObject, out SnapPoint[] previewSnapPoints)) {
             LogDetectionState("Preview object has no snap points configured.");
-            return false;
-        }
+            return false; }
 
         bool found = false;
         float bestScore = float.MaxValue;
@@ -1812,8 +1111,7 @@ public class RayCastScriptTest : MonoBehaviour
         Vector3 searchCenter = _previewObject != null ? _previewObject.transform.position : transform.position;
         RefreshSnapTargetCacheIfNeeded(searchCenter);
 
-        for (int i = 0; i < _cachedWallSnapTargets.Count; i++)
-        {
+        for (int i = 0; i < _cachedWallSnapTargets.Count; i++) {
             WallSnapPoints wallTarget = _cachedWallSnapTargets[i];
             EvaluateTargetPairs(
                 wallTarget != null ? wallTarget.gameObject : null,
@@ -1828,11 +1126,9 @@ public class RayCastScriptTest : MonoBehaviour
                 ref bestSingleScore,
                 ref scannedTargets,
                 ref validTargets,
-                ref totalCandidates);
-        }
+                ref totalCandidates); }
 
-        for (int i = 0; i < _cachedFloorSnapTargets.Count; i++)
-        {
+        for (int i = 0; i < _cachedFloorSnapTargets.Count; i++) {
             FloorScript floorTarget = _cachedFloorSnapTargets[i];
             EvaluateTargetPairs(
                 floorTarget != null ? floorTarget.gameObject : null,
@@ -1847,11 +1143,9 @@ public class RayCastScriptTest : MonoBehaviour
                 ref bestSingleScore,
                 ref scannedTargets,
                 ref validTargets,
-                ref totalCandidates);
-        }
+                ref totalCandidates); }
 
-        for (int i = 0; i < _cachedStairSnapTargets.Count; i++)
-        {
+        for (int i = 0; i < _cachedStairSnapTargets.Count; i++) {
             StairScript stairTarget = _cachedStairSnapTargets[i];
             EvaluateTargetPairs(
                 stairTarget != null ? stairTarget.gameObject : null,
@@ -1866,23 +1160,17 @@ public class RayCastScriptTest : MonoBehaviour
                 ref bestSingleScore,
                 ref scannedTargets,
                 ref validTargets,
-                ref totalCandidates);
-        }
+                ref totalCandidates); }
 
-        return found;
-    }
+        return found; }
 
-    private void RefreshSnapTargetCacheIfNeeded(Vector3 searchCenter)
-    {
+    private void RefreshSnapTargetCacheIfNeeded(Vector3 searchCenter) {
         float radius = Mathf.Max(MinSize, snapSearchRadius);
         float movedRefreshDistance = Mathf.Max(0.5f, radius * 0.25f);
         bool movedEnough = !_hasSnapTargetCache ||
             (searchCenter - _lastSnapSearchPosition).sqrMagnitude >= movedRefreshDistance * movedRefreshDistance;
 
-        if (_hasSnapTargetCache && !movedEnough && Time.unscaledTime < _nextSnapTargetRefreshTime)
-        {
-            return;
-        }
+        if (_hasSnapTargetCache && !movedEnough && Time.unscaledTime < _nextSnapTargetRefreshTime) { return; }
 
         _cachedWallSnapTargets.Clear();
         _cachedFloorSnapTargets.Clear();
@@ -1894,145 +1182,91 @@ public class RayCastScriptTest : MonoBehaviour
 
         _lastSnapSearchPosition = searchCenter;
         _nextSnapTargetRefreshTime = Time.unscaledTime + Mathf.Max(0.02f, snapSearchRefreshInterval);
-        _hasSnapTargetCache = true;
-    }
+        _hasSnapTargetCache = true; }
 
-    private void RefreshFloorHeightSnapPointCacheIfNeeded(Vector3 searchCenter)
-    {
+    private void RefreshFloorHeightSnapPointCacheIfNeeded(Vector3 searchCenter) {
         float radius = Mathf.Max(MinSize, floorNearestPointRadius);
         float movedRefreshDistance = Mathf.Max(0.5f, radius * 0.25f);
         bool movedEnough = !_hasFloorHeightSnapPointCache ||
             (searchCenter - _lastFloorHeightSnapSearchPosition).sqrMagnitude >= movedRefreshDistance * movedRefreshDistance;
 
-        if (_hasFloorHeightSnapPointCache && !movedEnough && Time.unscaledTime < _nextFloorHeightSnapRefreshTime)
-        {
-            return;
-        }
+        if (_hasFloorHeightSnapPointCache && !movedEnough && Time.unscaledTime < _nextFloorHeightSnapRefreshTime) { return; }
 
         _cachedFloorHeightSnapPoints.Clear();
         IReadOnlyList<SnapPoint> allSnapPoints = SnapPoint.Instances;
         float radiusSqr = radius * radius;
-        for (int i = 0; i < allSnapPoints.Count; i++)
-        {
+        for (int i = 0; i < allSnapPoints.Count; i++) {
             SnapPoint snapPoint = allSnapPoints[i];
-            if (snapPoint == null || !snapPoint.gameObject.activeInHierarchy)
-            {
-                continue;
-            }
+            if (snapPoint == null || !snapPoint.gameObject.activeInHierarchy) { continue; }
 
-            if (_previewObject != null && snapPoint.transform.IsChildOf(_previewObject.transform))
-            {
-                continue;
-            }
+            if (_previewObject != null && snapPoint.transform.IsChildOf(_previewObject.transform)) { continue; }
 
-            if (restrictSnapSearchToRadius && !IsTransformNearSearchCenter(snapPoint.transform, searchCenter, radiusSqr))
-            {
-                continue;
-            }
+            if (restrictSnapSearchToRadius && !IsTransformNearSearchCenter(snapPoint.transform, searchCenter, radiusSqr)) { continue; }
 
-            _cachedFloorHeightSnapPoints.Add(snapPoint);
-        }
+            _cachedFloorHeightSnapPoints.Add(snapPoint); }
 
         _lastFloorHeightSnapSearchPosition = searchCenter;
         _nextFloorHeightSnapRefreshTime = Time.unscaledTime + Mathf.Max(0.02f, snapSearchRefreshInterval);
-        _hasFloorHeightSnapPointCache = true;
-    }
+        _hasFloorHeightSnapPointCache = true; }
 
-    private void CollectSnapTargets<T>(IReadOnlyList<T> components, List<T> destination, Vector3 searchCenter, float radius) where T : Component
-    {
+    private void CollectSnapTargets<T>(IReadOnlyList<T> components, List<T> destination, Vector3 searchCenter, float radius) where T : Component {
         float radiusSqr = radius * radius;
-        for (int i = 0; i < components.Count; i++)
-        {
+        for (int i = 0; i < components.Count; i++) {
             T component = components[i];
-            if (component == null || component.gameObject == _previewObject || !component.gameObject.activeInHierarchy)
-            {
-                continue;
-            }
+            if (component == null || component.gameObject == _previewObject || !component.gameObject.activeInHierarchy) { continue; }
 
-            if (restrictSnapSearchToRadius && !IsTransformNearSearchCenter(component.transform, searchCenter, radiusSqr))
-            {
-                continue;
-            }
+            if (restrictSnapSearchToRadius && !IsTransformNearSearchCenter(component.transform, searchCenter, radiusSqr)) { continue; }
 
-            destination.Add(component);
-        }
-    }
+            destination.Add(component); } }
 
-    private static bool IsTransformNearSearchCenter(Transform target, Vector3 searchCenter, float radiusSqr)
-    {
-        if (target == null)
-        {
-            return false;
-        }
+    private static bool IsTransformNearSearchCenter(Transform target, Vector3 searchCenter, float radiusSqr) {
+        if (target == null) { return false; }
 
         Vector3 position = target.position;
         float dx = position.x - searchCenter.x;
         float dz = position.z - searchCenter.z;
-        return (dx * dx) + (dz * dz) <= radiusSqr;
-    }
+        return (dx * dx) + (dz * dz) <= radiusSqr; }
 
-    private void InvalidateSnapTargetCache()
-    {
+    private void InvalidateSnapTargetCache() {
         _hasSnapTargetCache = false;
         _hasFloorHeightSnapPointCache = false;
         _nextSnapTargetRefreshTime = 0f;
         _nextFloorHeightSnapRefreshTime = 0f;
         _snapMarkerColliderCache.Clear();
-        _snapOwnerByCollider.Clear();
-    }
+        _snapOwnerByCollider.Clear(); }
 
-    private BuildPieceKind GetActiveBuildPieceKind()
-    {
-        return ToBuildPieceKind(_buildType);
-    }
+    private BuildPieceKind GetActiveBuildPieceKind() { return ToBuildPieceKind(_buildType); }
 
-    private static BuildPieceKind ToBuildPieceKind(BuildType type)
-    {
-        switch (type)
-        {
+    private static BuildPieceKind ToBuildPieceKind(BuildType type) {
+        switch (type) {
             case BuildType.Floor:
                 return BuildPieceKind.Floor;
             case BuildType.Stair:
                 return BuildPieceKind.Stair;
             default:
-                return BuildPieceKind.Wall;
-        }
-    }
+                return BuildPieceKind.Wall; } }
 
-    private float GetSnapPointDistance(Vector3 from, Vector3 to)
-    {
+    private float GetSnapPointDistance(Vector3 from, Vector3 to) {
         float dx = to.x - from.x;
         float dz = to.z - from.z;
         float dy = (to.y - from.y) * Mathf.Clamp01(snapVerticalDistanceWeight);
-        return Mathf.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
-    }
+        return Mathf.Sqrt((dx * dx) + (dy * dy) + (dz * dz)); }
 
-    private float GetSnapPairLength(Vector3 a, Vector3 b)
-    {
-        if (compareSnapPairLengthInXZ)
-        {
+    private float GetSnapPairLength(Vector3 a, Vector3 b) {
+        if (compareSnapPairLengthInXZ) {
             float horizontalLength = GetHorizontalDistance(a, b);
-            if (horizontalLength > MinSize)
-            {
-                return horizontalLength;
-            }
-        }
+            if (horizontalLength > MinSize) { return horizontalLength; } }
 
-        return Vector3.Distance(a, b);
-    }
+        return Vector3.Distance(a, b); }
 
-    private float GetPairLengthTolerance(float previewPairLength, float targetPairLength)
-    {
+    private float GetPairLengthTolerance(float previewPairLength, float targetPairLength) {
         float ratioTolerance = Mathf.Min(previewPairLength, targetPairLength) * Mathf.Max(0f, pairLengthToleranceRatio);
-        return Mathf.Max(Mathf.Max(MinTolerance, pairLengthTolerance), ratioTolerance);
-    }
+        return Mathf.Max(Mathf.Max(MinTolerance, pairLengthTolerance), ratioTolerance); }
 
-    private static float GetHorizontalDistance(Vector3 a, Vector3 b)
-    {
+    private static float GetHorizontalDistance(Vector3 a, Vector3 b) {
         float dx = b.x - a.x;
         float dz = b.z - a.z;
-        return Mathf.Sqrt((dx * dx) + (dz * dz));
-    }
+        return Mathf.Sqrt((dx * dx) + (dz * dz)); }
 
     private void EvaluateTargetPairs(
         GameObject targetObject,
@@ -2047,97 +1281,59 @@ public class RayCastScriptTest : MonoBehaviour
         ref float bestSingleScore,
         ref int scannedTargets,
         ref int validTargets,
-        ref int totalCandidates)
-    {
-        if (targetObject == null || targetObject == _previewObject || !targetObject.activeInHierarchy)
-        {
-            return;
-        }
+        ref int totalCandidates) {
+        if (targetObject == null || targetObject == _previewObject || !targetObject.activeInHierarchy) { return; }
 
         scannedTargets++;
-        if (targetSnapPoints == null || targetSnapPoints.Length == 0)
-        {
-            return;
-        }
+        if (targetSnapPoints == null || targetSnapPoints.Length == 0) { return; }
 
         validTargets++;
         _candidates.Clear();
 
-        for (int i = 0; i < previewSnapPoints.Length; i++)
-        {
+        for (int i = 0; i < previewSnapPoints.Length; i++) {
             SnapPoint previewPoint = previewSnapPoints[i];
-            if (previewPoint == null)
-            {
-                continue;
-            }
+            if (previewPoint == null) { continue; }
 
             Vector3 previewWorld = previewPoint.transform.position;
-            for (int j = 0; j < targetSnapPoints.Length; j++)
-            {
+            for (int j = 0; j < targetSnapPoints.Length; j++) {
                 SnapPoint targetPoint = targetSnapPoints[j];
-                if (targetPoint == null)
-                {
-                    continue;
-                }
+                if (targetPoint == null) { continue; }
 
-                PairCandidate candidate = new PairCandidate
-                {
+                PairCandidate candidate = new PairCandidate {
                     preview = previewPoint,
                     target = targetPoint,
                     previewWorld = previewWorld,
                     targetWorld = targetPoint.transform.position,
-                    distance = GetSnapPointDistance(previewWorld, targetPoint.transform.position)
-                };
+                    distance = GetSnapPointDistance(previewWorld, targetPoint.transform.position) };
 
-                if (candidate.distance < bestSingleScore)
-                {
+                if (candidate.distance < bestSingleScore) {
                     bestSingleScore = candidate.distance;
                     bestSingle = candidate;
-                    foundSingle = true;
-                }
+                    foundSingle = true; }
 
-                _candidates.Add(candidate);
-            }
-        }
+                _candidates.Add(candidate); } }
 
         totalCandidates += _candidates.Count;
-        if (_candidates.Count < 2)
-        {
-            return;
-        }
+        if (_candidates.Count < 2) { return; }
 
-        for (int i = 0; i < _candidates.Count - 1; i++)
-        {
+        for (int i = 0; i < _candidates.Count - 1; i++) {
             PairCandidate candidateA = _candidates[i];
-            for (int j = i + 1; j < _candidates.Count; j++)
-            {
+            for (int j = i + 1; j < _candidates.Count; j++) {
                 PairCandidate candidateB = _candidates[j];
-                if (candidateA.preview == candidateB.preview || candidateA.target == candidateB.target)
-                {
-                    continue;
-                }
+                if (candidateA.preview == candidateB.preview || candidateA.target == candidateB.target) { continue; }
 
                 float previewPairLength = GetSnapPairLength(candidateA.previewWorld, candidateB.previewWorld);
                 float targetPairLength = GetSnapPairLength(candidateA.targetWorld, candidateB.targetWorld);
                 float lengthTolerance = GetPairLengthTolerance(previewPairLength, targetPairLength);
-                if (Mathf.Abs(previewPairLength - targetPairLength) > lengthTolerance)
-                {
-                    continue;
-                }
+                if (Mathf.Abs(previewPairLength - targetPairLength) > lengthTolerance) { continue; }
 
                 float score = candidateA.distance + candidateB.distance + Mathf.Abs(previewPairLength - targetPairLength);
-                if (score >= bestScore)
-                {
-                    continue;
-                }
+                if (score >= bestScore) { continue; }
 
                 bestScore = score;
                 bestA = candidateA;
                 bestB = candidateB;
-                found = true;
-            }
-        }
-    }
+                found = true; } } }
 
     private bool TrySolveFromLockedPairs(
         Vector3 rawPosition,
@@ -2145,38 +1341,28 @@ public class RayCastScriptTest : MonoBehaviour
         out Vector3 position,
         out Quaternion rotation,
         out float distanceA,
-        out float distanceB)
-    {
+        out float distanceB) {
         position = Vector3.zero;
         rotation = rawRotation;
         distanceA = float.MaxValue;
         distanceB = float.MaxValue;
 
-        if (_lockedPreviewA == null || _lockedPreviewB == null || _lockedTargetA == null || _lockedTargetB == null)
-        {
-            return false;
-        }
+        if (_lockedPreviewA == null || _lockedPreviewB == null || _lockedTargetA == null || _lockedTargetB == null) { return false; }
 
         Vector3 targetWorldA = _lockedTargetA.transform.position;
         Vector3 targetWorldB = _lockedTargetB.transform.position;
 
-        if (alignRotationFromPairs)
-        {
+        if (alignRotationFromPairs) {
             Vector3 previewVector = _lockedPreviewOffsetB - _lockedPreviewOffsetA;
             Vector3 previewVectorWorld = rawRotation * previewVector;
             Vector3 targetVector = targetWorldB - targetWorldA;
-            if (constrainSnappedRotationToYaw)
-            {
+            if (constrainSnappedRotationToYaw) {
                 previewVectorWorld = Vector3.ProjectOnPlane(previewVectorWorld, Vector3.up);
-                targetVector = Vector3.ProjectOnPlane(targetVector, Vector3.up);
-            }
+                targetVector = Vector3.ProjectOnPlane(targetVector, Vector3.up); }
 
-            if (previewVectorWorld.sqrMagnitude > TinyValue && targetVector.sqrMagnitude > TinyValue)
-            {
+            if (previewVectorWorld.sqrMagnitude > TinyValue && targetVector.sqrMagnitude > TinyValue) {
                 Quaternion delta = Quaternion.FromToRotation(previewVectorWorld, targetVector);
-                rotation = delta * rawRotation;
-            }
-        }
+                rotation = delta * rawRotation; } }
 
         Vector3 rotatedOffsetA = rotation * _lockedPreviewOffsetA;
         Vector3 rotatedOffsetB = rotation * _lockedPreviewOffsetB;
@@ -2188,78 +1374,43 @@ public class RayCastScriptTest : MonoBehaviour
         Vector3 solvedB = position + rotatedOffsetB;
         distanceA = GetSnapPointDistance(solvedA, targetWorldA);
         distanceB = GetSnapPointDistance(solvedB, targetWorldB);
-        return true;
-    }
-
-    // Handle Try Get Snap Points.
-    private bool TryGetSnapPoints(GameObject target, out SnapPoint[] snapPoints)
-    {
+        return true; }
+    private bool TryGetSnapPoints(GameObject target, out SnapPoint[] snapPoints) {
         snapPoints = null;
-        if (target == null)
-        {
-            return false;
-        }
+        if (target == null) { return false; }
 
-        if (target.TryGetComponent(out WallSnapPoints wallSnapPoints) && wallSnapPoints.snapPoints != null && wallSnapPoints.snapPoints.Length > 0)
-        {
+        if (target.TryGetComponent(out WallSnapPoints wallSnapPoints) && wallSnapPoints.snapPoints != null && wallSnapPoints.snapPoints.Length > 0) {
             snapPoints = wallSnapPoints.snapPoints;
-            return true;
-        }
+            return true; }
 
-        if (target.TryGetComponent(out FloorScript floorSnapPoints) && floorSnapPoints.snapPoints != null && floorSnapPoints.snapPoints.Length > 0)
-        {
+        if (target.TryGetComponent(out FloorScript floorSnapPoints) && floorSnapPoints.snapPoints != null && floorSnapPoints.snapPoints.Length > 0) {
             snapPoints = floorSnapPoints.snapPoints;
-            return true;
-        }
+            return true; }
 
-        if (target.TryGetComponent(out StairScript stairSnapPoints) && stairSnapPoints.snapPoints != null && stairSnapPoints.snapPoints.Length > 0)
-        {
+        if (target.TryGetComponent(out StairScript stairSnapPoints) && stairSnapPoints.snapPoints != null && stairSnapPoints.snapPoints.Length > 0) {
             snapPoints = stairSnapPoints.snapPoints;
-            return true;
-        }
+            return true; }
 
-        return false;
-    }
-
-    // Handle Get Scaled Local Point.
-    private Vector3 GetScaledLocalPoint(SnapPoint point)
-    {
+        return false; }
+    private Vector3 GetScaledLocalPoint(SnapPoint point) {
         Vector3 localPoint = _previewObject.transform.InverseTransformPoint(point.transform.position);
-        return Vector3.Scale(localPoint, _previewObject.transform.lossyScale);
-    }
-
-    // Handle Apply Material To Mesh Renderers.
-    private static void ApplyMaterialToMeshRenderers(GameObject target, Material material)
-    {
-        if (target == null || material == null)
-        {
-            return;
-        }
+        return Vector3.Scale(localPoint, _previewObject.transform.lossyScale); }
+    private static void ApplyMaterialToMeshRenderers(GameObject target, Material material) {
+        if (target == null || material == null) { return; }
 
         MeshRenderer[] renderers = target.GetComponentsInChildren<MeshRenderer>(true);
-        for (int i = 0; i < renderers.Length; i++)
-        {
+        for (int i = 0; i < renderers.Length; i++) {
             MeshRenderer renderer = renderers[i];
-            if (renderer == null)
-            {
-                continue;
-            }
+            if (renderer == null) { continue; }
 
             Material[] materials = renderer.sharedMaterials;
-            if (materials == null || materials.Length == 0)
-            {
+            if (materials == null || materials.Length == 0) {
                 renderer.sharedMaterial = material;
-                continue;
-            }
+                continue; }
 
-            for (int j = 0; j < materials.Length; j++)
-            {
-                materials[j] = material;
-            }
+            for (int j = 0; j < materials.Length; j++) { materials[j] = material; }
 
-            renderer.sharedMaterials = materials;
-        }
-    }
+            renderer.sharedMaterials = materials; } }
 
     private void DrawAndLogDistances(
         Vector3 fromA,
@@ -2268,301 +1419,151 @@ public class RayCastScriptTest : MonoBehaviour
         Vector3 toB,
         float distanceA,
         float distanceB,
-        string label = "Closest pairs(raw)")
-    {
+        string label = "Closest pairs(raw)") {
         Debug.DrawLine(fromA, toA, debugLineColorA);
         Debug.DrawLine(fromB, toB, debugLineColorB);
 
-        if (!logClosestPair)
-        {
-            return;
-        }
+        if (!logClosestPair) { return; }
 
         bool changedEnoughA = _lastLoggedDistanceA < 0f || Mathf.Abs(distanceA - _lastLoggedDistanceA) >= logDistanceDelta;
         bool changedEnoughB = _lastLoggedDistanceB < 0f || Mathf.Abs(distanceB - _lastLoggedDistanceB) >= logDistanceDelta;
         bool intervalReached = Time.time - _lastLogTime >= logInterval;
-        if (!changedEnoughA && !changedEnoughB)
-        {
-            return;
-        }
+        if (!changedEnoughA && !changedEnoughB) { return; }
 
-        if (!intervalReached)
-        {
-            return;
-        }
+        if (!intervalReached) { return; }
 
         Debug.Log($"{label}: 1) {distanceA:F3}, 2) {distanceB:F3}, total={distanceA + distanceB:F3}");
         _lastLoggedDistanceA = distanceA;
         _lastLoggedDistanceB = distanceB;
-        _lastLogTime = Time.time;
-    }
+        _lastLogTime = Time.time; }
+    private void LogDetectionState(string message) {
+        if (!logDetectionState) { return; }
 
-    // Handle Log Detection State.
-    private void LogDetectionState(string message)
-    {
-        if (!logDetectionState)
-        {
-            return;
-        }
-
-        if (Time.time - _lastLogTime < logInterval)
-        {
-            return;
-        }
+        if (Time.time - _lastLogTime < logInterval) { return; }
 
         Debug.Log(message);
-        _lastLogTime = Time.time;
-    }
-
-    // Handle Try Get Snap Owner From Collider.
-    private bool TryGetSnapOwnerFromColliderCached(Collider hitCollider, out GameObject owner)
-    {
+        _lastLogTime = Time.time; }
+    private bool TryGetSnapOwnerFromColliderCached(Collider hitCollider, out GameObject owner) {
         owner = null;
-        if (hitCollider == null)
-        {
-            return false;
-        }
+        if (hitCollider == null) { return false; }
 
-        if (_snapOwnerByCollider.TryGetValue(hitCollider, out GameObject cachedOwner))
-        {
+        if (_snapOwnerByCollider.TryGetValue(hitCollider, out GameObject cachedOwner)) {
             owner = cachedOwner;
-            return owner != null;
-        }
+            return owner != null; }
 
         bool found = TryGetSnapOwnerFromCollider(hitCollider, out owner);
         _snapOwnerByCollider[hitCollider] = found ? owner : null;
-        return found;
-    }
+        return found; }
 
-    private static bool TryGetSnapOwnerFromCollider(Collider hitCollider, out GameObject owner)
-    {
+    private static bool TryGetSnapOwnerFromCollider(Collider hitCollider, out GameObject owner) {
         owner = null;
-        if (hitCollider == null)
-        {
-            return false;
-        }
+        if (hitCollider == null) { return false; }
 
         WallSnapPoints wallOwner = hitCollider.GetComponentInParent<WallSnapPoints>();
-        if (wallOwner != null)
-        {
+        if (wallOwner != null) {
             owner = wallOwner.gameObject;
-            return true;
-        }
+            return true; }
 
         FloorScript floorOwner = hitCollider.GetComponentInParent<FloorScript>();
-        if (floorOwner != null)
-        {
+        if (floorOwner != null) {
             owner = floorOwner.gameObject;
-            return true;
-        }
+            return true; }
 
         StairScript stairOwner = hitCollider.GetComponentInParent<StairScript>();
-        if (stairOwner != null)
-        {
+        if (stairOwner != null) {
             owner = stairOwner.gameObject;
-            return true;
-        }
+            return true; }
 
-        return false;
-    }
+        return false; }
 
-    private bool IsSnapMarkerCollider(Collider collider)
-    {
-        if (collider == null)
-        {
-            return false;
-        }
+    private bool IsSnapMarkerCollider(Collider collider) {
+        if (collider == null) { return false; }
 
-        if (_snapMarkerColliderCache.TryGetValue(collider, out bool cached))
-        {
-            return cached;
-        }
+        if (_snapMarkerColliderCache.TryGetValue(collider, out bool cached)) { return cached; }
 
         bool isSnapMarker = IsSnapMarkerTransform(collider.transform);
         _snapMarkerColliderCache[collider] = isSnapMarker;
-        return isSnapMarker;
-    }
-
-    // Handle Get Top Y.
-    private static float GetTopY(GameObject target)
-    {
-        return TryGetExtremeY(target, searchTop: true, out float y) ? y : target.transform.position.y;
-    }
-
-    // Handle Get Bottom Y.
-    private static float GetBottomY(GameObject target)
-    {
-        return TryGetExtremeY(target, searchTop: false, out float y) ? y : target.transform.position.y;
-    }
-
-    // Handle Try Get Extreme Y.
-    private static bool TryGetExtremeY(GameObject target, bool searchTop, out float y)
-    {
+        return isSnapMarker; }
+    private static float GetTopY(GameObject target) { return TryGetExtremeY(target, searchTop: true, out float y) ? y : target.transform.position.y; }
+    private static float GetBottomY(GameObject target) { return TryGetExtremeY(target, searchTop: false, out float y) ? y : target.transform.position.y; }
+    private static bool TryGetExtremeY(GameObject target, bool searchTop, out float y) {
         // Prefer collider bounds, then renderer bounds if colliders are missing.
         y = 0f;
-        if (target == null)
-        {
-            return false;
-        }
+        if (target == null) { return false; }
 
-        if (TryGetExtremeYFromColliders(target.GetComponentsInChildren<Collider>(true), searchTop, out y))
-        {
-            return true;
-        }
+        if (TryGetExtremeYFromColliders(target.GetComponentsInChildren<Collider>(true), searchTop, out y)) { return true; }
 
-        return TryGetExtremeYFromRenderers(target.GetComponentsInChildren<Renderer>(true), searchTop, out y);
-    }
-
-    // Handle Try Get Extreme YFrom Colliders.
-    private static bool TryGetExtremeYFromColliders(Collider[] colliders, bool searchTop, out float y)
-    {
+        return TryGetExtremeYFromRenderers(target.GetComponentsInChildren<Renderer>(true), searchTop, out y); }
+    private static bool TryGetExtremeYFromColliders(Collider[] colliders, bool searchTop, out float y) {
         y = searchTop ? float.MinValue : float.MaxValue;
         bool found = false;
-        for (int i = 0; i < colliders.Length; i++)
-        {
+        for (int i = 0; i < colliders.Length; i++) {
             Collider collider = colliders[i];
-            if (collider == null || IsSnapMarkerTransform(collider.transform))
-            {
-                continue;
-            }
+            if (collider == null || IsSnapMarkerTransform(collider.transform)) { continue; }
 
             float candidate = searchTop ? collider.bounds.max.y : collider.bounds.min.y;
-            if (!found)
-            {
+            if (!found) {
                 y = candidate;
                 found = true;
-                continue;
-            }
+                continue; }
 
-            y = searchTop ? Mathf.Max(y, candidate) : Mathf.Min(y, candidate);
-        }
+            y = searchTop ? Mathf.Max(y, candidate) : Mathf.Min(y, candidate); }
 
-        return found;
-    }
-
-    // Handle Try Get Extreme YFrom Renderers.
-    private static bool TryGetExtremeYFromRenderers(Renderer[] renderers, bool searchTop, out float y)
-    {
+        return found; }
+    private static bool TryGetExtremeYFromRenderers(Renderer[] renderers, bool searchTop, out float y) {
         y = searchTop ? float.MinValue : float.MaxValue;
         bool found = false;
-        for (int i = 0; i < renderers.Length; i++)
-        {
+        for (int i = 0; i < renderers.Length; i++) {
             Renderer renderer = renderers[i];
-            if (renderer == null || IsSnapMarkerTransform(renderer.transform))
-            {
-                continue;
-            }
+            if (renderer == null || IsSnapMarkerTransform(renderer.transform)) { continue; }
 
             float candidate = searchTop ? renderer.bounds.max.y : renderer.bounds.min.y;
-            if (!found)
-            {
+            if (!found) {
                 y = candidate;
                 found = true;
-                continue;
-            }
+                continue; }
 
-            y = searchTop ? Mathf.Max(y, candidate) : Mathf.Min(y, candidate);
-        }
+            y = searchTop ? Mathf.Max(y, candidate) : Mathf.Min(y, candidate); }
 
-        return found;
-    }
-
-    // Handle Clear Snap Lock.
-    private void ClearSnapLock()
-    {
+        return found; }
+    private void ClearSnapLock() {
         _isSnapLocked = false;
         _lockedPreviewA = null;
         _lockedPreviewB = null;
         _lockedTargetA = null;
         _lockedTargetB = null;
         _lockedPreviewOffsetA = Vector3.zero;
-        _lockedPreviewOffsetB = Vector3.zero;
-    }
-
-    // Handle Set Preview Mode.
-    private static void SetPreviewMode(GameObject target, bool isPreview)
-    {
-        if (isPreview && target.GetComponent<BuildPreviewMarker>() == null)
-        {
-            target.AddComponent<BuildPreviewMarker>();
-        }
-        else if (!isPreview && target.TryGetComponent(out BuildPreviewMarker previewMarker))
-        {
-            UnityEngine.Object.Destroy(previewMarker);
-        }
+        _lockedPreviewOffsetB = Vector3.zero; }
+    private static void SetPreviewMode(GameObject target, bool isPreview) {
+        if (isPreview && target.GetComponent<BuildPreviewMarker>() == null) {
+            target.AddComponent<BuildPreviewMarker>(); } else if (!isPreview && target.TryGetComponent(out BuildPreviewMarker previewMarker)) { UnityEngine.Object.Destroy(previewMarker); }
 
         Collider[] colliders = target.GetComponentsInChildren<Collider>(true);
-        for (int i = 0; i < colliders.Length; i++)
-        {
-            colliders[i].enabled = !isPreview;
-        }
-    }
+        for (int i = 0; i < colliders.Length; i++) { colliders[i].enabled = !isPreview; } }
+    private static float GetBottomOffset(GameObject target) {
+        if (!TryGetRenderableBoundsWithoutSnapMarkers(target, out Bounds bounds)) { return 0f; }
 
-    // Handle Get Bottom Offset.
-    private static float GetBottomOffset(GameObject target)
-    {
-        if (!TryGetRenderableBoundsWithoutSnapMarkers(target, out Bounds bounds))
-        {
-            return 0f;
-        }
-
-        return target.transform.position.y - bounds.min.y;
-    }
-
-    // Handle Try Get Renderable Bounds Without Snap Markers.
-    private static bool TryGetRenderableBoundsWithoutSnapMarkers(GameObject target, out Bounds bounds)
-    {
+        return target.transform.position.y - bounds.min.y; }
+    private static bool TryGetRenderableBoundsWithoutSnapMarkers(GameObject target, out Bounds bounds) {
         bounds = default;
-        if (target == null)
-        {
-            return false;
-        }
+        if (target == null) { return false; }
 
         Renderer[] renderers = target.GetComponentsInChildren<Renderer>(true);
         bool hasBounds = false;
-        for (int i = 0; i < renderers.Length; i++)
-        {
+        for (int i = 0; i < renderers.Length; i++) {
             Renderer renderer = renderers[i];
-            if (renderer == null || IsSnapMarkerTransform(renderer.transform))
-            {
-                continue;
-            }
+            if (renderer == null || IsSnapMarkerTransform(renderer.transform)) { continue; }
 
-            if (!hasBounds)
-            {
+            if (!hasBounds) {
                 bounds = renderer.bounds;
-                hasBounds = true;
-            }
-            else
-            {
-                bounds.Encapsulate(renderer.bounds);
-            }
-        }
+                hasBounds = true; } else { bounds.Encapsulate(renderer.bounds); } }
 
-        return hasBounds;
-    }
-
-    // Handle Is Snap Marker Transform.
-    private static bool IsSnapMarkerTransform(Transform transformToCheck)
-    {
-        return transformToCheck != null && transformToCheck.GetComponentInParent<SnapPoint>() != null;
-    }
-
-    // Handle Is UIBlocking Gameplay.
-    private static bool IsUiBlockingGameplay()
-    {
-        return InventoryController.IsInventoryOpen || CraftingManager.IsCraftingOpen || DialogueState.IsConversationRunning;
-    }
-
-    // Handle Try Get Nearest Snap Point YNear Reference.
-    private bool TryGetNearestSnapPointYNearReference(out float nearestY)
-    {
+        return hasBounds; }
+    private static bool IsSnapMarkerTransform(Transform transformToCheck) { return transformToCheck != null && transformToCheck.GetComponentInParent<SnapPoint>() != null; }
+    private bool TryGetNearestSnapPointYNearReference(out float nearestY) {
         nearestY = 0f;
         Transform reference = floorHeightReference != null ? floorHeightReference : camera != null ? camera.transform : transform;
-        if (reference == null)
-        {
-            return false;
-        }
+        if (reference == null) { return false; }
 
         float radius = Mathf.Max(MinSize, floorNearestPointRadius);
         float maxDistanceSqr = radius * radius;
@@ -2571,43 +1572,24 @@ public class RayCastScriptTest : MonoBehaviour
         float bestDistanceSqr = float.MaxValue;
 
         RefreshFloorHeightSnapPointCacheIfNeeded(referencePosition);
-        for (int i = 0; i < _cachedFloorHeightSnapPoints.Count; i++)
-        {
+        for (int i = 0; i < _cachedFloorHeightSnapPoints.Count; i++) {
             SnapPoint snapPoint = _cachedFloorHeightSnapPoints[i];
-            if (snapPoint == null || !snapPoint.gameObject.activeInHierarchy)
-            {
-                continue;
-            }
+            if (snapPoint == null || !snapPoint.gameObject.activeInHierarchy) { continue; }
 
-            if (_previewObject != null && snapPoint.transform.IsChildOf(_previewObject.transform))
-            {
-                continue;
-            }
+            if (_previewObject != null && snapPoint.transform.IsChildOf(_previewObject.transform)) { continue; }
 
             Vector3 pointPosition = snapPoint.transform.position;
             float distanceSqr;
-            if (floorNearestPointUseXZ)
-            {
+            if (floorNearestPointUseXZ) {
                 float dx = pointPosition.x - referencePosition.x;
                 float dz = pointPosition.z - referencePosition.z;
-                distanceSqr = (dx * dx) + (dz * dz);
-            }
-            else
-            {
-                distanceSqr = (pointPosition - referencePosition).sqrMagnitude;
-            }
+                distanceSqr = (dx * dx) + (dz * dz); } else { distanceSqr = (pointPosition - referencePosition).sqrMagnitude; }
 
-            if (distanceSqr > maxDistanceSqr || distanceSqr >= bestDistanceSqr)
-            {
-                continue;
-            }
+            if (distanceSqr > maxDistanceSqr || distanceSqr >= bestDistanceSqr) { continue; }
 
             bestDistanceSqr = distanceSqr;
             nearestY = pointPosition.y;
-            found = true;
-        }
+            found = true; }
 
-        return found;
-    }
-}
+        return found; } }
 

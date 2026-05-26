@@ -1,11 +1,5 @@
-using TMPro;
-using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.EventSystems;
-
-// Controls Slot behavior.
-public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler, IPointerClickHandler
-{
+using TMPro; using UnityEngine; using UnityEngine.UI; using UnityEngine.EventSystems;
+public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler, IPointerClickHandler {
     public Sprite sprite;
     public int count;
     public SlotManager slotManager;
@@ -21,295 +15,127 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
 
     public static Slot CurrentDragSource => currentDragSource;
 
-    void Start()
-    {
-        if (slotManager != null)
-        {
-            slotManager.RegisterSlot(this);
-        }
+    void Start() { if (slotManager != null) { slotManager.RegisterSlot(this); }
 
         ResolveVisualReferences();
-        UpdateUI();
-    }
+        UpdateUI(); }
+    public void AddItem(InventoryItem inventoryItem, InventoryListHandler inventoryListHandler, int explicitAmount = -1) { if (inventoryItem == null) { return; }
 
-    // Handle Add Item.
-    public void AddItem(InventoryItem inventoryItem, InventoryListHandler inventoryListHandler, int explicitAmount = -1)
-    {
-        if (inventoryItem == null)
-        {
-            return;
-        }
-
-        if (IsEmpty())
-        {
+        if (IsEmpty()) {
             inventoryItemReference = inventoryItem;
             sprite = inventoryItem.inventorysprite;
-            itemName = NormalizeItemName(inventoryItem.name);
-        }
-        else if (inventoryItemReference == null)
-        {
-            inventoryItemReference = inventoryItem;
-        }
+            itemName = NormalizeItemName(inventoryItem.name); } else if (inventoryItemReference == null) { inventoryItemReference = inventoryItem; }
 
-        if (string.IsNullOrWhiteSpace(itemName))
-        {
-            itemName = NormalizeItemName(inventoryItem.name);
-        }
+        if (string.IsNullOrWhiteSpace(itemName)) { itemName = NormalizeItemName(inventoryItem.name); }
 
         int addedAmount = explicitAmount > 0 ? explicitAmount : GetCount(inventoryItem);
-        if (addedAmount <= 0)
-        {
-            return;
-        }
+        if (addedAmount <= 0) { return; }
 
         count += addedAmount;
 
-        if (inventoryListHandler != null)
-        {
-            inventoryListHandler.AddItem(inventoryItem, addedAmount);
-        }
-        else if (slotManager != null)
-        {
-            slotManager.RefreshInventoryList();
-        }
+        if (inventoryListHandler != null) { inventoryListHandler.AddItem(inventoryItem, addedAmount); } else if (slotManager != null) { slotManager.RefreshInventoryList(); }
 
-        UpdateUI();
-    }
-
-    // Handle Get Count.
-    public int GetCount(InventoryItem inventoryItem)
-    {
-        if (inventoryItem.mingain == inventoryItem.maxgain)
-        {
-            return inventoryItem.mingain;
-        }
+        UpdateUI(); }
+    public int GetCount(InventoryItem inventoryItem) { if (inventoryItem.mingain == inventoryItem.maxgain) { return inventoryItem.mingain; }
 
         int min = Mathf.Min(inventoryItem.mingain, inventoryItem.maxgain);
         int max = Mathf.Max(inventoryItem.mingain, inventoryItem.maxgain);
-        return Random.Range(min, max + 1);
-    }
+        return Random.Range(min, max + 1); }
+    public bool MatchesItem(InventoryItem inventoryItem) { if (inventoryItem == null) { return false; }
 
-    // Handle Matches Item.
-    public bool MatchesItem(InventoryItem inventoryItem)
-    {
-        if (inventoryItem == null)
-        {
-            return false;
-        }
-
-        if (inventoryItemReference != null && inventoryItemReference == inventoryItem)
-        {
-            return true;
-        }
+        if (inventoryItemReference != null && inventoryItemReference == inventoryItem) { return true; }
 
         string thisItemName = GetComparableItemName();
         string otherItemName = NormalizeItemName(inventoryItem.name);
-        if (string.IsNullOrEmpty(thisItemName) || string.IsNullOrEmpty(otherItemName))
-        {
-            return false;
-        }
+        if (string.IsNullOrEmpty(thisItemName) || string.IsNullOrEmpty(otherItemName)) { return false; }
 
-        return string.Equals(thisItemName, otherItemName, System.StringComparison.OrdinalIgnoreCase);
-    }
-
-    // Handle Update UI.
-    public void UpdateUI()
-    {
+        return string.Equals(thisItemName, otherItemName, System.StringComparison.OrdinalIgnoreCase); }
+    public void UpdateUI() {
         bool hasItem = !IsEmpty();
         ResolveVisualReferences();
 
-        if (resolvedItemImage != null)
-        {
+        if (resolvedItemImage != null) {
             resolvedItemImage.sprite = sprite;
-            resolvedItemImage.enabled = hasItem && sprite != null;
-        }
+            resolvedItemImage.enabled = hasItem && sprite != null; }
 
-        if (counttext != null)
-        {
+        if (counttext != null) {
             counttext.text = hasItem ? count.ToString() : string.Empty;
-            counttext.enabled = hasItem;
-        }
+            counttext.enabled = hasItem; }
 
-        HideExtraPlaceholderImages();
-    }
+        HideExtraPlaceholderImages(); }
+    public bool IsEmpty() { return sprite == null || count <= 0; }
+    private void ResolveVisualReferences() { if (resolvedItemImage != null) { return; }
 
-    // Handle Is Empty.
-    public bool IsEmpty()
-    {
-        return sprite == null || count <= 0;
-    }
-
-    // Handle Resolve Visual References.
-    private void ResolveVisualReferences()
-    {
-        if (resolvedItemImage != null)
-        {
-            return;
-        }
-
-        if (image != null && image.gameObject != gameObject)
-        {
+        if (image != null && image.gameObject != gameObject) {
             resolvedItemImage = image;
-            return;
-        }
+            return; }
 
         Transform preferred = transform.Find("ImagePlace");
-        if (preferred == null)
-        {
-            preferred = transform.Find("WhiteInside");
-        }
+        if (preferred == null) { preferred = transform.Find("WhiteInside"); }
 
-        if (preferred != null)
-        {
-            resolvedItemImage = preferred.GetComponent<Image>();
-        }
+        if (preferred != null) { resolvedItemImage = preferred.GetComponent<Image>(); }
 
-        if (resolvedItemImage == null)
-        {
+        if (resolvedItemImage == null) {
             Image[] images = GetComponentsInChildren<Image>(true);
-            for (int i = 0; i < images.Length; i++)
-            {
-                if (images[i] == null || images[i].gameObject == gameObject)
-                {
-                    continue;
-                }
+            for (int i = 0; i < images.Length; i++) { if (images[i] == null || images[i].gameObject == gameObject) { continue; }
 
-                if (images[i].name == "BlackBakground")
-                {
-                    continue;
-                }
+                if (images[i].name == "BlackBakground") { continue; }
 
                 resolvedItemImage = images[i];
-                break;
-            }
-        }
-    }
-
-    // Handle Hide Extra Placeholder Images.
-    private void HideExtraPlaceholderImages()
-    {
+                break; } } }
+    private void HideExtraPlaceholderImages() {
         Image[] images = GetComponentsInChildren<Image>(true);
-        for (int i = 0; i < images.Length; i++)
-        {
+        for (int i = 0; i < images.Length; i++) {
             Image candidate = images[i];
-            if (candidate == null || candidate == resolvedItemImage || candidate.gameObject == gameObject)
-            {
-                continue;
-            }
+            if (candidate == null || candidate == resolvedItemImage || candidate.gameObject == gameObject) { continue; }
 
-            if (candidate.name == "BlackBakground")
-            {
-                continue;
-            }
+            if (candidate.name == "BlackBakground") { continue; }
 
-            if (candidate.sprite == null)
-            {
-                candidate.enabled = false;
-            }
-        }
-    }
-
-    // Handle Can Stack With.
-    private bool CanStackWith(Slot other)
-    {
-        if (other == null || IsEmpty() || other.IsEmpty())
-        {
-            return false;
-        }
+            if (candidate.sprite == null) { candidate.enabled = false; } } }
+    private bool CanStackWith(Slot other) { if (other == null || IsEmpty() || other.IsEmpty()) { return false; }
 
         if (inventoryItemReference != null &&
             other.inventoryItemReference != null &&
-            inventoryItemReference == other.inventoryItemReference)
-        {
-            return true;
-        }
+            inventoryItemReference == other.inventoryItemReference) { return true; }
 
         string thisItemName = GetComparableItemName();
         string otherItemName = other.GetComparableItemName();
-        if (string.IsNullOrEmpty(thisItemName) || string.IsNullOrEmpty(otherItemName))
-        {
-            return false;
-        }
+        if (string.IsNullOrEmpty(thisItemName) || string.IsNullOrEmpty(otherItemName)) { return false; }
 
-        return string.Equals(thisItemName, otherItemName, System.StringComparison.OrdinalIgnoreCase);
-    }
-
-    // Handle Clear Data.
-    private void ClearData()
-    {
+        return string.Equals(thisItemName, otherItemName, System.StringComparison.OrdinalIgnoreCase); }
+    private void ClearData() {
         inventoryItemReference = null;
         sprite = null;
         itemName = string.Empty;
-        count = 0;
-    }
-
-    // Handle On Begin Drag.
-    public void OnBeginDrag(PointerEventData eventData)
-    {
-        if (IsEmpty())
-        {
+        count = 0; }
+    public void OnBeginDrag(PointerEventData eventData) {
+        if (IsEmpty()) {
             currentDragSource = null;
-            return;
-        }
+            return; }
 
         currentDragSource = this;
         CreateDragIcon();
-        UpdateDragIconPosition(eventData);
-    }
+        UpdateDragIconPosition(eventData); }
+    public void OnDrag(PointerEventData eventData) { if (currentDragSource != this || dragIconObject == null) { return; }
 
-    // Handle On Drag.
-    public void OnDrag(PointerEventData eventData)
-    {
-        if (currentDragSource != this || dragIconObject == null)
-        {
-            return;
-        }
+        UpdateDragIconPosition(eventData); }
+    public void OnEndDrag(PointerEventData eventData) { if (currentDragSource == this) { currentDragSource = null; }
 
-        UpdateDragIconPosition(eventData);
-    }
-
-    // Handle On End Drag.
-    public void OnEndDrag(PointerEventData eventData)
-    {
-        if (currentDragSource == this)
-        {
-            currentDragSource = null;
-        }
-
-        DestroyDragIcon();
-    }
-
-    // Handle On Drop.
-    public void OnDrop(PointerEventData eventData)
-    {
-        if (currentDragSource == null || currentDragSource == this)
-        {
-            return;
-        }
+        DestroyDragIcon(); }
+    public void OnDrop(PointerEventData eventData) { if (currentDragSource == null || currentDragSource == this) { return; }
 
         Slot from = currentDragSource;
         Slot to = this;
 
-        if (to.IsEmpty())
-        {
+        if (to.IsEmpty()) {
             to.inventoryItemReference = from.inventoryItemReference;
             to.sprite = from.sprite;
             to.itemName = from.itemName;
             to.count = from.count;
-            from.ClearData();
-        }
-        else if (to.CanStackWith(from))
-        {
-            if (to.inventoryItemReference == null)
-            {
-                to.inventoryItemReference = from.inventoryItemReference;
-            }
+            from.ClearData(); } else if (to.CanStackWith(from)) { if (to.inventoryItemReference == null) { to.inventoryItemReference = from.inventoryItemReference; }
 
             to.count += from.count;
-            from.ClearData();
-        }
-        else
-        {
+            from.ClearData(); } else {
             InventoryItem tempItemReference = to.inventoryItemReference;
             Sprite tempSprite = to.sprite;
             string tempName = to.itemName;
@@ -323,43 +149,21 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
             from.inventoryItemReference = tempItemReference;
             from.sprite = tempSprite;
             from.itemName = tempName;
-            from.count = tempCount;
-        }
+            from.count = tempCount; }
 
         from.UpdateUI();
         to.UpdateUI();
 
-        if (from.slotManager != null)
-        {
-            from.slotManager.RefreshInventoryList();
-        }
+        if (from.slotManager != null) { from.slotManager.RefreshInventoryList(); }
 
-        if (to.slotManager != null && to.slotManager != from.slotManager)
-        {
-            to.slotManager.RefreshInventoryList();
-        }
-    }
+        if (to.slotManager != null && to.slotManager != from.slotManager) { to.slotManager.RefreshInventoryList(); } }
+    public void OnPointerClick(PointerEventData eventData) { if (eventData == null || eventData.button != PointerEventData.InputButton.Right) { return; }
 
-    // Handle On Pointer Click.
-    public void OnPointerClick(PointerEventData eventData)
-    {
-        if (eventData == null || eventData.button != PointerEventData.InputButton.Right)
-        {
-            return;
-        }
-
-        TryActivateInventoryBuilding();
-    }
-
-    // Handle Create Drag Icon.
-    private void CreateDragIcon()
-    {
+        TryActivateInventoryBuilding(); }
+    private void CreateDragIcon() {
         DestroyDragIcon();
         EnsureDragCanvas();
-        if (dragCanvas == null)
-        {
-            return;
-        }
+        if (dragCanvas == null) { return; }
 
         dragIconObject = new GameObject("InventoryDragIcon", typeof(RectTransform), typeof(CanvasGroup), typeof(Image));
         dragIconObject.transform.SetParent(dragCanvas.transform, false);
@@ -377,192 +181,77 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
         dragIconImage.enabled = sprite != null;
 
         RectTransform dragRect = dragIconObject.GetComponent<RectTransform>();
-        if (image != null)
-        {
+        if (image != null) {
             RectTransform sourceRect = image.rectTransform;
-            dragRect.sizeDelta = sourceRect.rect.size;
-        }
-        else
-        {
-            dragRect.sizeDelta = new Vector2(64f, 64f);
-        }
-    }
-
-    // Handle Ensure Drag Canvas.
-    private void EnsureDragCanvas()
-    {
-        if (dragCanvas != null)
-        {
-            return;
-        }
+            dragRect.sizeDelta = sourceRect.rect.size; } else { dragRect.sizeDelta = new Vector2(64f, 64f); } }
+    private void EnsureDragCanvas() { if (dragCanvas != null) { return; }
 
         Canvas selfCanvas = GetComponentInParent<Canvas>();
-        if (selfCanvas == null)
-        {
-            return;
-        }
+        if (selfCanvas == null) { return; }
 
-        dragCanvas = selfCanvas.rootCanvas != null ? selfCanvas.rootCanvas : selfCanvas;
-    }
-
-    // Handle Update Drag Icon Position.
-    private static void UpdateDragIconPosition(PointerEventData eventData)
-    {
-        if (dragIconObject == null || dragCanvas == null)
-        {
-            return;
-        }
+        dragCanvas = selfCanvas.rootCanvas != null ? selfCanvas.rootCanvas : selfCanvas; }
+    private static void UpdateDragIconPosition(PointerEventData eventData) { if (dragIconObject == null || dragCanvas == null) { return; }
 
         RectTransform dragRect = dragIconObject.GetComponent<RectTransform>();
         RectTransform canvasRect = dragCanvas.transform as RectTransform;
         Camera eventCamera = dragCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : eventData.pressEventCamera;
 
-        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, eventData.position, eventCamera, out Vector2 localPoint))
-        {
-            dragRect.localPosition = localPoint;
-        }
-    }
-
-    // Handle Destroy Drag Icon.
-    private static void DestroyDragIcon()
-    {
-        if (dragIconObject != null)
-        {
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, eventData.position, eventCamera, out Vector2 localPoint)) { dragRect.localPosition = localPoint; } }
+    private static void DestroyDragIcon() {
+        if (dragIconObject != null) {
             Destroy(dragIconObject);
-            dragIconObject = null;
-        }
-    }
-
-    // Handle Try Activate Inventory Building.
-    private void TryActivateInventoryBuilding()
-    {
-        if (IsEmpty())
-        {
-            return;
-        }
+            dragIconObject = null; } }
+    private void TryActivateInventoryBuilding() { if (IsEmpty()) { return; }
 
         InventoryItem inventoryItem = ResolveInventoryItemReference();
-        if (inventoryItem == null || inventoryItem.itemType != InventoryItemType.Building)
-        {
-            return;
-        }
+        if (inventoryItem == null || inventoryItem.itemType != InventoryItemType.Building) { return; }
 
-        if (inventoryItem.itemPrefab == null)
-        {
+        if (inventoryItem.itemPrefab == null) {
             Debug.LogWarning($"Slot: Building item '{inventoryItem.name}' is missing itemPrefab.", this);
-            return;
-        }
+            return; }
 
         RayCastScriptTest buildController = FindBuildController();
-        if (buildController == null)
-        {
+        if (buildController == null) {
             Debug.LogWarning("Slot: RayCastScriptTest was not found, cannot enter build mode from inventory.", this);
-            return;
-        }
+            return; }
 
-        if (!buildController.TrySelectInventoryBuildingItem(inventoryItem))
-        {
-            return;
-        }
+        if (!buildController.TrySelectInventoryBuildingItem(inventoryItem)) { return; }
 
         InventoryController inventoryController = FindInventoryController();
-        if (inventoryController != null)
-        {
-            inventoryController.CloseInventory();
-        }
-    }
-
-    // Handle Resolve Inventory Item Reference.
-    private InventoryItem ResolveInventoryItemReference()
-    {
-        if (inventoryItemReference != null)
-        {
-            return inventoryItemReference;
-        }
+        if (inventoryController != null) { inventoryController.CloseInventory(); } }
+    private InventoryItem ResolveInventoryItemReference() { if (inventoryItemReference != null) { return inventoryItemReference; }
 
         string normalizedItemName = NormalizeItemName(itemName);
-        if (string.IsNullOrEmpty(normalizedItemName))
-        {
-            return null;
-        }
+        if (string.IsNullOrEmpty(normalizedItemName)) { return null; }
 
-#if UNITY_2023_1_OR_NEWER
-        InventoryItem[] allItems = Object.FindObjectsByType<InventoryItem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-#else
-        InventoryItem[] allItems = Object.FindObjectsOfType<InventoryItem>(true);
-#endif
+        InventoryItem[] allItems = UnitySceneSearch.FindAll<InventoryItem>();
 
-        for (int i = 0; i < allItems.Length; i++)
-        {
+        for (int i = 0; i < allItems.Length; i++) {
             InventoryItem candidate = allItems[i];
-            if (candidate == null)
-            {
-                continue;
-            }
+            if (candidate == null) { continue; }
 
-            if (!string.Equals(NormalizeItemName(candidate.name), normalizedItemName, System.StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
+            if (!string.Equals(NormalizeItemName(candidate.name), normalizedItemName, System.StringComparison.OrdinalIgnoreCase)) { continue; }
 
             inventoryItemReference = candidate;
-            return candidate;
-        }
+            return candidate; }
 
-        return null;
+        return null; }
+    private static RayCastScriptTest FindBuildController() {
+        return UnitySceneSearch.FindFirst<RayCastScriptTest>();
     }
-
-    // Handle Find Build Controller.
-    private static RayCastScriptTest FindBuildController()
-    {
-#if UNITY_2023_1_OR_NEWER
-        return Object.FindFirstObjectByType<RayCastScriptTest>(FindObjectsInactive.Include);
-#else
-        return Object.FindObjectOfType<RayCastScriptTest>(true);
-#endif
-    }
-
-    // Handle Find Inventory Controller.
-    private InventoryController FindInventoryController()
-    {
+    private InventoryController FindInventoryController() {
         InventoryController controller = GetComponentInParent<InventoryController>();
-        if (controller != null)
-        {
-            return controller;
-        }
+        if (controller != null) { return controller; }
 
-#if UNITY_2023_1_OR_NEWER
-        return Object.FindFirstObjectByType<InventoryController>(FindObjectsInactive.Include);
-#else
-        return Object.FindObjectOfType<InventoryController>(true);
-#endif
+        return UnitySceneSearch.FindFirst<InventoryController>();
     }
+    private static string NormalizeItemName(string rawName) { if (string.IsNullOrWhiteSpace(rawName)) { return string.Empty; }
 
-    // Handle Normalize Item Name.
-    private static string NormalizeItemName(string rawName)
-    {
-        if (string.IsNullOrWhiteSpace(rawName))
-        {
-            return string.Empty;
-        }
-
-        return rawName.Trim();
-    }
-
-    // Handle Get Comparable Item Name.
-    private string GetComparableItemName()
-    {
+        return rawName.Trim(); }
+    private string GetComparableItemName() {
         string normalizedSlotName = NormalizeItemName(itemName);
-        if (!string.IsNullOrEmpty(normalizedSlotName))
-        {
-            return normalizedSlotName;
-        }
+        if (!string.IsNullOrEmpty(normalizedSlotName)) { return normalizedSlotName; }
 
-        if (inventoryItemReference != null)
-        {
-            return NormalizeItemName(inventoryItemReference.name);
-        }
+        if (inventoryItemReference != null) { return NormalizeItemName(inventoryItemReference.name); }
 
-        return string.Empty;
-    }
-}
+        return string.Empty; } }
