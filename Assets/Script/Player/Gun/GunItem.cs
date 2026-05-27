@@ -131,6 +131,7 @@ public class GunItem : MonoBehaviour {
     private Collider[] _ownerColliders;
     private Renderer[] _resolvedAimHiddenRenderers;
     private bool[] _aimHiddenRendererPreviousStates;
+    private readonly RaycastHit[] _shotHitBuffer = new RaycastHit[32];
 
     private void OnValidate() {
         magazineSize = Mathf.Max(1, magazineSize);
@@ -590,26 +591,26 @@ public class GunItem : MonoBehaviour {
 
         return ray.direction.normalized; }
     private bool TryGetClosestNonOwnerHit(Ray ray, out RaycastHit closestHit) {
-        RaycastHit[] hits = Physics.RaycastAll(ray, 2000f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
-        if (hits == null || hits.Length == 0) {
+        int hitCount = Physics.RaycastNonAlloc(ray, _shotHitBuffer, 2000f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+        if (hitCount == 0) {
             closestHit = default;
             return false; }
 
         float bestDistance = float.MaxValue;
         int bestIndex = -1;
-        for (int i = 0; i < hits.Length; i++) {
-            Collider collider = hits[i].collider;
+        for (int i = 0; i < hitCount; i++) {
+            Collider collider = _shotHitBuffer[i].collider;
             if (collider == null || collider.transform.IsChildOf(transform.root)) { continue; }
 
-            if (hits[i].distance < bestDistance) {
-                bestDistance = hits[i].distance;
+            if (_shotHitBuffer[i].distance < bestDistance) {
+                bestDistance = _shotHitBuffer[i].distance;
                 bestIndex = i; } }
 
         if (bestIndex < 0) {
             closestHit = default;
             return false; }
 
-        closestHit = hits[bestIndex];
+        closestHit = _shotHitBuffer[bestIndex];
         return true; }
     private void IgnoreProjectileCollisions(GameObject projectile) { if (projectile == null || _ownerColliders == null || _ownerColliders.Length == 0) { return; }
 

@@ -1,4 +1,6 @@
 using UnityEngine;
 public class ProjectileScript : MonoBehaviour {
-    public void OnCollisionEnter(Collision other) { Debug.Log(other.gameObject.tag); } }
+    [SerializeField] private bool logCollisions;
+
+    public void OnCollisionEnter(Collision other) { if (logCollisions && other != null && other.gameObject != null) { Debug.Log(other.gameObject.tag); } } }
 

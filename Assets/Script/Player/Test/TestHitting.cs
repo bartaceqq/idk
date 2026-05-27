@@ -13,6 +13,7 @@ using System; using System.Collections.Generic; using UnityEngine;
     [SerializeField] private bool usePollingFallback = true;
     [SerializeField] private bool includeInactiveSwordObjects = false;
     [SerializeField] private float swordScanInterval = 0.35f;
+    [SerializeField, Range(0.01f, 0.25f)] private float overlapPollingInterval = 0.04f;
     [SerializeField] private bool useNameFallback = true;
 
     [Header("Attack Animation Gate")]
@@ -58,6 +59,7 @@ using System; using System.Collections.Generic; using UnityEngine;
     private readonly HashSet<Renderer> _overlappingSwordRenderers = new HashSet<Renderer>();
     private float _nextSwordScanTime;
     private float _nextActionScriptScanTime;
+    private float _nextOverlapPollTime;
     private bool _isUsingHitMaterial;
     private bool _wasSwordInsideLastFrame;
     private readonly List<ActionScript> _knownActionScripts = new List<ActionScript>();
@@ -84,6 +86,17 @@ using System; using System.Collections.Generic; using UnityEngine;
     private readonly List<float> _hitStrokePointTimes = new List<float>();
     private bool _hasSmoothedFocusPoint;
     private Vector3 _smoothedFocusPoint;
+    private static readonly List<Collider> SharedSwordColliders = new List<Collider>();
+    private static readonly List<Renderer> SharedSwordRenderers = new List<Renderer>();
+    private static readonly List<ActionScript> SharedActionScripts = new List<ActionScript>();
+    private static bool _sharedSwordCacheValid;
+    private static bool _sharedIncludeInactiveSwordObjects;
+    private static bool _sharedUseNameFallback;
+    private static float _nextSharedSwordRefreshTime;
+    private static bool _sharedActionCacheValid;
+    private static float _nextSharedActionRefreshTime;
+    private static int _sharedAnyAttackStateFrame = -1;
+    private static bool _sharedAnySwordAttackActiveThisFrame;
 
     private void Awake() {
         _selfCollider = GetComponent<Collider>();
@@ -104,6 +117,7 @@ using System; using System.Collections.Generic; using UnityEngine;
         usePollingFallback = template.usePollingFallback;
         includeInactiveSwordObjects = template.includeInactiveSwordObjects;
         swordScanInterval = template.swordScanInterval;
+        overlapPollingInterval = template.overlapPollingInterval;
         useNameFallback = template.useNameFallback;
         requireActiveSwordAttackAnimation = template.requireActiveSwordAttackAnimation;
         attackingActionScript = template.attackingActionScript;
@@ -190,10 +204,12 @@ using System; using System.Collections.Generic; using UnityEngine;
 
     private void Start() {
         swordScanInterval = Mathf.Max(0.05f, swordScanInterval);
+        overlapPollingInterval = Mathf.Max(0.01f, overlapPollingInterval);
         actionScriptScanInterval = Mathf.Max(0.1f, actionScriptScanInterval);
         RefreshSwordColliders();
         RefreshActionScripts();
         _nextSwordScanTime = Time.time + swordScanInterval;
+        _nextOverlapPollTime = Time.time + UnityEngine.Random.Range(0f, overlapPollingInterval);
         _nextActionScriptScanTime = Time.time + actionScriptScanInterval; }
 
     private void Update() {
@@ -202,7 +218,9 @@ using System; using System.Collections.Generic; using UnityEngine;
                 RefreshSwordColliders();
                 _nextSwordScanTime = Time.time + swordScanInterval; }
 
-            UpdateSwordOverlapStateFromPolling(); }
+            if (Time.time >= _nextOverlapPollTime) {
+                _nextOverlapPollTime = Time.time + overlapPollingInterval;
+                UpdateSwordOverlapStateFromPolling(); } }
 
         if (requireActiveSwordAttackAnimation && Time.time >= _nextActionScriptScanTime) {
             RefreshActionScripts();
@@ -302,6 +320,10 @@ using System; using System.Collections.Generic; using UnityEngine;
     private void UpdateHitTrailColors() {
         if (!tintHitTrails) {
             RestoreAllTrailColors();
+            return; }
+
+        if (_touchingSwordColliders.Count == 0 && _overlappingSwordRenderers.Count == 0) {
+            if (_originalTrailColors.Count > 0) { RestoreAllTrailColors(); }
             return; }
 
         _desiredTintTrails.Clear();
@@ -634,6 +656,11 @@ using System; using System.Collections.Generic; using UnityEngine;
 
     private bool IsAnyKnownActionScriptInSwordAttack() { if (_anyAttackStateFrame == Time.frameCount) { return _anySwordAttackActiveThisFrame; }
 
+        if (_sharedAnyAttackStateFrame == Time.frameCount) {
+            _anyAttackStateFrame = Time.frameCount;
+            _anySwordAttackActiveThisFrame = _sharedAnySwordAttackActiveThisFrame;
+            return _anySwordAttackActiveThisFrame; }
+
         _anyAttackStateFrame = Time.frameCount;
         _anySwordAttackActiveThisFrame = false;
 
@@ -647,6 +674,8 @@ using System; using System.Collections.Generic; using UnityEngine;
                 _anySwordAttackActiveThisFrame = true;
                 break; } }
 
+        _sharedAnyAttackStateFrame = Time.frameCount;
+        _sharedAnySwordAttackActiveThisFrame = _anySwordAttackActiveThisFrame;
         return _anySwordAttackActiveThisFrame; }
 
     private bool TryGetFocusPoint(out Vector3 focusPoint) {
@@ -728,6 +757,8 @@ using System; using System.Collections.Generic; using UnityEngine;
         return _selfCollider.bounds.Intersects(swordRenderer.bounds); }
 
     private void RefreshSwordColliders() {
+        if (TryCopySharedSwordCache()) { return; }
+
         _swordColliders.Clear();
         _swordRenderers.Clear();
         _touchingSwordColliders.RemoveWhere(c => c == null);
@@ -735,7 +766,7 @@ using System; using System.Collections.Generic; using UnityEngine;
         HashSet<Collider> seenColliders = new HashSet<Collider>();
         HashSet<Renderer> seenRenderers = new HashSet<Renderer>();
 
-        Sword[] swords = UnitySceneSearch.FindAll<Sword>(includeInactiveSwordObjects);
+        Sword[] swords = UnitySceneSearch.FindAllCached<Sword>(swordScanInterval, includeInactiveSwordObjects);
 
         for (int i = 0; i < swords.Length; i++) {
             Sword sword = swords[i];
@@ -753,8 +784,8 @@ using System; using System.Collections.Generic; using UnityEngine;
         }
 
         if (useNameFallback && _swordColliders.Count == 0 && _swordRenderers.Count == 0) {
-            Collider[] allColliders = UnitySceneSearch.FindAll<Collider>(includeInactiveSwordObjects);
-            Renderer[] allRenderers = UnitySceneSearch.FindAll<Renderer>(includeInactiveSwordObjects);
+            Collider[] allColliders = UnitySceneSearch.FindAllCached<Collider>(swordScanInterval, includeInactiveSwordObjects);
+            Renderer[] allRenderers = UnitySceneSearch.FindAllCached<Renderer>(swordScanInterval, includeInactiveSwordObjects);
 
             for (int i = 0; i < allColliders.Length; i++) {
                 Collider candidate = allColliders[i];
@@ -770,18 +801,81 @@ using System; using System.Collections.Generic; using UnityEngine;
 
                 if (!NameLooksLikeSword(candidate.transform)) { continue; }
 
-                if (seenRenderers.Add(candidate)) { _swordRenderers.Add(candidate); } } } }
+                if (seenRenderers.Add(candidate)) { _swordRenderers.Add(candidate); } } }
+
+        SaveSharedSwordCache(); }
 
     private void RefreshActionScripts() {
+        if (TryCopySharedActionCache()) { return; }
+
         _knownActionScripts.Clear();
 
-        ActionScript[] actions = UnitySceneSearch.FindAll<ActionScript>(false);
+        ActionScript[] actions = UnitySceneSearch.FindAllCached<ActionScript>(actionScriptScanInterval, false);
 
         for (int i = 0; i < actions.Length; i++) {
             ActionScript candidate = actions[i];
             if (candidate == null) { continue; }
 
             _knownActionScripts.Add(candidate); }
+
+        SaveSharedActionCache();
+        if (attackingActionScript == null && _knownActionScripts.Count > 0) { attackingActionScript = _knownActionScripts[0]; } }
+
+    private bool TryCopySharedSwordCache() {
+        if (!_sharedSwordCacheValid ||
+            Time.time >= _nextSharedSwordRefreshTime ||
+            _sharedIncludeInactiveSwordObjects != includeInactiveSwordObjects ||
+            _sharedUseNameFallback != useNameFallback) { return false; }
+
+        CopySharedSwordCacheToInstance();
+        return true; }
+
+    private void SaveSharedSwordCache() {
+        SharedSwordColliders.Clear();
+        SharedSwordRenderers.Clear();
+        for (int i = 0; i < _swordColliders.Count; i++) { if (_swordColliders[i] != null) { SharedSwordColliders.Add(_swordColliders[i]); } }
+
+        for (int i = 0; i < _swordRenderers.Count; i++) { if (_swordRenderers[i] != null) { SharedSwordRenderers.Add(_swordRenderers[i]); } }
+
+        _sharedIncludeInactiveSwordObjects = includeInactiveSwordObjects;
+        _sharedUseNameFallback = useNameFallback;
+        _nextSharedSwordRefreshTime = Time.time + Mathf.Max(0.05f, swordScanInterval);
+        _sharedSwordCacheValid = true; }
+
+    private void CopySharedSwordCacheToInstance() {
+        _swordColliders.Clear();
+        _swordRenderers.Clear();
+        _touchingSwordColliders.RemoveWhere(c => c == null);
+        _overlappingSwordRenderers.RemoveWhere(r => r == null);
+
+        for (int i = 0; i < SharedSwordColliders.Count; i++) {
+            Collider candidate = SharedSwordColliders[i];
+            if (candidate == null || candidate == _selfCollider || candidate.transform.IsChildOf(transform)) { continue; }
+
+            _swordColliders.Add(candidate); }
+
+        for (int i = 0; i < SharedSwordRenderers.Count; i++) {
+            Renderer candidate = SharedSwordRenderers[i];
+            if (candidate == null || candidate.transform.IsChildOf(transform)) { continue; }
+
+            _swordRenderers.Add(candidate); } }
+
+    private bool TryCopySharedActionCache() {
+        if (!_sharedActionCacheValid || Time.time >= _nextSharedActionRefreshTime) { return false; }
+
+        CopySharedActionCacheToInstance();
+        return true; }
+
+    private void SaveSharedActionCache() {
+        SharedActionScripts.Clear();
+        for (int i = 0; i < _knownActionScripts.Count; i++) { if (_knownActionScripts[i] != null) { SharedActionScripts.Add(_knownActionScripts[i]); } }
+
+        _nextSharedActionRefreshTime = Time.time + Mathf.Max(0.1f, actionScriptScanInterval);
+        _sharedActionCacheValid = true; }
+
+    private void CopySharedActionCacheToInstance() {
+        _knownActionScripts.Clear();
+        for (int i = 0; i < SharedActionScripts.Count; i++) { if (SharedActionScripts[i] != null) { _knownActionScripts.Add(SharedActionScripts[i]); } }
 
         if (attackingActionScript == null && _knownActionScripts.Count > 0) { attackingActionScript = _knownActionScripts[0]; } }
 

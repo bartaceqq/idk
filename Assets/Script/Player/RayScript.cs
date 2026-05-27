@@ -444,7 +444,7 @@ public class RayScript : MonoBehaviour {
 
         return inventoryItem != null ? inventoryItem.gameObject : candidate; }
     private GameObject FindNearestPickableWithoutCollider(Vector3 origin, float radiusSqr, Transform playerRoot) {
-        InventoryItem[] allItems = UnitySceneSearch.FindAll<InventoryItem>();
+        InventoryItem[] allItems = UnitySceneSearch.FindAllCached<InventoryItem>(0.5f);
 
         GameObject bestObject = null;
         float bestDistanceSqr = float.MaxValue;
@@ -558,7 +558,7 @@ public class RayScript : MonoBehaviour {
         Vector3 origin = interactionOrigin.position;
         Transform playerRoot = interactionOrigin.root;
         float bestDistanceSqr = float.MaxValue;
-        T[] candidates = UnitySceneSearch.FindAll<T>(false);
+        T[] candidates = UnitySceneSearch.FindAllCached<T>(0.5f, false);
 
         for (int i = 0; i < candidates.Length; i++) {
             T candidate = candidates[i];

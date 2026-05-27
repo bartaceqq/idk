@@ -1,4 +1,4 @@
-using UnityEngine;
+using Unity.Jobs.LowLevel.Unsafe; using UnityEngine;
 public class Optimalization : MonoBehaviour {
     [Header("When To Apply")]
     [Tooltip("If true, apply optimization settings automatically when the scene starts.")]
@@ -16,6 +16,12 @@ public class Optimalization : MonoBehaviour {
     [Header("Application")]
     [Tooltip("If true, game keeps running when not focused (useful while testing).")]
     [SerializeField] private bool runInBackground = true;
+    [SerializeField] private ThreadPriority backgroundLoadingPriority = ThreadPriority.High;
+
+    [Header("CPU Usage")]
+    [Tooltip("Lets Unity's job system use the maximum worker thread count available on this PC.")]
+    [SerializeField] private bool maximizeJobWorkerThreads = true;
+    [SerializeField, Range(0, 128)] private int jobWorkerCountOverride;
     private void Start() {
         if (applyOnStart) { ApplyOptimizationSettings(); } }
 
@@ -32,4 +38,11 @@ public class Optimalization : MonoBehaviour {
             Application.targetFrameRate = -1; } else { Application.targetFrameRate = targetFrameRate <= 0 ? -1 : targetFrameRate; }
 
         // Keep app running when window loses focus (optional).
-        Application.runInBackground = runInBackground; } }
+        Application.runInBackground = runInBackground;
+        Application.backgroundLoadingPriority = backgroundLoadingPriority;
+
+        if (maximizeJobWorkerThreads) {
+            int maxWorkers = Mathf.Max(1, JobsUtility.JobWorkerMaximumCount);
+            JobsUtility.JobWorkerCount = jobWorkerCountOverride > 0
+                ? Mathf.Clamp(jobWorkerCountOverride, 1, maxWorkers)
+                : maxWorkers; } } }

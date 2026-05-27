@@ -20,53 +20,56 @@ public class ResHandler : MonoBehaviour {
     [SerializeField] private bool includeInactiveChildren;
     [SerializeField] private bool useGameObjectCulling = true;
     [SerializeField] private bool useRendererCullingFallback;
-    [SerializeField, Min(40f)] private float treeRenderDistance = 140f;
-    [SerializeField, Min(20f)] private float treeShadowDistance = 70f;
-    [SerializeField, Range(0.03f, 1f)] private float cullingUpdateInterval = 0.08f;
-    [SerializeField, Min(128)] private int maxObjectsProcessedPerTick = 3500;
-    [SerializeField, Min(128)] private int maxRenderersProcessedPerTick = 2000;
-    [SerializeField, Min(256)] private int initialCullBatchSize = 8000;
+    [Tooltip("Also cull root-level tree/stone/rock objects that are not under a managed root.")]
+    [SerializeField] private bool autoIncludeLooseHeavyObjects = true;
+    [SerializeField, Min(40f)] private float treeRenderDistance = 450f;
+    [SerializeField, Min(20f)] private float treeShadowDistance = 75f;
+    [SerializeField, Range(0.03f, 1f)] private float cullingUpdateInterval = 0.12f;
+    [SerializeField, Min(128)] private int maxObjectsProcessedPerTick = 900;
+    [SerializeField, Min(128)] private int maxRenderersProcessedPerTick = 1000;
+    [SerializeField, Min(256)] private int initialCullBatchSize = 600;
 
     [Header("Safety Caps")]
     [SerializeField] private bool enforceDistanceCaps = true;
-    [SerializeField, Min(60f)] private float hardMaxRenderDistance = 260f;
+    [SerializeField, Min(60f)] private float hardMaxRenderDistance = 600f;
     [SerializeField, Min(20f)] private float hardMaxShadowDistance = 120f;
     [SerializeField] private bool clampCameraFarClip = true;
-    [SerializeField, Min(100f)] private float cameraFarClipDistance = 320f;
+    [SerializeField, Min(100f)] private float cameraFarClipDistance = 700f;
 
     [Header("Global Quality")]
     [SerializeField] private bool applyGlobalQualityClamps = true;
     [SerializeField] private bool applyGlobalShadowDistance = true;
-    [SerializeField, Min(20f)] private float globalShadowDistance = 100f;
-    [SerializeField, Range(0.3f, 2f)] private float qualityLodBias = 0.8f;
-    [SerializeField, Range(0.1f, 1f)] private float terrainDetailDensityScale = 0.5f;
-    [SerializeField, Min(10f)] private float terrainDetailDistance = 35f;
-    [SerializeField, Min(40f)] private float terrainTreeDistance = 220f;
-    [SerializeField, Min(20f)] private float terrainBillboardStart = 30f;
+    [SerializeField, Min(20f)] private float globalShadowDistance = 55f;
+    [SerializeField, Range(0.3f, 2f)] private float qualityLodBias = 0.75f;
+    [SerializeField, Range(0.1f, 1f)] private float terrainDetailDensityScale = 0.35f;
+    [SerializeField, Min(10f)] private float terrainDetailDistance = 28f;
+    [SerializeField, Min(40f)] private float terrainTreeDistance = 500f;
+    [SerializeField, Min(20f)] private float terrainBillboardStart = 80f;
 
     [Header("Lights")]
     [SerializeField] private bool optimizeRealtimeLights = true;
     [SerializeField, Range(0.05f, 1f)] private float lightsUpdateInterval = 0.15f;
-    [SerializeField, Min(10f)] private float nonDirectionalLightDistance = 55f;
-    [SerializeField, Min(5f)] private float nonDirectionalShadowDistance = 18f;
-    [SerializeField, Min(0)] private int maxShadowedNonDirectionalLights = 1;
+    [SerializeField, Min(10f)] private float nonDirectionalLightDistance = 45f;
+    [SerializeField, Min(5f)] private float nonDirectionalShadowDistance = 12f;
+    [SerializeField, Min(0)] private int maxShadowedNonDirectionalLights = 0;
     [SerializeField] private bool disableShadowsOnDisabledLights = true;
 
     [Header("Adaptive Runtime")]
-    [SerializeField] private bool adaptiveDistanceByFps = true;
-    [SerializeField, Range(15f, 120f)] private float lowFpsThreshold = 40f;
-    [SerializeField, Range(15f, 180f)] private float highFpsThreshold = 80f;
+    [SerializeField] private bool adaptiveDistanceByFps = false;
+    [SerializeField, Range(15f, 120f)] private float lowFpsThreshold = 55f;
+    [SerializeField, Range(15f, 180f)] private float highFpsThreshold = 100f;
     [SerializeField, Range(0.2f, 3f)] private float adaptiveCheckInterval = 1f;
-    [SerializeField, Min(5f)] private float adaptiveStep = 20f;
-    [SerializeField, Min(50f)] private float adaptiveMinRenderDistance = 80f;
-    [SerializeField, Min(80f)] private float adaptiveMaxRenderDistance = 220f;
+    [SerializeField, Min(5f)] private float adaptiveStep = 30f;
+    [SerializeField, Min(50f)] private float adaptiveMinRenderDistance = 250f;
+    [SerializeField, Min(80f)] private float adaptiveMaxRenderDistance = 500f;
     [SerializeField, Min(20f)] private float adaptiveMinShadowDistance = 35f;
-    [SerializeField, Min(40f)] private float adaptiveMaxShadowDistance = 100f;
+    [SerializeField, Min(40f)] private float adaptiveMaxShadowDistance = 80f;
 
     private readonly List<ManagedObject> _managedObjects = new List<ManagedObject>(8192);
     private readonly List<ManagedRenderer> _managedRenderers = new List<ManagedRenderer>(4096);
     private readonly List<ManagedLight> _managedLights = new List<ManagedLight>(256);
     private readonly HashSet<int> _uniqueManagedObjectIds = new HashSet<int>();
+    private readonly HashSet<int> _uniqueManagedRendererIds = new HashSet<int>();
 
     private float _nextCullingUpdateTime;
     private float _nextLightsUpdateTime;
@@ -115,6 +118,8 @@ public class ResHandler : MonoBehaviour {
     private void Start() {
         if (useGameObjectCulling && _managedObjects.Count > 0) { StartCoroutine(InitialObjectCullPass()); } else if (_managedRenderers.Count > 0) { ForceRendererCullAllNow(); } }
 
+    private void OnDisable() { RestoreManagedState(); }
+
     private void Update() {
         if (targetCamera == null) {
             ResolveCamera();
@@ -161,57 +166,53 @@ public class ResHandler : MonoBehaviour {
 
     private void ResolveCamera() { if (targetCamera == null) { targetCamera = Camera.main; } }
 
-    private void AutoAssignManagedRootsIfMissing() { if (managedRoots != null && managedRoots.Length > 0) { return; }
+    private void AutoAssignManagedRootsIfMissing() {
+        List<Transform> found = new List<Transform>(6);
+        if (managedRoots != null) {
+            for (int i = 0; i < managedRoots.Length; i++) { AddRootIfMissing(found, managedRoots[i]); } }
 
-        List<Transform> found = new List<Transform>(3);
         TryAddRootByName(found, "Trees&stones");
         TryAddRootByName(found, "Trees");
+        TryAddRootByName(found, "Stones");
+        TryAddRootByName(found, "Rocks");
         TryAddRootByName(found, "Lamps");
 
-        if (found.Count > 0) { managedRoots = found.ToArray(); } }
+        managedRoots = found.Count > 0 ? found.ToArray() : new Transform[0]; }
 
     private static void TryAddRootByName(List<Transform> found, string objectName) {
         GameObject go = GameObject.Find(objectName);
-        if (go != null) { found.Add(go.transform); } }
+        if (go != null) { AddRootIfMissing(found, go.transform); } }
+
+    private static void AddRootIfMissing(List<Transform> found, Transform root) {
+        if (root == null) { return; }
+
+        for (int i = 0; i < found.Count; i++) { if (found[i] == root) { return; } }
+
+        found.Add(root); }
 
     private void CollectManagedData() {
         _managedObjects.Clear();
         _managedRenderers.Clear();
         _uniqueManagedObjectIds.Clear();
+        _uniqueManagedRendererIds.Clear();
 
-        if (managedRoots == null || managedRoots.Length == 0) { return; }
+        if (managedRoots != null) {
+            for (int i = 0; i < managedRoots.Length; i++) {
+                Transform root = managedRoots[i];
+                if (root == null) { continue; }
 
-        for (int i = 0; i < managedRoots.Length; i++) {
-            Transform root = managedRoots[i];
-            if (root == null) { continue; }
+                Renderer[] renderers = root.GetComponentsInChildren<Renderer>(includeInactiveChildren);
+                for (int r = 0; r < renderers.Length; r++) {
+                    Renderer renderer = renderers[r];
+                    if (!CanManageRenderer(renderer)) { continue; }
 
-            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(includeInactiveChildren);
-            for (int r = 0; r < renderers.Length; r++) {
-                Renderer renderer = renderers[r];
-                if (renderer == null) { continue; }
+                    AddManagedRenderer(renderer);
 
-                if (renderer is ParticleSystemRenderer || renderer is LineRenderer || renderer is TrailRenderer) { continue; }
+                    if (useGameObjectCulling) {
+                        Transform top = GetTopObjectUnderRoot(renderer.transform, root);
+                        AddManagedObject(top); } } } }
 
-                if (!useGameObjectCulling || useRendererCullingFallback) {
-                    _managedRenderers.Add(new ManagedRenderer {
-                        renderer = renderer,
-                        initialEnabled = renderer.enabled,
-                        originalShadows = renderer.shadowCastingMode
-                    }); }
-
-                if (useGameObjectCulling) {
-                    Transform top = GetTopObjectUnderRoot(renderer.transform, root);
-                    if (top == null) { continue; }
-
-                    int id = top.GetInstanceID();
-                    if (_uniqueManagedObjectIds.Contains(id)) { continue; }
-
-                    _uniqueManagedObjectIds.Add(id);
-                    _managedObjects.Add(new ManagedObject {
-                        gameObject = top.gameObject,
-                        initialActive = top.gameObject.activeSelf,
-                        cachedPosition = top.position
-                    }); } } }
+        if (autoIncludeLooseHeavyObjects) { CollectLooseHeavyObjects(); }
 
         _objectRoundRobinIndex = 0;
         _rendererRoundRobinIndex = 0; }
@@ -222,6 +223,103 @@ public class ResHandler : MonoBehaviour {
         while (current != null && current.parent != null && current.parent != root) { current = current.parent; }
 
         return current != null && current.parent == root ? current : null; }
+
+    private void CollectLooseHeavyObjects() {
+        Renderer[] renderers = UnitySceneSearch.FindAll<Renderer>(includeInactiveChildren);
+        for (int i = 0; i < renderers.Length; i++) {
+            Renderer renderer = renderers[i];
+            if (!CanManageRenderer(renderer) || IsUnderManagedRoot(renderer.transform)) { continue; }
+
+            Transform heavyRoot = FindHeavyObjectRoot(renderer.transform);
+            if (heavyRoot == null) { continue; }
+
+            AddManagedRenderer(renderer);
+            if (useGameObjectCulling) { AddManagedObject(heavyRoot); } } }
+
+    private void AddManagedRenderer(Renderer renderer) {
+        if (!CanManageRenderer(renderer) || (useGameObjectCulling && !useRendererCullingFallback)) { return; }
+
+        int id = renderer.GetInstanceID();
+        if (_uniqueManagedRendererIds.Contains(id)) { return; }
+
+        _uniqueManagedRendererIds.Add(id);
+        _managedRenderers.Add(new ManagedRenderer {
+            renderer = renderer,
+            initialEnabled = renderer.enabled,
+            originalShadows = renderer.shadowCastingMode
+        }); }
+
+    private void AddManagedObject(Transform top) {
+        if (top == null) { return; }
+
+        int id = top.GetInstanceID();
+        if (_uniqueManagedObjectIds.Contains(id)) { return; }
+
+        _uniqueManagedObjectIds.Add(id);
+        _managedObjects.Add(new ManagedObject {
+            gameObject = top.gameObject,
+            initialActive = top.gameObject.activeSelf,
+            cachedPosition = top.position
+        }); }
+
+    private static bool CanManageRenderer(Renderer renderer) {
+        return renderer != null &&
+               !(renderer is ParticleSystemRenderer) &&
+               !(renderer is LineRenderer) &&
+               !(renderer is TrailRenderer); }
+
+    private bool IsUnderManagedRoot(Transform candidate) {
+        if (candidate == null || managedRoots == null) { return false; }
+
+        for (int i = 0; i < managedRoots.Length; i++) {
+            Transform root = managedRoots[i];
+            if (root != null && candidate.IsChildOf(root)) { return true; } }
+
+        return false; }
+
+    private static Transform FindHeavyObjectRoot(Transform candidate) {
+        Transform current = candidate;
+        while (current != null) {
+            if (NameLooksHeavy(current.name) && !NameLooksHeavyContainer(current.name)) { return current; }
+
+            current = current.parent; }
+
+        return null; }
+
+    private static bool NameLooksHeavy(string objectName) {
+        if (string.IsNullOrEmpty(objectName)) { return false; }
+
+        return objectName.IndexOf("tree", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+               objectName.IndexOf("stone", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+               objectName.IndexOf("rock", System.StringComparison.OrdinalIgnoreCase) >= 0; }
+
+    private static bool NameLooksHeavyContainer(string objectName) {
+        if (string.IsNullOrEmpty(objectName)) { return false; }
+
+        return objectName.IndexOf("ConvertedTerrainTrees", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+               string.Equals(objectName, "Trees", System.StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(objectName, "Trees&stones", System.StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(objectName, "Stones", System.StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(objectName, "Rocks", System.StringComparison.OrdinalIgnoreCase); }
+
+    private void RestoreManagedState() {
+        for (int i = 0; i < _managedObjects.Count; i++) {
+            ManagedObject item = _managedObjects[i];
+            if (item.gameObject != null && item.gameObject.activeSelf != item.initialActive) { item.gameObject.SetActive(item.initialActive); } }
+
+        for (int i = 0; i < _managedRenderers.Count; i++) {
+            ManagedRenderer item = _managedRenderers[i];
+            if (item.renderer == null) { continue; }
+
+            item.renderer.enabled = item.initialEnabled;
+            item.renderer.shadowCastingMode = item.originalShadows; }
+
+        for (int i = 0; i < _managedLights.Count; i++) {
+            ManagedLight item = _managedLights[i];
+            if (item.light == null) { continue; }
+
+            item.light.enabled = item.initialEnabled;
+            item.light.shadows = item.originalShadows; } }
 
     private IEnumerator InitialObjectCullPass() { if (_managedObjects.Count == 0 || targetCamera == null) { yield break; }
 
@@ -391,6 +489,11 @@ public class ResHandler : MonoBehaviour {
         QualitySettings.lodBias = qualityLodBias;
         QualitySettings.shadowDistance = Mathf.Min(QualitySettings.shadowDistance, globalShadowDistance);
         QualitySettings.pixelLightCount = 1;
+        QualitySettings.antiAliasing = Mathf.Min(QualitySettings.antiAliasing, 2);
+        QualitySettings.shadowCascades = Mathf.Min(QualitySettings.shadowCascades, 1);
+        QualitySettings.shadowResolution = ShadowResolution.Low;
+        QualitySettings.realtimeReflectionProbes = false;
+        QualitySettings.softParticles = false;
 
         Terrain[] terrains = Terrain.activeTerrains;
         for (int i = 0; i < terrains.Length; i++) {
@@ -400,7 +503,9 @@ public class ResHandler : MonoBehaviour {
             terrain.detailObjectDensity = Mathf.Clamp01(terrainDetailDensityScale);
             terrain.detailObjectDistance = terrainDetailDistance;
             terrain.treeDistance = terrainTreeDistance;
-            terrain.treeBillboardDistance = terrainBillboardStart; } } }
+            terrain.treeBillboardDistance = terrainBillboardStart;
+            terrain.heightmapPixelError = Mathf.Max(terrain.heightmapPixelError, 8f);
+            terrain.basemapDistance = Mathf.Min(terrain.basemapDistance, 300f); } } }
 
 // Backward compatibility for older components already referencing ForceFullHD.
 public class ForceFullHD : ResHandler { }

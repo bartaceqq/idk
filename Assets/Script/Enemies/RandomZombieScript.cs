@@ -56,6 +56,11 @@ public abstract class CustomEnemyAIBase : MonoBehaviour {
     [Tooltip("Minimum target movement before refreshing the current chase destination.")]
     [Range(0.05f, 3f)] public float minRepathDistance = 0.75f;
 
+    private static readonly Collider[] SeparationOverlapBuffer = new Collider[64];
+    private static readonly Collider[] OwnSpaceOverlapBuffer = new Collider[64];
+    private static readonly RaycastHit[] MovementHitBuffer = new RaycastHit[64];
+    private static readonly RaycastHit[] GroundHitBuffer = new RaycastHit[64];
+    private static readonly float[] OpenDirectionTestAngles = { 25f, -25f, 45f, -45f, 70f, -70f, 100f, -100f, 135f, -135f };
     private float _nextAttackTime;
     private float _attackAnimUnlockTime;
     private Vector3 _roamAnchor;
@@ -300,10 +305,15 @@ public abstract class CustomEnemyAIBase : MonoBehaviour {
         float safeRadius = Mathf.Max(0f, separationRadius);
         if (safeRadius <= 0f || separationStrength <= 0f) { return desiredDirection; }
 
-        Collider[] overlaps = Physics.OverlapSphere(transform.position, safeRadius, obstacleLayerMask, QueryTriggerInteraction.Ignore);
+        int overlapCount = Physics.OverlapSphereNonAlloc(
+            transform.position,
+            safeRadius,
+            SeparationOverlapBuffer,
+            obstacleLayerMask,
+            QueryTriggerInteraction.Ignore);
         Vector3 separation = Vector3.zero;
-        for (int i = 0; i < overlaps.Length; i++) {
-            Collider candidate = overlaps[i];
+        for (int i = 0; i < overlapCount; i++) {
+            Collider candidate = SeparationOverlapBuffer[i];
             if (candidate == null || candidate.transform.IsChildOf(transform)) { continue; }
 
             CustomEnemyAIBase otherEnemy = candidate.GetComponentInParent<CustomEnemyAIBase>();
@@ -324,12 +334,11 @@ public abstract class CustomEnemyAIBase : MonoBehaviour {
 
     private Vector3 FindBestOpenDirection(Vector3 desiredDirection) { if (!TryGetBlockingHit(desiredDirection, obstacleProbeDistance, out _)) { return desiredDirection; }
 
-        float[] testAngles = { 25f, -25f, 45f, -45f, 70f, -70f, 100f, -100f, 135f, -135f };
         Vector3 bestDirection = Vector3.zero;
         float bestScore = float.MinValue;
 
-        for (int i = 0; i < testAngles.Length; i++) {
-            Vector3 candidate = Quaternion.Euler(0f, testAngles[i], 0f) * desiredDirection;
+        for (int i = 0; i < OpenDirectionTestAngles.Length; i++) {
+            Vector3 candidate = Quaternion.Euler(0f, OpenDirectionTestAngles[i], 0f) * desiredDirection;
             float probeDistance = i < 4 ? obstacleSideProbeDistance : obstacleProbeDistance;
             if (TryGetBlockingHit(candidate, probeDistance, out _)) { continue; }
 
@@ -351,19 +360,20 @@ public abstract class CustomEnemyAIBase : MonoBehaviour {
         Vector3 normalizedDirection = direction.normalized;
         GetCapsulePoints(transform.position, out Vector3 bottom, out Vector3 top);
         float radius = Mathf.Max(0.05f, bodyRadius);
-        RaycastHit[] hits = Physics.CapsuleCastAll(
+        int hitCount = Physics.CapsuleCastNonAlloc(
             bottom,
             top,
             radius,
             normalizedDirection,
+            MovementHitBuffer,
             Mathf.Max(0.01f, distance),
             obstacleLayerMask,
             QueryTriggerInteraction.Ignore);
 
         float bestDistance = float.MaxValue;
         bool found = false;
-        for (int i = 0; i < hits.Length; i++) {
-            RaycastHit hit = hits[i];
+        for (int i = 0; i < hitCount; i++) {
+            RaycastHit hit = MovementHitBuffer[i];
             Collider hitCollider = hit.collider;
             if (ShouldIgnoreMovementCollider(hitCollider)) { continue; }
 
@@ -376,15 +386,16 @@ public abstract class CustomEnemyAIBase : MonoBehaviour {
 
     private bool IsOwnSpaceBlocked(Vector3 position) {
         GetCapsulePoints(position, out Vector3 bottom, out Vector3 top);
-        Collider[] overlaps = Physics.OverlapCapsule(
+        int overlapCount = Physics.OverlapCapsuleNonAlloc(
             bottom,
             top,
             Mathf.Max(0.05f, bodyRadius),
+            OwnSpaceOverlapBuffer,
             obstacleLayerMask,
             QueryTriggerInteraction.Ignore);
 
-        for (int i = 0; i < overlaps.Length; i++) {
-            Collider overlap = overlaps[i];
+        for (int i = 0; i < overlapCount; i++) {
+            Collider overlap = OwnSpaceOverlapBuffer[i];
             if (ShouldIgnoreMovementCollider(overlap)) { continue; }
 
             return true; }
@@ -403,17 +414,18 @@ public abstract class CustomEnemyAIBase : MonoBehaviour {
         groundedPosition = position;
         Vector3 rayStart = position + Vector3.up * Mathf.Max(0.1f, groundProbeHeight);
         float rayDistance = Mathf.Max(0.1f, groundProbeHeight + groundProbeDistance);
-        RaycastHit[] hits = Physics.RaycastAll(
+        int hitCount = Physics.RaycastNonAlloc(
             rayStart,
             Vector3.down,
+            GroundHitBuffer,
             rayDistance,
             groundLayerMask,
             QueryTriggerInteraction.Ignore);
 
         float bestY = float.NegativeInfinity;
         bool found = false;
-        for (int i = 0; i < hits.Length; i++) {
-            RaycastHit hit = hits[i];
+        for (int i = 0; i < hitCount; i++) {
+            RaycastHit hit = GroundHitBuffer[i];
             if (ShouldIgnoreGroundCollider(hit.collider) || hit.normal.y < minimumGroundNormalY) { continue; }
 
             if (hit.point.y > bestY) {

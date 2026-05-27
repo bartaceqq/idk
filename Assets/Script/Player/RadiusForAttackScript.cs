@@ -20,23 +20,39 @@ public class RadiusForAttackScript : MonoBehaviour {
     public Vector3 attackOriginLocalOffset = new Vector3(0f, 1f, 1.25f);
     public LayerMask enemyMask = ~0;
     public QueryTriggerInteraction triggerInteraction = QueryTriggerInteraction.Ignore;
+    [SerializeField, Min(0.1f)] private float referenceRefreshInterval = 1f;
+    [SerializeField, Min(0.1f)] private float fallbackTargetRefreshInterval = 0.75f;
     public List<SwordHitProfile> swordHitProfiles = new List<SwordHitProfile>();
 
-    private readonly Collider[] _overlapHits = new Collider[128];
+    private readonly Collider[] _overlapHits = new Collider[256];
     private readonly HashSet<NPCDemageScript> _uniqueTargets = new HashSet<NPCDemageScript>();
     private readonly HashSet<Animalec> _uniqueAnimals = new HashSet<Animalec>();
     private readonly List<HashSet<int>> _windowHitTargetIds = new List<HashSet<int>>();
+    private NPCDemageScript[] _cachedDamageTargets = new NPCDemageScript[0];
+    private Animalec[] _cachedAnimals = new Animalec[0];
+    private float _nextReferenceRefreshTime;
+    private float _nextFallbackTargetRefreshTime;
     private int _trackedSwordStateHash;
     private float _lastTrackedSwordProgress;
 
     private void Awake() {
-        ResolveReferences();
+        ResolveReferences(true);
         EnsureSwordHitProfiles(); }
 
     private void OnValidate() { EnsureSwordHitProfiles(); }
 
     private void Update() { UpdateSwordAttackHits(); }
-    private void ResolveReferences() { if (player == null) { player = gameObject; }
+    private void ResolveReferences(bool force = false) {
+        if (!force &&
+            Time.time < _nextReferenceRefreshTime &&
+            player != null &&
+            enemiesHandler != null &&
+            actionScript != null &&
+            itemSwitchScript != null) { return; }
+
+        _nextReferenceRefreshTime = Time.time + Mathf.Max(0.1f, referenceRefreshInterval);
+
+        if (player == null) { player = gameObject; }
 
         if (enemiesHandler == null) { enemiesHandler = UnitySceneSearch.FindFirst<EnemiesHandler>(false); }
 
@@ -205,7 +221,7 @@ public class RadiusForAttackScript : MonoBehaviour {
 
         return -1; }
     public void Attack() {
-        ResolveReferences();
+        ResolveReferences(true);
         PerformAttackSweep(
             ResolveAttackOrigin(),
             Mathf.Max(0.01f, attackRadius),
@@ -291,7 +307,8 @@ public class RadiusForAttackScript : MonoBehaviour {
 
                 if (fromList != null) { _uniqueTargets.Add(fromList); } } }
 
-        NPCDemageScript[] allDamageTargets = UnitySceneSearch.FindAll<NPCDemageScript>(false);
+        RefreshFallbackTargetCacheIfNeeded();
+        NPCDemageScript[] allDamageTargets = _cachedDamageTargets;
 
         for (int i = 0; i < allDamageTargets.Length; i++) {
             NPCDemageScript damageTarget = allDamageTargets[i];
@@ -300,7 +317,8 @@ public class RadiusForAttackScript : MonoBehaviour {
             Vector3 delta = damageTarget.transform.position - origin;
             if (delta.sqrMagnitude <= radiusSqr) { _uniqueTargets.Add(damageTarget); } } }
     private void CollectAnimalTargetsFromScene(Vector3 origin, float radiusSqr) {
-        Animalec[] allAnimals = UnitySceneSearch.FindAll<Animalec>(false);
+        RefreshFallbackTargetCacheIfNeeded();
+        Animalec[] allAnimals = _cachedAnimals;
 
         for (int i = 0; i < allAnimals.Length; i++) {
             Animalec animal = allAnimals[i];
@@ -308,6 +326,13 @@ public class RadiusForAttackScript : MonoBehaviour {
 
             Vector3 delta = animal.transform.position - origin;
             if (delta.sqrMagnitude <= radiusSqr) { _uniqueAnimals.Add(animal); } } }
+    private void RefreshFallbackTargetCacheIfNeeded() {
+        if (Time.time < _nextFallbackTargetRefreshTime) { return; }
+
+        float refreshInterval = Mathf.Max(0.1f, fallbackTargetRefreshInterval);
+        _nextFallbackTargetRefreshTime = Time.time + refreshInterval;
+        _cachedDamageTargets = UnitySceneSearch.FindAllCached<NPCDemageScript>(refreshInterval, false);
+        _cachedAnimals = UnitySceneSearch.FindAllCached<Animalec>(refreshInterval, false); }
     private static bool MatchesStateName(AnimatorStateInfo state, string stateName) { if (string.IsNullOrWhiteSpace(stateName)) { return false; }
 
         return state.IsName(stateName) || state.IsName($"Base Layer.{stateName}"); }
