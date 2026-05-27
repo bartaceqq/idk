@@ -64,7 +64,7 @@ public class CraftableSlot : MonoBehaviour, IPointerClickHandler {
 
         CacheDefaultBackgroundColor();
         bool shouldHighlight = selected && occupied && craftableItemReference != null;
-        background.color = shouldHighlight ? selectedBackgroundColor : defaultBackgroundColor; }
+        background.color = shouldHighlight ? (Color)selectedBackgroundColor : defaultBackgroundColor; }
     public void OnPointerClick(PointerEventData eventData) { if (eventData != null && eventData.button != PointerEventData.InputButton.Left) { return; }
 
         SelectCraftableItemFromSlot(); }
