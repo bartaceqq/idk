@@ -351,7 +351,8 @@ public class ItemSwitchScript : MonoBehaviour {
     private void ApplyActiveItemPresentation(Item targetItem) { if (targetItem == null) { return; }
 
         targetItem.ApplyDrawnPresentation();
-        SetItemObjectVisible(targetItem, true); }
+        SetItemObjectVisible(targetItem, true);
+        ApplyAxeTierTint(targetItem); }
     private void ApplyHolsteredItemPresentation(Item targetItem) { if (targetItem == null) { return; }
 
         targetItem.ApplyHolsteredPresentation();
@@ -440,4 +441,34 @@ public class ItemSwitchScript : MonoBehaviour {
 
         if (token.Contains("axe")) { return "Axe"; }
 
-        return string.Empty; } }
+        return string.Empty; }
+    private static void ApplyAxeTierTint(Item targetItem) {
+        if (targetItem == null || targetItem.itemobject == null || !TryGetAxeTint(targetItem.name, out Color tint)) { return; }
+
+        Renderer[] renderers = targetItem.itemobject.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++) {
+            Renderer renderer = renderers[i];
+            if (renderer == null) { continue; }
+
+            Material[] materials = renderer.materials;
+            if (materials == null || materials.Length == 0) { continue; }
+
+            Material material = materials[Mathf.Min(1, materials.Length - 1)];
+            if (material == null) { continue; }
+
+            if (material.HasProperty("_BaseColor")) { material.SetColor("_BaseColor", tint); }
+            if (material.HasProperty("_Color")) { material.SetColor("_Color", tint); }
+            return; } }
+    private static bool TryGetAxeTint(string itemName, out Color tint) {
+        tint = Color.white;
+        string token = NormalizeItemName(itemName).Replace(" ", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
+        if (!token.Contains("axe")) { return false; }
+
+        if (token.Contains("flamingore")) { tint = new Color(1f, 0.28f, 0.05f); return true; }
+        if (token.Contains("plasma")) { tint = new Color(0.4f, 0.85f, 1f); return true; }
+        if (token.Contains("radium")) { tint = new Color(0.15f, 1f, 0.2f); return true; }
+        if (token.Contains("diamond")) { tint = new Color(0.3f, 0.9f, 1f); return true; }
+        if (token.Contains("gold")) { tint = new Color(1f, 0.72f, 0.12f); return true; }
+        if (token.Contains("iron")) { tint = new Color(0.62f, 0.68f, 0.72f); return true; }
+        if (token.Contains("stone")) { tint = new Color(0.48f, 0.48f, 0.48f); return true; }
+        return false; } }

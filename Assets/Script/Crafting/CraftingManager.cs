@@ -122,15 +122,20 @@ public class CraftingManager : MonoBehaviour { public static bool IsCraftingOpen
         SetActiveCraftingContext(null, NormalizeStationId(handCraftingStationId)); }
 
     private void RefreshLists() {
+        List<CraftableItem> configuredItems = items != null ? new List<CraftableItem>(items) : new List<CraftableItem>();
         slots.Clear();
         items.Clear();
 
         slots.AddRange(GetComponentsInChildren<CraftableSlot>(true));
-        items.AddRange(GetComponentsInChildren<CraftableItem>(true));
+        AddUniqueCraftableItems(configuredItems);
+        AddUniqueCraftableItems(GetComponentsInChildren<CraftableItem>(true));
 
         slots.RemoveAll(slot => slot == null);
         items.RemoveAll(item => item == null);
         slots.Sort(CompareSlotsForPlacement); }
+    private void AddUniqueCraftableItems(IEnumerable<CraftableItem> craftables) { if (craftables == null) { return; }
+
+        foreach (CraftableItem craftable in craftables) { if (craftable != null && !items.Contains(craftable)) { items.Add(craftable); } } }
 
     private void QueueCheck() { if (_checkQueued) { return; }
 

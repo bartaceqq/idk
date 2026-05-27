@@ -34,11 +34,13 @@ public class TreeHandler : MonoBehaviour {
 
    
     private int chopCount;
+    private int defaultChopsToFall;
     private float nextChopAllowedTime;
     private bool hasFallen;
 
     public void Start() {
          ResolveReferences();
+         defaultChopsToFall = Mathf.Max(1, chopsToFall > 0 ? chopsToFall : counttochop + 1);
          GenerateMaterial(); }
     private void OnValidate() { if (fallTiltDegrees <= 0f) { fallTiltDegrees = InitialFallRotationX; } }
     public void GenerateMaterial() { if (toppart == null || materials == null || materials.Count == 0) { return; }
@@ -65,15 +67,19 @@ public class TreeHandler : MonoBehaviour {
 
         nextChopAllowedTime = Time.time + Mathf.Max(0f, hitCooldownSeconds);
 
-        if (counttochop > 0) {
-            chopCount++;
-            SpawnChopImpact(attacker);
-            counttochop--; } else {
+        int requiredChops = ResolveRequiredChops(attacker);
+        chopCount++;
+        SpawnChopImpact(attacker);
+
+        if (chopCount < requiredChops) {
+            counttochop = Mathf.Max(0, requiredChops - chopCount);
+            return; }
+
             hasFallen = true;
             if (inventoryAddHandler != null && inventoryItem != null) { inventoryAddHandler.AddItemToInventory(inventoryItem); } else { Debug.LogWarning($"{name}: Missing InventoryAddHandler or InventoryItem reference.", this); }
 
             TreeFall(attacker);
-            StartCoroutine(destroyaftertime()); } }
+            StartCoroutine(destroyaftertime()); }
 
     private void ResolveReferences() { if (inventoryItem == null) { inventoryItem = GetComponent<InventoryItem>(); }
 
@@ -174,6 +180,31 @@ public class TreeHandler : MonoBehaviour {
         if (Camera.main != null) { return Camera.main.transform.position; }
 
         return fallbackTreePoint + Vector3.forward; }
+    private int ResolveRequiredChops(Transform attacker) {
+        int tierChops = ResolveAxeTierChops(attacker);
+        if (tierChops > 0) { return tierChops; }
+
+        return Mathf.Max(1, defaultChopsToFall > 0 ? defaultChopsToFall : counttochop + 1); }
+    private static int ResolveAxeTierChops(Transform attacker) {
+        ItemSwitchScript itemSwitchScript = attacker != null ? attacker.GetComponentInParent<ItemSwitchScript>() : null;
+        if (itemSwitchScript == null) { itemSwitchScript = UnitySceneSearch.FindFirst<ItemSwitchScript>(); }
+        if (itemSwitchScript == null) { return 0; }
+
+        string token = NormalizeAxeName(itemSwitchScript.currentitemname);
+        if (!token.Contains("axe")) { return 0; }
+
+        if (token.Contains("flamingore")) { return 1; }
+        if (token.Contains("plasma")) { return 2; }
+        if (token.Contains("radium")) { return 3; }
+        if (token.Contains("diamond")) { return 4; }
+        if (token.Contains("gold")) { return 5; }
+        if (token.Contains("iron")) { return 6; }
+        if (token.Contains("stone")) { return 7; }
+        return 0; }
+    private static string NormalizeAxeName(string itemName) {
+        return string.IsNullOrWhiteSpace(itemName)
+            ? string.Empty
+            : itemName.Trim().Replace(" ", string.Empty).Replace("_", string.Empty).ToLowerInvariant(); }
 
     private static bool TryGetBounds(Transform target, out Bounds bounds) {
         bounds = default;

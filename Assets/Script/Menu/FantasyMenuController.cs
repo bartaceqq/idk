@@ -350,8 +350,7 @@ public sealed class FantasyMenuController : MonoBehaviour {
 
         BindToggle(anisotropicFilteringToggle, OnAnisotropicFilteringChanged);
         BindToggle(bloomToggle, OnBloomChanged);
-        BindToggle(motionBlurToggle, OnMotionBlurChanged);
-        HideAdvancedGraphicsRows(); }
+        BindToggle(motionBlurToggle, OnMotionBlurChanged); }
 
     private void BindKeybindUi() {
         keybindEntries.Clear();

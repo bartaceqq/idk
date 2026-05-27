@@ -22,12 +22,12 @@ public class ResHandler : MonoBehaviour {
     [SerializeField] private bool useRendererCullingFallback;
     [Tooltip("Also cull root-level tree/stone/rock objects that are not under a managed root.")]
     [SerializeField] private bool autoIncludeLooseHeavyObjects = true;
-    [SerializeField, Min(40f)] private float treeRenderDistance = 450f;
-    [SerializeField, Min(20f)] private float treeShadowDistance = 75f;
-    [SerializeField, Range(0.03f, 1f)] private float cullingUpdateInterval = 0.12f;
-    [SerializeField, Min(128)] private int maxObjectsProcessedPerTick = 900;
-    [SerializeField, Min(128)] private int maxRenderersProcessedPerTick = 1000;
-    [SerializeField, Min(256)] private int initialCullBatchSize = 600;
+    [SerializeField, Min(40f)] private float treeRenderDistance = 360f;
+    [SerializeField, Min(20f)] private float treeShadowDistance = 45f;
+    [SerializeField, Range(0.03f, 1f)] private float cullingUpdateInterval = 0.2f;
+    [SerializeField, Min(128)] private int maxObjectsProcessedPerTick = 450;
+    [SerializeField, Min(128)] private int maxRenderersProcessedPerTick = 400;
+    [SerializeField, Min(256)] private int initialCullBatchSize = 400;
 
     [Header("Safety Caps")]
     [SerializeField] private bool enforceDistanceCaps = true;
@@ -39,31 +39,31 @@ public class ResHandler : MonoBehaviour {
     [Header("Global Quality")]
     [SerializeField] private bool applyGlobalQualityClamps = true;
     [SerializeField] private bool applyGlobalShadowDistance = true;
-    [SerializeField, Min(20f)] private float globalShadowDistance = 55f;
-    [SerializeField, Range(0.3f, 2f)] private float qualityLodBias = 0.75f;
-    [SerializeField, Range(0.1f, 1f)] private float terrainDetailDensityScale = 0.35f;
-    [SerializeField, Min(10f)] private float terrainDetailDistance = 28f;
-    [SerializeField, Min(40f)] private float terrainTreeDistance = 500f;
-    [SerializeField, Min(20f)] private float terrainBillboardStart = 80f;
+    [SerializeField, Min(20f)] private float globalShadowDistance = 35f;
+    [SerializeField, Range(0.3f, 2f)] private float qualityLodBias = 0.65f;
+    [SerializeField, Range(0.1f, 1f)] private float terrainDetailDensityScale = 0.25f;
+    [SerializeField, Min(10f)] private float terrainDetailDistance = 18f;
+    [SerializeField, Min(40f)] private float terrainTreeDistance = 360f;
+    [SerializeField, Min(20f)] private float terrainBillboardStart = 55f;
 
     [Header("Lights")]
     [SerializeField] private bool optimizeRealtimeLights = true;
-    [SerializeField, Range(0.05f, 1f)] private float lightsUpdateInterval = 0.15f;
-    [SerializeField, Min(10f)] private float nonDirectionalLightDistance = 45f;
-    [SerializeField, Min(5f)] private float nonDirectionalShadowDistance = 12f;
+    [SerializeField, Range(0.05f, 1f)] private float lightsUpdateInterval = 0.35f;
+    [SerializeField, Min(10f)] private float nonDirectionalLightDistance = 32f;
+    [SerializeField, Min(5f)] private float nonDirectionalShadowDistance = 8f;
     [SerializeField, Min(0)] private int maxShadowedNonDirectionalLights = 0;
     [SerializeField] private bool disableShadowsOnDisabledLights = true;
 
     [Header("Adaptive Runtime")]
-    [SerializeField] private bool adaptiveDistanceByFps = false;
-    [SerializeField, Range(15f, 120f)] private float lowFpsThreshold = 55f;
-    [SerializeField, Range(15f, 180f)] private float highFpsThreshold = 100f;
+    [SerializeField] private bool adaptiveDistanceByFps = true;
+    [SerializeField, Range(15f, 120f)] private float lowFpsThreshold = 58f;
+    [SerializeField, Range(15f, 180f)] private float highFpsThreshold = 75f;
     [SerializeField, Range(0.2f, 3f)] private float adaptiveCheckInterval = 1f;
     [SerializeField, Min(5f)] private float adaptiveStep = 30f;
-    [SerializeField, Min(50f)] private float adaptiveMinRenderDistance = 250f;
-    [SerializeField, Min(80f)] private float adaptiveMaxRenderDistance = 500f;
-    [SerializeField, Min(20f)] private float adaptiveMinShadowDistance = 35f;
-    [SerializeField, Min(40f)] private float adaptiveMaxShadowDistance = 80f;
+    [SerializeField, Min(50f)] private float adaptiveMinRenderDistance = 260f;
+    [SerializeField, Min(80f)] private float adaptiveMaxRenderDistance = 430f;
+    [SerializeField, Min(20f)] private float adaptiveMinShadowDistance = 25f;
+    [SerializeField, Min(40f)] private float adaptiveMaxShadowDistance = 60f;
 
     private readonly List<ManagedObject> _managedObjects = new List<ManagedObject>(8192);
     private readonly List<ManagedRenderer> _managedRenderers = new List<ManagedRenderer>(4096);
@@ -145,7 +145,7 @@ public class ResHandler : MonoBehaviour {
 
     [ContextMenu("Refresh Lights")] public void RefreshLights() { CollectLights(); }
 
-    public void RegisterManagedRoot(Transform root) { if (root == null) { return; }
+    public void RegisterManagedRoot(Transform root) { if (root == null || IsConvertedTerrainObject(root)) { return; }
 
         if (managedRoots == null) { managedRoots = new Transform[0]; }
 
@@ -201,6 +201,8 @@ public class ResHandler : MonoBehaviour {
                 Transform root = managedRoots[i];
                 if (root == null) { continue; }
 
+                if (IsConvertedTerrainObject(root)) { continue; }
+
                 Renderer[] renderers = root.GetComponentsInChildren<Renderer>(includeInactiveChildren);
                 for (int r = 0; r < renderers.Length; r++) {
                     Renderer renderer = renderers[r];
@@ -228,7 +230,7 @@ public class ResHandler : MonoBehaviour {
         Renderer[] renderers = UnitySceneSearch.FindAll<Renderer>(includeInactiveChildren);
         for (int i = 0; i < renderers.Length; i++) {
             Renderer renderer = renderers[i];
-            if (!CanManageRenderer(renderer) || IsUnderManagedRoot(renderer.transform)) { continue; }
+            if (!CanManageRenderer(renderer) || IsUnderManagedRoot(renderer.transform) || IsConvertedTerrainObject(renderer.transform)) { continue; }
 
             Transform heavyRoot = FindHeavyObjectRoot(renderer.transform);
             if (heavyRoot == null) { continue; }
@@ -301,6 +303,14 @@ public class ResHandler : MonoBehaviour {
                string.Equals(objectName, "Trees&stones", System.StringComparison.OrdinalIgnoreCase) ||
                string.Equals(objectName, "Stones", System.StringComparison.OrdinalIgnoreCase) ||
                string.Equals(objectName, "Rocks", System.StringComparison.OrdinalIgnoreCase); }
+
+    private static bool IsConvertedTerrainObject(Transform candidate) {
+        Transform current = candidate;
+        while (current != null) {
+            if (current.name.IndexOf("ConvertedTerrainTrees", System.StringComparison.OrdinalIgnoreCase) >= 0) { return true; }
+            current = current.parent; }
+
+        return false; }
 
     private void RestoreManagedState() {
         for (int i = 0; i < _managedObjects.Count; i++) {
@@ -467,19 +477,29 @@ public class ResHandler : MonoBehaviour {
         if (fps < lowFpsThreshold) {
             treeRenderDistance -= adaptiveStep;
             treeShadowDistance -= adaptiveStep * 0.5f;
+            terrainTreeDistance -= adaptiveStep;
+            terrainDetailDistance -= adaptiveStep * 0.25f;
+            terrainDetailDensityScale -= 0.04f;
             nonDirectionalLightDistance -= adaptiveStep * 0.4f;
             nonDirectionalShadowDistance -= adaptiveStep * 0.3f; } else if (fps > highFpsThreshold) {
             treeRenderDistance += adaptiveStep;
             treeShadowDistance += adaptiveStep * 0.5f;
+            terrainTreeDistance += adaptiveStep;
+            terrainDetailDistance += adaptiveStep * 0.25f;
+            terrainDetailDensityScale += 0.04f;
             nonDirectionalLightDistance += adaptiveStep * 0.4f;
             nonDirectionalShadowDistance += adaptiveStep * 0.3f; }
 
         treeRenderDistance = Mathf.Clamp(treeRenderDistance, adaptiveMinRenderDistance, adaptiveMaxRenderDistance);
         treeShadowDistance = Mathf.Clamp(treeShadowDistance, adaptiveMinShadowDistance, adaptiveMaxShadowDistance);
-        nonDirectionalLightDistance = Mathf.Clamp(nonDirectionalLightDistance, adaptiveMinRenderDistance, adaptiveMaxRenderDistance);
-        nonDirectionalShadowDistance = Mathf.Clamp(nonDirectionalShadowDistance, adaptiveMinShadowDistance, adaptiveMaxShadowDistance);
+        terrainTreeDistance = Mathf.Clamp(terrainTreeDistance, adaptiveMinRenderDistance, adaptiveMaxRenderDistance);
+        terrainDetailDistance = Mathf.Clamp(terrainDetailDistance, 14f, 28f);
+        terrainDetailDensityScale = Mathf.Clamp(terrainDetailDensityScale, 0.18f, 0.35f);
+        nonDirectionalLightDistance = Mathf.Clamp(nonDirectionalLightDistance, 24f, 45f);
+        nonDirectionalShadowDistance = Mathf.Clamp(nonDirectionalShadowDistance, 6f, adaptiveMaxShadowDistance);
 
         ClampRuntimeTuning();
+        ApplyQualityClamps();
 
         if (Mathf.Abs(renderBefore - treeRenderDistance) > 0.1f || Mathf.Abs(shadowBefore - treeShadowDistance) > 0.1f) {
             _nextCullingUpdateTime = 0f;
