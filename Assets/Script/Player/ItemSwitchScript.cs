@@ -352,7 +352,7 @@ public class ItemSwitchScript : MonoBehaviour {
 
         targetItem.ApplyDrawnPresentation();
         SetItemObjectVisible(targetItem, true);
-        ApplyAxeTierTint(targetItem); }
+        ApplyWeaponTierTint(targetItem); }
     private void ApplyHolsteredItemPresentation(Item targetItem) { if (targetItem == null) { return; }
 
         targetItem.ApplyHolsteredPresentation();
@@ -363,7 +363,7 @@ public class ItemSwitchScript : MonoBehaviour {
             return; }
 
         SetItemObjectVisible(targetItem, false); }
-    private bool ShouldShowItemHolstered(Item targetItem) { if (targetItem == null || !targetItem.ShouldRemainVisibleWhenHolstered()) { return false; }
+    private bool ShouldShowItemHolstered(Item targetItem) { if (targetItem == null || !targetItem.ShouldRemainVisibleWhenHolstered() || IsSwordItem(targetItem)) { return false; }
 
         if (!requireWeaponSlotAssignment) { return true; }
 
@@ -442,8 +442,8 @@ public class ItemSwitchScript : MonoBehaviour {
         if (token.Contains("axe")) { return "Axe"; }
 
         return string.Empty; }
-    private static void ApplyAxeTierTint(Item targetItem) {
-        if (targetItem == null || targetItem.itemobject == null || !TryGetAxeTint(targetItem.name, out Color tint)) { return; }
+    private static void ApplyWeaponTierTint(Item targetItem) {
+        if (targetItem == null || targetItem.itemobject == null || !TryGetWeaponTint(targetItem.name, out Color tint)) { return; }
 
         Renderer[] renderers = targetItem.itemobject.GetComponentsInChildren<Renderer>(true);
         for (int i = 0; i < renderers.Length; i++) {
@@ -459,10 +459,10 @@ public class ItemSwitchScript : MonoBehaviour {
             if (material.HasProperty("_BaseColor")) { material.SetColor("_BaseColor", tint); }
             if (material.HasProperty("_Color")) { material.SetColor("_Color", tint); }
             return; } }
-    private static bool TryGetAxeTint(string itemName, out Color tint) {
+    private static bool TryGetWeaponTint(string itemName, out Color tint) {
         tint = Color.white;
         string token = NormalizeItemName(itemName).Replace(" ", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
-        if (!token.Contains("axe")) { return false; }
+        if (!token.Contains("axe") && !token.Contains("sword")) { return false; }
 
         if (token.Contains("flamingore")) { tint = new Color(1f, 0.28f, 0.05f); return true; }
         if (token.Contains("plasma")) { tint = new Color(0.4f, 0.85f, 1f); return true; }
