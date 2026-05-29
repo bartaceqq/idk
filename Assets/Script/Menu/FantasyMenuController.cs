@@ -7,7 +7,8 @@ public sealed class FantasyMenuController : MonoBehaviour {
         Display,
         Keybind,
         Audio,
-        Graphics }
+        Graphics,
+        Distance }
 
     private struct KeybindEntry {
         public string KeyId;
@@ -61,10 +62,12 @@ public sealed class FantasyMenuController : MonoBehaviour {
     [SerializeField] private Button keybindTabButton;
     [SerializeField] private Button audioTabButton;
     [SerializeField] private Button graphicsTabButton;
+    [SerializeField] private Button distanceTabButton;
     [SerializeField] private Image displayTabImage;
     [SerializeField] private Image keybindTabImage;
     [SerializeField] private Image audioTabImage;
     [SerializeField] private Image graphicsTabImage;
+    [SerializeField] private Image distanceTabImage;
     [SerializeField] private Sprite tabNormalSprite;
     [SerializeField] private Sprite tabActiveSprite;
     [SerializeField] private Color tabNormalColor = new Color(0.29f, 0.20f, 0.12f, 1f);
@@ -73,6 +76,7 @@ public sealed class FantasyMenuController : MonoBehaviour {
     [SerializeField] private GameObject keybindTabContent;
     [SerializeField] private GameObject audioTabContent;
     [SerializeField] private GameObject graphicsTabContent;
+    [SerializeField] private GameObject distanceTabContent;
     [SerializeField] private TMP_Text settingsStatusText;
 
     [Header("Credits")]
@@ -218,6 +222,7 @@ public sealed class FantasyMenuController : MonoBehaviour {
 
     private void BindUi() {
         EnsureSettingsFooterButtons();
+        EnsureDistanceTab();
 
         BindButton(newGameButton, () => LoadGameplayScene(true));
         BindButton(continueButton, ContinueGame);
@@ -235,6 +240,7 @@ public sealed class FantasyMenuController : MonoBehaviour {
         BindButton(keybindTabButton, () => ShowTab(SettingsTab.Keybind));
         BindButton(audioTabButton, () => ShowTab(SettingsTab.Audio));
         BindButton(graphicsTabButton, () => ShowTab(SettingsTab.Graphics));
+        BindButton(distanceTabButton, () => ShowTab(SettingsTab.Distance));
 
         BindButton(creditsBackButton, ShowMain);
 
@@ -318,6 +324,70 @@ public sealed class FantasyMenuController : MonoBehaviour {
 
         TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
         if (label != null) { label.text = labelText; } }
+
+    private void EnsureDistanceTab() {
+        if (distanceTabButton == null && graphicsTabButton != null) {
+            distanceTabButton = Instantiate(graphicsTabButton, graphicsTabButton.transform.parent);
+            distanceTabButton.name = "Distance Tab";
+            SetButtonLabel(distanceTabButton, "Distance"); }
+
+        if (distanceTabImage == null && distanceTabButton != null) { distanceTabImage = distanceTabButton.image; }
+
+        if (distanceTabContent != null || graphicsTabContent == null || viewDistanceSlider == null) { return; }
+
+        Transform viewDistanceRow = FindSettingsRow(viewDistanceSlider.transform);
+        if (viewDistanceRow == null) { return; }
+
+        RectTransform sourceRect = graphicsTabContent.GetComponent<RectTransform>();
+        if (sourceRect == null || sourceRect.parent == null) { return; }
+
+        GameObject contentObject = new GameObject("Distance Tab Content", typeof(RectTransform));
+        RectTransform contentRect = contentObject.GetComponent<RectTransform>();
+        contentRect.SetParent(sourceRect.parent, false);
+        CopyRectTransformLayout(sourceRect, contentRect);
+
+        VerticalLayoutGroup layout = contentObject.AddComponent<VerticalLayoutGroup>();
+        layout.spacing = 12f;
+        layout.padding = new RectOffset(0, 0, 0, 0);
+        layout.childControlHeight = true;
+        layout.childControlWidth = true;
+        layout.childForceExpandHeight = false;
+        layout.childForceExpandWidth = true;
+        layout.childAlignment = TextAnchor.UpperLeft;
+
+        SetSettingsRowLabel(viewDistanceRow, "Object Range");
+        viewDistanceRow.SetParent(contentRect, false);
+        viewDistanceRow.gameObject.SetActive(true);
+        distanceTabContent = contentObject; }
+
+    private static void CopyRectTransformLayout(RectTransform source, RectTransform target) {
+        target.anchorMin = source.anchorMin;
+        target.anchorMax = source.anchorMax;
+        target.pivot = source.pivot;
+        target.offsetMin = source.offsetMin;
+        target.offsetMax = source.offsetMax;
+        target.localScale = source.localScale;
+        target.localRotation = source.localRotation;
+        target.anchoredPosition = source.anchoredPosition;
+        target.sizeDelta = source.sizeDelta; }
+
+    private static void SetSettingsRowLabel(Transform row, string labelText) {
+        if (row == null) { return; }
+
+        TMP_Text[] labels = row.GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < labels.Length; i++) {
+            TMP_Text label = labels[i];
+            if (label != null && label.name == "Label Text") {
+                label.text = labelText;
+                return; } } }
+
+    private static Transform FindSettingsRow(Transform control) {
+        Transform current = control;
+        while (current != null) {
+            if (current.name.EndsWith(" Row", StringComparison.Ordinal)) { return current; }
+            current = current.parent; }
+
+        return null; }
 
     private static void BindButton(Button button, UnityAction action) { if (button == null) { return; }
 
@@ -497,13 +567,16 @@ public sealed class FantasyMenuController : MonoBehaviour {
 
         if (graphicsTabContent != null) { graphicsTabContent.SetActive(tab == SettingsTab.Graphics); }
 
+        if (distanceTabContent != null) { distanceTabContent.SetActive(tab == SettingsTab.Distance); }
+
         UpdateTabVisuals(); }
 
     private void UpdateTabVisuals() {
         SetTabSprite(displayTabImage, currentTab == SettingsTab.Display);
         SetTabSprite(keybindTabImage, currentTab == SettingsTab.Keybind);
         SetTabSprite(audioTabImage, currentTab == SettingsTab.Audio);
-        SetTabSprite(graphicsTabImage, currentTab == SettingsTab.Graphics); }
+        SetTabSprite(graphicsTabImage, currentTab == SettingsTab.Graphics);
+        SetTabSprite(distanceTabImage, currentTab == SettingsTab.Distance); }
 
     private void SetTabSprite(Image image, bool isActive) { if (image == null) { return; }
 
@@ -594,7 +667,7 @@ public sealed class FantasyMenuController : MonoBehaviour {
 
         SetupSlider(renderScaleSlider, 0.5f, 1.5f, false, GameSettings.RenderScale);
         SetupSlider(shadowDistanceSlider, 0f, 500f, false, GameSettings.ShadowDistance);
-        SetupSlider(viewDistanceSlider, 0.45f, 2f, false, GameSettings.ViewDistance);
+        SetupSlider(viewDistanceSlider, GameSettings.ViewDistanceMin, GameSettings.ViewDistanceMax, false, GameSettings.ViewDistance);
 
         if (anisotropicFilteringToggle != null) { anisotropicFilteringToggle.isOn = GameSettings.AnisotropicFiltering; }
 
@@ -702,7 +775,7 @@ public sealed class FantasyMenuController : MonoBehaviour {
         GameSettings.ViewDistance = value;
         GameSettings.ApplyGraphicsSettings();
         GameSettings.NotifyChanged();
-        MarkSettingsDirty($"View distance {value:0.00}x."); }
+        MarkSettingsDirty($"Object range {value:0.00}x."); }
 
     private void OnAnisotropicFilteringChanged(bool value) { if (suppressCallbacks) { return; }
 
@@ -817,8 +890,6 @@ public sealed class FantasyMenuController : MonoBehaviour {
         SetGraphicsRowVisible(textureQualityNextButton, false);
         SetGraphicsRowVisible(textureQualityValueText, false);
         SetGraphicsRowVisible(anisotropicFilteringToggle, false);
-        SetGraphicsRowVisible(viewDistanceSlider, false);
-        SetGraphicsRowVisible(viewDistanceValueText, false);
         SetGraphicsRowVisible(bloomToggle, false);
         SetGraphicsRowVisible(motionBlurToggle, false); }
 

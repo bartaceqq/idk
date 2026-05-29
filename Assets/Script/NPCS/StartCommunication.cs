@@ -38,10 +38,34 @@ public class StartCommunication : MonoBehaviour {
             if (allowAdvanceWithInteractionKey) { dialogueRunner.RequestNextLine(); }
             return; }
 
-        string nodeName = string.IsNullOrWhiteSpace(yarnStartNode) ? "Start" : yarnStartNode.Trim();
+        string nodeName = ResolveYarnNodeName();
         FaceTarget(player);
         SetTalkingAnimation(true);
         _ = dialogueRunner.StartDialogue(nodeName); }
+    private string ResolveYarnNodeName() {
+        string configuredNode = string.IsNullOrWhiteSpace(yarnStartNode) ? "Start" : yarnStartNode.Trim();
+        string objectNode = NormalizeYarnNodeName(gameObject.name);
+
+        if (!string.Equals(configuredNode, "Start", System.StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrEmpty(objectNode)) { return configuredNode; }
+
+        return HasYarnNode(objectNode) ? objectNode : configuredNode; }
+    private bool HasYarnNode(string nodeName) {
+        if (dialogueRunner == null || dialogueRunner.YarnProject == null || string.IsNullOrWhiteSpace(nodeName)) { return false; }
+
+        try {
+            string[] nodeNames = dialogueRunner.YarnProject.NodeNames;
+            for (int i = 0; i < nodeNames.Length; i++) {
+                if (string.Equals(nodeNames[i], nodeName, System.StringComparison.Ordinal)) { return true; } }
+
+            return false; } catch (System.Exception) { return false; } }
+    private static string NormalizeYarnNodeName(string rawName) {
+        if (string.IsNullOrWhiteSpace(rawName)) { return string.Empty; }
+
+        string normalized = rawName.Trim();
+        if (normalized.EndsWith("(Clone)", System.StringComparison.OrdinalIgnoreCase)) { normalized = normalized.Substring(0, normalized.Length - "(Clone)".Length).Trim(); }
+
+        return normalized.Replace(" ", string.Empty); }
     private void HandleOutOfRange() {
         if (stopDialogueWhenOutOfRange && !_stopRequestedDueToRange && IsDialogueRunning() && dialogueRunner != null) {
             _stopRequestedDueToRange = true;

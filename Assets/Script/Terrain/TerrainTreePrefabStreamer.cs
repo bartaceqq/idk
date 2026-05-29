@@ -4,6 +4,9 @@ using UnityEditor;
 #endif
 
 public class TerrainTreePrefabStreamer : MonoBehaviour {
+    private const float BaseActivateRadius = 60f;
+    private const float BaseDeactivateRadius = 90f;
+
     [SerializeField] private Terrain targetTerrain;
     [SerializeField] private Transform convertedRoot;
     [SerializeField] private Transform player;
@@ -43,8 +46,20 @@ public class TerrainTreePrefabStreamer : MonoBehaviour {
     private IEnumerator Start() {
         if (!Application.isPlaying) { yield break; }
 
+        ApplyViewDistanceMultiplier(GameSettings.ViewDistance);
         yield return null;
         Initialize(); }
+
+    public void ApplyViewDistanceMultiplier(float multiplier) {
+        float viewDistance = Mathf.Clamp(multiplier, GameSettings.ViewDistanceMin, GameSettings.ViewDistanceMax);
+        activateRadius = Mathf.Max(1f, BaseActivateRadius * viewDistance);
+        deactivateRadius = Mathf.Max(activateRadius + 1f, BaseDeactivateRadius * viewDistance);
+        RefreshDistanceSquares();
+
+        if (_initialized) {
+            _terrainDirty = true;
+            _nextUpdateTime = 0f;
+            _nextTerrainRefreshTime = 0f; } }
 
     private void Update() {
         if (!_initialized || targetTerrain == null || player == null) { return; }
@@ -79,8 +94,7 @@ public class TerrainTreePrefabStreamer : MonoBehaviour {
         if (_runtimeTerrainData == null) { return; }
 
         _baseTreeInstances = _runtimeTerrainData.treeInstances ?? new TreeInstance[0];
-        _activateRadiusSqr = activateRadius * activateRadius;
-        _deactivateRadiusSqr = Mathf.Max(deactivateRadius, activateRadius) * Mathf.Max(deactivateRadius, activateRadius);
+        RefreshDistanceSquares();
         BuildRecords();
         _initialized = true;
         _terrainDirty = true;
@@ -204,6 +218,11 @@ public class TerrainTreePrefabStreamer : MonoBehaviour {
         Vector3 delta = position - player.position;
         delta.y = 0f;
         return delta.sqrMagnitude <= radiusSqr; }
+
+    private void RefreshDistanceSquares() {
+        _activateRadiusSqr = activateRadius * activateRadius;
+        float safeDeactivateRadius = Mathf.Max(deactivateRadius, activateRadius);
+        _deactivateRadiusSqr = safeDeactivateRadius * safeDeactivateRadius; }
 
     private static Dictionary<string, int> BuildPrototypeNameMap(TreePrototype[] prototypes) {
         Dictionary<string, int> map = new Dictionary<string, int>();

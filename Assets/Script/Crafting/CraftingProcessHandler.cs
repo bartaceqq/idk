@@ -197,9 +197,13 @@ public class CraftingProcessHandler : MonoBehaviour {
         Dictionary<string, int> availableByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         if (list == null) { return availableByName; }
 
-        foreach (KeyValuePair<InventoryItem, int> pair in list) { if (pair.Key == null || pair.Value <= 0 || string.IsNullOrWhiteSpace(pair.Key.name)) { continue; }
+        foreach (KeyValuePair<InventoryItem, int> pair in list) { if (pair.Key == null || pair.Value <= 0) { continue; }
 
-            string key = pair.Key.name.Trim();
+            string key = !string.IsNullOrWhiteSpace(pair.Key.nameofitem)
+                ? pair.Key.nameofitem.Trim()
+                : pair.Key.name.Trim();
+            if (string.IsNullOrWhiteSpace(key)) { continue; }
+
             if (availableByName.TryGetValue(key, out int currentAmount)) { availableByName[key] = currentAmount + pair.Value; } else { availableByName[key] = pair.Value; } }
 
         return availableByName; }

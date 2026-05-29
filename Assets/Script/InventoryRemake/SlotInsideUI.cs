@@ -89,11 +89,9 @@ public class SlotInsideUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         RefreshView(); }
     private bool IsSameItem(SlotInsideUI other) { if (other == null || other.Item == null || Item == null) { return false; }
 
-        if (Item == other.Item) { return true; }
-
         string thisName = !string.IsNullOrWhiteSpace(nameofslot) ? nameofslot : Item.nameofitem;
         string otherName = !string.IsNullOrWhiteSpace(other.nameofslot) ? other.nameofslot : other.Item.nameofitem;
-        if (string.IsNullOrWhiteSpace(thisName) || string.IsNullOrWhiteSpace(otherName)) { return false; }
+        if (string.IsNullOrWhiteSpace(thisName) || string.IsNullOrWhiteSpace(otherName)) { return Item == other.Item; }
 
         return string.Equals(thisName.Trim(), otherName.Trim(), System.StringComparison.OrdinalIgnoreCase); }
     private void TryActivateInventoryBuilding() { if (!InventoryManager.IsInventoryOpen || !HasItem()) { return; }

@@ -224,7 +224,7 @@ public static class TerrainPerformanceFixTools
             changed |= SetFloatIfDifferent(() => terrain.treeDistance, value => terrain.treeDistance = value, 1200f);
             changed |= SetFloatIfDifferent(() => terrain.treeBillboardDistance, value => terrain.treeBillboardDistance = value, 80f);
             changed |= SetIntIfDifferent(() => terrain.treeMaximumFullLODCount, value => terrain.treeMaximumFullLODCount = value, 40);
-            changed |= SetFloatIfDifferent(() => terrain.detailObjectDistance, value => terrain.detailObjectDistance = value, 35f);
+            changed |= SetFloatIfDifferent(() => terrain.detailObjectDistance, value => terrain.detailObjectDistance = value, GameSettings.LockedTerrainDetailDistance);
             changed |= SetFloatIfDifferent(() => terrain.detailObjectDensity, value => terrain.detailObjectDensity = value, 0.35f);
             changed |= SetFloatIfDifferent(() => terrain.heightmapPixelError, value => terrain.heightmapPixelError = value, 10f);
             changed |= SetBoolIfDifferent(() => terrain.drawInstanced, value => terrain.drawInstanced = value, true);
@@ -389,7 +389,6 @@ public static class TerrainPerformanceFixTools
         changed |= SetFloat(serializedOptimizer, "globalShadowDistance", 30f);
         changed |= SetFloat(serializedOptimizer, "qualityLodBias", 0.8f);
         changed |= SetFloat(serializedOptimizer, "terrainDetailDensityScale", 0.35f);
-        changed |= SetFloat(serializedOptimizer, "terrainDetailDistance", 35f);
         changed |= SetFloat(serializedOptimizer, "terrainTreeDistance", 1200f);
         changed |= SetFloat(serializedOptimizer, "terrainBillboardStart", 60f);
 

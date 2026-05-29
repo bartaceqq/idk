@@ -32,7 +32,11 @@ public static class GameSettings {
     public const string Prefix = "onemorenight.settings.";
 
     private const string VersionKey = Prefix + "version";
-    private const int Version = 1;
+    private const int Version = 2;
+    public const float ViewDistanceMin = 0.2f;
+    public const float ViewDistanceMax = 8f;
+    public const float DefaultViewDistance = 2f;
+    public const float LockedTerrainDetailDistance = 100f;
     private static readonly string[] GraphicsPresetNames = { "Low", "Normal", "High", "Extreme" };
 
     private static readonly Dictionary<string, KeyCode> DefaultKeys = new Dictionary<string, KeyCode> {
@@ -128,8 +132,8 @@ public static class GameSettings {
         set => SetBool("graphics.anisotropicFiltering", value); }
 
     public static float ViewDistance {
-        get => GetFloat("graphics.viewDistance", 1f);
-        set => SetFloat("graphics.viewDistance", Mathf.Clamp(value, 0.45f, 2f)); }
+        get => GetFloat("graphics.viewDistance", DefaultViewDistance);
+        set => SetFloat("graphics.viewDistance", Mathf.Clamp(value, ViewDistanceMin, ViewDistanceMax)); }
 
     public static bool Bloom {
         get => GetBool("graphics.bloom", true);
@@ -159,7 +163,13 @@ public static class GameSettings {
         get => GetBool("audio.muted", false);
         set => SetBool("audio.muted", value); }
 
-    public static void EnsureDefaults() { if (PlayerPrefs.GetInt(VersionKey, 0) == Version) { return; }
+    public static void EnsureDefaults() {
+        int storedVersion = PlayerPrefs.GetInt(VersionKey, 0);
+        if (storedVersion == Version) { return; }
+
+        if (storedVersion > 0) {
+            MigrateSettings(storedVersion);
+            return; }
 
         ResolutionWidth = Screen.currentResolution.width > 0 ? Screen.currentResolution.width : 1920;
         ResolutionHeight = Screen.currentResolution.height > 0 ? Screen.currentResolution.height : 1080;
@@ -179,6 +189,12 @@ public static class GameSettings {
         Muted = false;
 
         foreach (KeyValuePair<string, KeyCode> binding in DefaultKeys) { SetKey(binding.Key, binding.Value, false); }
+
+        PlayerPrefs.SetInt(VersionKey, Version);
+        PlayerPrefs.Save(); }
+
+    private static void MigrateSettings(int storedVersion) {
+        if (storedVersion < 2 && ViewDistance < DefaultViewDistance) { ViewDistance = DefaultViewDistance; }
 
         PlayerPrefs.SetInt(VersionKey, Version);
         PlayerPrefs.Save(); }
@@ -248,6 +264,7 @@ public static class GameSettings {
 
         SetTextureMipmapLimit(TextureQuality);
         ApplyRenderPipelineSettings();
+        ApplyViewDistanceSettingsToScene();
         ApplyCameraSettingsToScene();
         ApplyVolumeComponentState("Bloom", Bloom);
         ApplyVolumeComponentState("MotionBlur", MotionBlur); }
@@ -426,7 +443,7 @@ public static class GameSettings {
                 ShadowDistance = 25f;
                 TextureQuality = 2;
                 AnisotropicFiltering = false;
-                ViewDistance = 0.6f;
+                ViewDistance = 0.4f;
                 Bloom = false;
                 MotionBlur = false;
                 break;
@@ -437,7 +454,7 @@ public static class GameSettings {
                 ShadowDistance = 75f;
                 TextureQuality = 1;
                 AnisotropicFiltering = true;
-                ViewDistance = 0.9f;
+                ViewDistance = DefaultViewDistance;
                 Bloom = true;
                 MotionBlur = false;
                 break;
@@ -448,7 +465,7 @@ public static class GameSettings {
                 ShadowDistance = 150f;
                 TextureQuality = 0;
                 AnisotropicFiltering = true;
-                ViewDistance = 1.25f;
+                ViewDistance = 4f;
                 Bloom = true;
                 MotionBlur = false;
                 break;
@@ -459,7 +476,7 @@ public static class GameSettings {
                 ShadowDistance = 300f;
                 TextureQuality = 0;
                 AnisotropicFiltering = true;
-                ViewDistance = 1.75f;
+                ViewDistance = ViewDistanceMax;
                 Bloom = true;
                 MotionBlur = true;
                 break; } }
@@ -603,9 +620,26 @@ public static class GameSettings {
             // Some render pipeline properties are editor-only or validated internally.
         } }
 
+    private static void ApplyViewDistanceSettingsToScene() {
+        float viewDistance = ViewDistance;
+        Terrain[] terrains = Terrain.activeTerrains;
+        for (int i = 0; i < terrains.Length; i++) {
+            Terrain terrain = terrains[i];
+            if (terrain == null) { continue; }
+
+            terrain.treeDistance = Mathf.Clamp(360f * viewDistance, 40f, 3000f);
+            terrain.treeBillboardDistance = Mathf.Clamp(55f * Mathf.Sqrt(viewDistance), 15f, 700f);
+            terrain.detailObjectDistance = LockedTerrainDetailDistance; }
+
+        TerrainTreePrefabStreamer[] streamers = UnitySceneSearch.FindAll<TerrainTreePrefabStreamer>();
+        for (int i = 0; i < streamers.Length; i++) { if (streamers[i] != null) { streamers[i].ApplyViewDistanceMultiplier(viewDistance); } }
+
+        ResHandler[] resourceHandlers = UnitySceneSearch.FindAll<ResHandler>();
+        for (int i = 0; i < resourceHandlers.Length; i++) { if (resourceHandlers[i] != null) { resourceHandlers[i].ApplyViewDistanceMultiplier(viewDistance); } } }
+
     private static void ApplyCameraSettingsToScene() {
         Camera[] cameras = UnitySceneSearch.FindAll<Camera>();
-        float farClip = Mathf.Lerp(180f, 900f, Mathf.InverseLerp(0.45f, 2f, ViewDistance));
+        float farClip = Mathf.Clamp(700f * ViewDistance, 120f, 5000f);
         for (int i = 0; i < cameras.Length; i++) {
             Camera camera = cameras[i];
             if (camera != null && camera.farClipPlane > 10f) { camera.farClipPlane = Mathf.Max(camera.nearClipPlane + 10f, farClip); } } }

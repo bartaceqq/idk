@@ -113,6 +113,24 @@ public class ItemSwitchScript : MonoBehaviour {
             if (string.Equals(NormalizeItemName(candidate.name), normalized, System.StringComparison.OrdinalIgnoreCase)) { return true; } }
 
         return false; }
+    public bool TryResolveFirstWeaponByCategory(string weaponCategory, out string resolvedName) {
+        resolvedName = string.Empty;
+        string mappedCategory = MapCommonWeaponName(weaponCategory);
+        if (string.IsNullOrEmpty(mappedCategory)) { return false; }
+
+        for (int i = 0; i < items.Count; i++) {
+            Item candidate = items[i];
+            if (candidate == null) { continue; }
+
+            string candidateName = NormalizeItemName(candidate.name);
+            if (string.IsNullOrEmpty(candidateName)) { continue; }
+
+            if (!string.Equals(MapCommonWeaponName(candidateName), mappedCategory, System.StringComparison.OrdinalIgnoreCase)) { continue; }
+
+            resolvedName = candidateName;
+            return true; }
+
+        return false; }
     public bool TryGetEquippedSword(out Sword equippedSword) {
         equippedSword = null;
         if (Sword.TryResolve(item, out equippedSword)) { return true; }

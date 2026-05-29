@@ -7,7 +7,7 @@ public class InventoryListHandler : MonoBehaviour {
     public void AddItem(InventoryItem inventoryItem, int amount) {
         if (inventoryItem == null || amount <= 0) { return; }
 
-        InventoryItem itemKey = ResolveOrRegisterItemKey(inventoryItem.name, inventoryItem);
+        InventoryItem itemKey = ResolveOrRegisterItemKey(GetInventoryItemName(inventoryItem), inventoryItem);
         AddAmount(itemKey, amount); }
     public void RebuildFromSlots(List<Slot> slots) {
         itemlist.Clear();
@@ -34,12 +34,16 @@ public class InventoryListHandler : MonoBehaviour {
     private InventoryItem ResolveItemKeyFromSlot(Slot slot) {
         if (slot == null) { return null; }
 
+        string slotName = NormalizeItemName(slot.itemName);
+
         // Optional compatibility path: use Slot.inventoryItemReference when present.
         if (SlotItemReferenceField != null) {
             InventoryItem slotReference = SlotItemReferenceField.GetValue(slot) as InventoryItem;
-            if (slotReference != null) { return ResolveOrRegisterItemKey(slotReference.name, slotReference); } }
+            if (slotReference != null) {
+                string referenceName = GetInventoryItemName(slotReference);
+                if (string.IsNullOrEmpty(slotName) || string.Equals(slotName, referenceName, System.StringComparison.OrdinalIgnoreCase)) { return ResolveOrRegisterItemKey(referenceName, slotReference); } } }
 
-        return ResolveOrRegisterItemKey(slot.itemName, null); }
+        return ResolveOrRegisterItemKey(slotName, null); }
     private InventoryItem ResolveOrRegisterItemKey(string itemName, InventoryItem preferredItem) {
         string normalizedName = NormalizeItemName(itemName);
         if (string.IsNullOrEmpty(normalizedName)) { return preferredItem; }
@@ -54,6 +58,12 @@ public class InventoryListHandler : MonoBehaviour {
         if (foundItem != null) { itemKeyByName[normalizedName] = foundItem; }
 
         return foundItem; }
+    private static string GetInventoryItemName(InventoryItem inventoryItem) { if (inventoryItem == null) { return string.Empty; }
+
+        string itemName = NormalizeItemName(inventoryItem.nameofitem);
+        if (!string.IsNullOrEmpty(itemName)) { return itemName; }
+
+        return NormalizeItemName(inventoryItem.name); }
     private static string NormalizeItemName(string itemName) {
         if (string.IsNullOrWhiteSpace(itemName)) { return string.Empty; }
 
@@ -67,6 +77,7 @@ public class InventoryListHandler : MonoBehaviour {
             InventoryItem candidate = allItems[i];
             if (candidate == null) { continue; }
 
-            if (string.Equals(NormalizeItemName(candidate.name), normalizedItemName, System.StringComparison.OrdinalIgnoreCase)) { return candidate; } }
+            if (string.Equals(NormalizeItemName(candidate.nameofitem), normalizedItemName, System.StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(NormalizeItemName(candidate.name), normalizedItemName, System.StringComparison.OrdinalIgnoreCase)) { return candidate; } }
 
         return null; } }

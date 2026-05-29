@@ -51,14 +51,17 @@ public static class MainMenuSceneBuilder
         public Button KeybindTabButton;
         public Button AudioTabButton;
         public Button GraphicsTabButton;
+        public Button DistanceTabButton;
         public Image DisplayTabImage;
         public Image KeybindTabImage;
         public Image AudioTabImage;
         public Image GraphicsTabImage;
+        public Image DistanceTabImage;
         public GameObject DisplayTabContent;
         public GameObject KeybindTabContent;
         public GameObject AudioTabContent;
         public GameObject GraphicsTabContent;
+        public GameObject DistanceTabContent;
         public TMP_Text StatusText;
         public Button ResolutionPreviousButton;
         public Button ResolutionNextButton;
@@ -415,11 +418,13 @@ public static class MainMenuSceneBuilder
         refs.KeybindTabButton = CreateFlatButton(tabsRow, "Keybind Tab", "Keybind", font, false, 64f, 0f);
         refs.AudioTabButton = CreateFlatButton(tabsRow, "Audio Tab", "Audio", font, false, 64f, 0f);
         refs.GraphicsTabButton = CreateFlatButton(tabsRow, "Graphics Tab", "Graphics", font, false, 64f, 0f);
+        refs.DistanceTabButton = CreateFlatButton(tabsRow, "Distance Tab", "Distance", font, false, 64f, 0f);
 
         refs.DisplayTabImage = refs.DisplayTabButton.image;
         refs.KeybindTabImage = refs.KeybindTabButton.image;
         refs.AudioTabImage = refs.AudioTabButton.image;
         refs.GraphicsTabImage = refs.GraphicsTabButton.image;
+        refs.DistanceTabImage = refs.DistanceTabButton.image;
 
         Image contentPanel = CreateImage("Settings Content Panel", settingsFrame, panelSprite, new Color(0.57f, 0.47f, 0.32f, 0.92f), false);
         contentPanel.type = Image.Type.Sliced;
@@ -444,20 +449,26 @@ public static class MainMenuSceneBuilder
         RectTransform graphicsContent = CreateRect("Graphics Tab Content", tabContentRoot);
         StretchRect(graphicsContent);
 
+        RectTransform distanceContent = CreateRect("Distance Tab Content", tabContentRoot);
+        StretchRect(distanceContent);
+
         RectTransform displayScrollContent = CreateScrollableTabContent(displayContent, panelSprite);
         RectTransform keybindScrollContent = CreateScrollableTabContent(keybindContent, panelSprite);
         RectTransform audioScrollContent = CreateScrollableTabContent(audioContent, panelSprite);
         RectTransform graphicsScrollContent = CreateScrollableTabContent(graphicsContent, panelSprite);
+        RectTransform distanceScrollContent = CreateScrollableTabContent(distanceContent, panelSprite);
 
         BuildDisplayTabContent(displayScrollContent, font, panelSprite, knobSprite, refs);
         BuildKeybindTabContent(keybindScrollContent, font, panelSprite, refs);
         BuildAudioTabContent(audioScrollContent, font, panelSprite, knobSprite, refs);
         BuildGraphicsTabContent(graphicsScrollContent, font, panelSprite, knobSprite, refs);
+        BuildDistanceTabContent(distanceScrollContent, font, panelSprite, knobSprite, refs);
 
         refs.DisplayTabContent = displayContent.gameObject;
         refs.KeybindTabContent = keybindContent.gameObject;
         refs.AudioTabContent = audioContent.gameObject;
         refs.GraphicsTabContent = graphicsContent.gameObject;
+        refs.DistanceTabContent = distanceContent.gameObject;
 
         TMP_Text status = CreateText(
             "Settings Status Text",
@@ -714,8 +725,6 @@ public static class MainMenuSceneBuilder
         refs.AnisotropicFilteringToggle = CreateFlatToggle(anisotropicControls, "Anisotropic Filtering Toggle", panelSprite, true);
         AddFlexibleSpacer(anisotropicControls);
 
-        CreateSliderValueRow(parent, font, panelSprite, knobSprite, "View Distance", out refs.ViewDistanceSlider, out refs.ViewDistanceValueText);
-
         RectTransform bloomRow = CreateSettingsRow(parent, font, panelSprite, "Bloom");
         RectTransform bloomControls = CreateRowControlContainer(bloomRow);
         refs.BloomToggle = CreateFlatToggle(bloomControls, "Bloom Toggle", panelSprite, true);
@@ -725,6 +734,25 @@ public static class MainMenuSceneBuilder
         RectTransform blurControls = CreateRowControlContainer(blurRow);
         refs.MotionBlurToggle = CreateFlatToggle(blurControls, "Motion Blur Toggle", panelSprite, false);
         AddFlexibleSpacer(blurControls);
+    }
+
+    private static void BuildDistanceTabContent(
+        RectTransform parent,
+        TMP_FontAsset font,
+        Sprite panelSprite,
+        Sprite knobSprite,
+        SettingsMenuRefs refs)
+    {
+        VerticalLayoutGroup layout = parent.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.spacing = 12f;
+        layout.padding = new RectOffset(0, 0, 0, 0);
+        layout.childControlHeight = true;
+        layout.childControlWidth = true;
+        layout.childForceExpandHeight = false;
+        layout.childForceExpandWidth = true;
+        layout.childAlignment = TextAnchor.UpperLeft;
+
+        CreateSliderValueRow(parent, font, panelSprite, knobSprite, "Object Range", out refs.ViewDistanceSlider, out refs.ViewDistanceValueText);
     }
 
     private static RectTransform CreateScrollableTabContent(RectTransform tabRoot, Sprite panelSprite)
@@ -1620,10 +1648,12 @@ public static class MainMenuSceneBuilder
         SetObject(serializedController, "keybindTabButton", settingsRefs.KeybindTabButton);
         SetObject(serializedController, "audioTabButton", settingsRefs.AudioTabButton);
         SetObject(serializedController, "graphicsTabButton", settingsRefs.GraphicsTabButton);
+        SetObject(serializedController, "distanceTabButton", settingsRefs.DistanceTabButton);
         SetObject(serializedController, "displayTabImage", settingsRefs.DisplayTabImage);
         SetObject(serializedController, "keybindTabImage", settingsRefs.KeybindTabImage);
         SetObject(serializedController, "audioTabImage", settingsRefs.AudioTabImage);
         SetObject(serializedController, "graphicsTabImage", settingsRefs.GraphicsTabImage);
+        SetObject(serializedController, "distanceTabImage", settingsRefs.DistanceTabImage);
         SetObject(serializedController, "tabNormalSprite", tabNormalSprite);
         SetObject(serializedController, "tabActiveSprite", tabActiveSprite);
         SetColor(serializedController, "tabNormalColor", NeutralButtonColor);
@@ -1632,6 +1662,7 @@ public static class MainMenuSceneBuilder
         SetObject(serializedController, "keybindTabContent", settingsRefs.KeybindTabContent);
         SetObject(serializedController, "audioTabContent", settingsRefs.AudioTabContent);
         SetObject(serializedController, "graphicsTabContent", settingsRefs.GraphicsTabContent);
+        SetObject(serializedController, "distanceTabContent", settingsRefs.DistanceTabContent);
         SetObject(serializedController, "settingsStatusText", settingsRefs.StatusText);
 
         SetObject(serializedController, "creditsBackButton", creditsRefs.BackButton);

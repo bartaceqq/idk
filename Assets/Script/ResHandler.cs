@@ -2,6 +2,14 @@ using System.Collections; using System.Collections.Generic; using UnityEngine; u
 
 // Aggressive runtime optimizer for very large scenes.
 public class ResHandler : MonoBehaviour {
+    private const float BaseTreeRenderDistance = 360f;
+    private const float BaseTreeShadowDistance = 45f;
+    private const float BaseTerrainTreeDistance = 360f;
+    private const float BaseTerrainBillboardStart = 55f;
+    private const float BaseCameraFarClipDistance = 700f;
+    private const float BaseLightDistance = 32f;
+    private const float BaseLightShadowDistance = 8f;
+
     [Header("Resolution")]
     [SerializeField] private bool forceResolutionOnStart = true;
     [Tooltip("If true, uses highest supported refresh rate (ignores Target Refresh Rate).")]
@@ -42,7 +50,6 @@ public class ResHandler : MonoBehaviour {
     [SerializeField, Min(20f)] private float globalShadowDistance = 35f;
     [SerializeField, Range(0.3f, 2f)] private float qualityLodBias = 0.65f;
     [SerializeField, Range(0.1f, 1f)] private float terrainDetailDensityScale = 0.25f;
-    [SerializeField, Min(10f)] private float terrainDetailDistance = 18f;
     [SerializeField, Min(40f)] private float terrainTreeDistance = 360f;
     [SerializeField, Min(20f)] private float terrainBillboardStart = 55f;
 
@@ -78,6 +85,7 @@ public class ResHandler : MonoBehaviour {
     private int _rendererRoundRobinIndex;
     private int _fpsFrameCount;
     private float _fpsAccumTime;
+    private bool settingsViewDistanceOverrideActive;
 
     private struct ManagedObject {
         public GameObject gameObject;
@@ -105,6 +113,7 @@ public class ResHandler : MonoBehaviour {
             Screen.SetResolution(targetWidth, targetHeight, fullscreenMode, requestedRefresh); }
 
         ResolveCamera();
+        ApplyViewDistanceMultiplier(GameSettings.ViewDistance);
         if (clampCameraFarClip && targetCamera != null) { targetCamera.farClipPlane = Mathf.Min(targetCamera.farClipPlane, cameraFarClipDistance); }
 
         if (applyGlobalShadowDistance) { QualitySettings.shadowDistance = Mathf.Min(QualitySettings.shadowDistance, globalShadowDistance); }
@@ -144,6 +153,35 @@ public class ResHandler : MonoBehaviour {
     [ContextMenu("Refresh Managed Data")] public void RefreshManagedData() { CollectManagedData(); }
 
     [ContextMenu("Refresh Lights")] public void RefreshLights() { CollectLights(); }
+
+    public void ApplyViewDistanceMultiplier(float multiplier) {
+        float viewDistance = Mathf.Clamp(multiplier, GameSettings.ViewDistanceMin, GameSettings.ViewDistanceMax);
+        float scaledRoot = Mathf.Sqrt(viewDistance);
+        settingsViewDistanceOverrideActive = true;
+
+        treeRenderDistance = Mathf.Clamp(BaseTreeRenderDistance * viewDistance, 40f, 3000f);
+        treeShadowDistance = Mathf.Clamp(BaseTreeShadowDistance * scaledRoot, 10f, 300f);
+        terrainTreeDistance = Mathf.Clamp(BaseTerrainTreeDistance * viewDistance, 40f, 3000f);
+        terrainBillboardStart = Mathf.Clamp(BaseTerrainBillboardStart * scaledRoot, 15f, 700f);
+        cameraFarClipDistance = Mathf.Clamp(BaseCameraFarClipDistance * viewDistance, 120f, 5000f);
+        nonDirectionalLightDistance = Mathf.Clamp(BaseLightDistance * scaledRoot, 8f, 260f);
+        nonDirectionalShadowDistance = Mathf.Clamp(BaseLightShadowDistance * scaledRoot, 3f, 120f);
+
+        hardMaxRenderDistance = Mathf.Max(hardMaxRenderDistance, treeRenderDistance);
+        hardMaxShadowDistance = Mathf.Max(hardMaxShadowDistance, treeShadowDistance);
+        adaptiveMinRenderDistance = Mathf.Min(adaptiveMinRenderDistance, treeRenderDistance);
+        adaptiveMaxRenderDistance = Mathf.Max(adaptiveMaxRenderDistance, treeRenderDistance);
+        adaptiveMinShadowDistance = Mathf.Min(adaptiveMinShadowDistance, treeShadowDistance);
+        adaptiveMaxShadowDistance = Mathf.Max(adaptiveMaxShadowDistance, treeShadowDistance);
+
+        ClampRuntimeTuning();
+        QualitySettings.lodBias = viewDistance;
+        ApplyTerrainDistanceSettings();
+        ResolveCamera();
+        if (clampCameraFarClip && targetCamera != null) { targetCamera.farClipPlane = Mathf.Max(targetCamera.nearClipPlane + 10f, cameraFarClipDistance); }
+
+        _nextCullingUpdateTime = 0f;
+        _nextLightsUpdateTime = 0f; }
 
     public void RegisterManagedRoot(Transform root) { if (root == null || IsConvertedTerrainObject(root)) { return; }
 
@@ -462,6 +500,8 @@ public class ResHandler : MonoBehaviour {
             if (canCast) { shadowedCount++; } } }
 
     private void AdaptDistancesFromFps() {
+        if (settingsViewDistanceOverrideActive) { return; }
+
         if (_fpsFrameCount <= 0 || _fpsAccumTime <= 0.0001f) {
             _fpsFrameCount = 0;
             _fpsAccumTime = 0f;
@@ -478,14 +518,12 @@ public class ResHandler : MonoBehaviour {
             treeRenderDistance -= adaptiveStep;
             treeShadowDistance -= adaptiveStep * 0.5f;
             terrainTreeDistance -= adaptiveStep;
-            terrainDetailDistance -= adaptiveStep * 0.25f;
             terrainDetailDensityScale -= 0.04f;
             nonDirectionalLightDistance -= adaptiveStep * 0.4f;
             nonDirectionalShadowDistance -= adaptiveStep * 0.3f; } else if (fps > highFpsThreshold) {
             treeRenderDistance += adaptiveStep;
             treeShadowDistance += adaptiveStep * 0.5f;
             terrainTreeDistance += adaptiveStep;
-            terrainDetailDistance += adaptiveStep * 0.25f;
             terrainDetailDensityScale += 0.04f;
             nonDirectionalLightDistance += adaptiveStep * 0.4f;
             nonDirectionalShadowDistance += adaptiveStep * 0.3f; }
@@ -493,7 +531,6 @@ public class ResHandler : MonoBehaviour {
         treeRenderDistance = Mathf.Clamp(treeRenderDistance, adaptiveMinRenderDistance, adaptiveMaxRenderDistance);
         treeShadowDistance = Mathf.Clamp(treeShadowDistance, adaptiveMinShadowDistance, adaptiveMaxShadowDistance);
         terrainTreeDistance = Mathf.Clamp(terrainTreeDistance, adaptiveMinRenderDistance, adaptiveMaxRenderDistance);
-        terrainDetailDistance = Mathf.Clamp(terrainDetailDistance, 14f, 28f);
         terrainDetailDensityScale = Mathf.Clamp(terrainDetailDensityScale, 0.18f, 0.35f);
         nonDirectionalLightDistance = Mathf.Clamp(nonDirectionalLightDistance, 24f, 45f);
         nonDirectionalShadowDistance = Mathf.Clamp(nonDirectionalShadowDistance, 6f, adaptiveMaxShadowDistance);
@@ -506,7 +543,7 @@ public class ResHandler : MonoBehaviour {
             _nextLightsUpdateTime = 0f; } }
 
     private void ApplyQualityClamps() {
-        QualitySettings.lodBias = qualityLodBias;
+        QualitySettings.lodBias = settingsViewDistanceOverrideActive ? GameSettings.ViewDistance : qualityLodBias;
         QualitySettings.shadowDistance = Mathf.Min(QualitySettings.shadowDistance, globalShadowDistance);
         QualitySettings.pixelLightCount = 1;
         QualitySettings.antiAliasing = Mathf.Min(QualitySettings.antiAliasing, 2);
@@ -515,17 +552,26 @@ public class ResHandler : MonoBehaviour {
         QualitySettings.realtimeReflectionProbes = false;
         QualitySettings.softParticles = false;
 
+        ApplyTerrainDistanceSettings();
+
+        Terrain[] terrains = Terrain.activeTerrains;
+        for (int i = 0; i < terrains.Length; i++) {
+            Terrain terrain = terrains[i];
+            if (terrain == null) { continue; }
+
+            terrain.heightmapPixelError = Mathf.Max(terrain.heightmapPixelError, 8f);
+            terrain.basemapDistance = Mathf.Min(terrain.basemapDistance, 300f); } }
+
+    private void ApplyTerrainDistanceSettings() {
         Terrain[] terrains = Terrain.activeTerrains;
         for (int i = 0; i < terrains.Length; i++) {
             Terrain terrain = terrains[i];
             if (terrain == null) { continue; }
 
             terrain.detailObjectDensity = Mathf.Clamp01(terrainDetailDensityScale);
-            terrain.detailObjectDistance = terrainDetailDistance;
+            terrain.detailObjectDistance = GameSettings.LockedTerrainDetailDistance;
             terrain.treeDistance = terrainTreeDistance;
-            terrain.treeBillboardDistance = terrainBillboardStart;
-            terrain.heightmapPixelError = Mathf.Max(terrain.heightmapPixelError, 8f);
-            terrain.basemapDistance = Mathf.Min(terrain.basemapDistance, 300f); } } }
+            terrain.treeBillboardDistance = terrainBillboardStart; } } }
 
 // Backward compatibility for older components already referencing ForceFullHD.
 public class ForceFullHD : ResHandler { }

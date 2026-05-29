@@ -99,14 +99,12 @@ public class InventoryManager : MonoBehaviour { public static bool IsInventoryOp
             if (slot != null && !slotlist.Contains(slot)) { slotlist.Add(slot); } } }
     private static bool IsSameItem(SlotInsideUI slot, InventoryItem item) { if (slot == null || item == null) { return false; }
 
-        if (slot.Item == item) { return true; }
-
         string slotName = !string.IsNullOrWhiteSpace(slot.nameofslot)
             ? slot.nameofslot
             : (slot.Item != null ? slot.Item.nameofitem : string.Empty);
         string itemName = !string.IsNullOrWhiteSpace(item.nameofitem) ? item.nameofitem : item.name;
 
-        if (string.IsNullOrWhiteSpace(slotName) || string.IsNullOrWhiteSpace(itemName)) { return false; }
+        if (string.IsNullOrWhiteSpace(slotName) || string.IsNullOrWhiteSpace(itemName)) { return slot.Item == item; }
 
         return string.Equals(slotName.Trim(), itemName.Trim(), System.StringComparison.OrdinalIgnoreCase); }
     private XPHandler[] GetXPHandlersForInventoryUI() {

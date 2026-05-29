@@ -24,9 +24,9 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
         if (IsEmpty()) {
             inventoryItemReference = inventoryItem;
             sprite = inventoryItem.inventorysprite;
-            itemName = NormalizeItemName(inventoryItem.name); } else if (inventoryItemReference == null) { inventoryItemReference = inventoryItem; }
+            itemName = GetInventoryItemName(inventoryItem); } else if (inventoryItemReference == null) { inventoryItemReference = inventoryItem; }
 
-        if (string.IsNullOrWhiteSpace(itemName)) { itemName = NormalizeItemName(inventoryItem.name); }
+        if (string.IsNullOrWhiteSpace(itemName)) { itemName = GetInventoryItemName(inventoryItem); }
 
         int addedAmount = explicitAmount > 0 ? explicitAmount : GetCount(inventoryItem);
         if (addedAmount <= 0) { return; }
@@ -43,11 +43,9 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
         return Random.Range(min, max + 1); }
     public bool MatchesItem(InventoryItem inventoryItem) { if (inventoryItem == null) { return false; }
 
-        if (inventoryItemReference != null && inventoryItemReference == inventoryItem) { return true; }
-
         string thisItemName = GetComparableItemName();
-        string otherItemName = NormalizeItemName(inventoryItem.name);
-        if (string.IsNullOrEmpty(thisItemName) || string.IsNullOrEmpty(otherItemName)) { return false; }
+        string otherItemName = GetInventoryItemName(inventoryItem);
+        if (string.IsNullOrEmpty(thisItemName) || string.IsNullOrEmpty(otherItemName)) { return inventoryItemReference != null && inventoryItemReference == inventoryItem; }
 
         return string.Equals(thisItemName, otherItemName, System.StringComparison.OrdinalIgnoreCase); }
     public void UpdateUI() {
@@ -230,7 +228,7 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
             InventoryItem candidate = allItems[i];
             if (candidate == null) { continue; }
 
-            if (!string.Equals(NormalizeItemName(candidate.name), normalizedItemName, System.StringComparison.OrdinalIgnoreCase)) { continue; }
+            if (!string.Equals(GetInventoryItemName(candidate), normalizedItemName, System.StringComparison.OrdinalIgnoreCase)) { continue; }
 
             inventoryItemReference = candidate;
             return candidate; }
@@ -245,6 +243,12 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
 
         return UnitySceneSearch.FindFirst<InventoryController>();
     }
+    private static string GetInventoryItemName(InventoryItem inventoryItem) { if (inventoryItem == null) { return string.Empty; }
+
+        string itemName = NormalizeItemName(inventoryItem.nameofitem);
+        if (!string.IsNullOrEmpty(itemName)) { return itemName; }
+
+        return NormalizeItemName(inventoryItem.name); }
     private static string NormalizeItemName(string rawName) { if (string.IsNullOrWhiteSpace(rawName)) { return string.Empty; }
 
         return rawName.Trim(); }
@@ -252,6 +256,6 @@ public class Slot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHand
         string normalizedSlotName = NormalizeItemName(itemName);
         if (!string.IsNullOrEmpty(normalizedSlotName)) { return normalizedSlotName; }
 
-        if (inventoryItemReference != null) { return NormalizeItemName(inventoryItemReference.name); }
+        if (inventoryItemReference != null) { return GetInventoryItemName(inventoryItemReference); }
 
         return string.Empty; } }

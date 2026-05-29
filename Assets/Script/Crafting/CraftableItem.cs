@@ -69,11 +69,13 @@ public class CraftableItem : MonoBehaviour {
     private void SyncCraftResultToInventoryItem(InventoryItem target, SlotManager fallbackSlotManager) {
         if (target == null) { return; }
 
-        if (string.IsNullOrWhiteSpace(target.nameofitem)) { target.nameofitem = name; }
+        bool isRuntimeGeneratedItem = target == runtimeCraftedInventoryItem;
+
+        if (isRuntimeGeneratedItem || string.IsNullOrWhiteSpace(target.nameofitem)) { target.nameofitem = name; }
 
         if (string.IsNullOrWhiteSpace(target.name)) { target.name = name; }
 
-        if (target.inventorysprite == null) { target.inventorysprite = sprite; }
+        if (isRuntimeGeneratedItem || target.inventorysprite == null) { target.inventorysprite = sprite; }
 
         target.itemType = itemType;
 

@@ -1,8 +1,41 @@
 title: Start
 ---
-Lumberjack: Hey traveler. Need wood?
--> Any tips?
-    Lumberjack: Trees near the river give the most logs.
--> Bye
-    Lumberjack: Good luck out there.
+Villager: I am busy right now. Talk to the right worker if you need help.
+===
+
+title: Lumber
+---
+Lumber: You want passage on that boat? Then you need more than a spare board.
+Lumber: The Sailor needs a reinforced Plank. It has to survive deep water, rocks, and whatever waits past the coast.
+Lumber: I can make it, but only with 60 wood, 25 Stick, 12 iron, and 4 flaming_ore to burn the sealant in.
+-> Why does the fisherman need that?
+    Lumber: Normal boards split before the boat reaches open water. This Plank keeps the hull alive.
+-> What will you give me?
+    Lumber: The Plank. It is one of the two things the Sailor will demand before letting you aboard.
+-> I will come back.
+    Lumber: Come back with 60 wood, 25 Stick, 12 iron, and 4 flaming_ore. Anything less is not end-of-the-world work.
+===
+
+title: Miner
+---
+Miner: The Sailor still needs an Anchor strong enough for the deep current.
+Miner: I can forge one, but not from common metal.
+Miner: Bring me 15 diamond, 10 radium, 6 plasma, and 10 gold. Then I can make something that holds.
+-> Why those materials?
+    Miner: Diamond takes the pressure, gold carries the rune lines, radium hardens the Anchor, and plasma wakes it up.
+-> What will you give me?
+    Miner: The Anchor. The Sailor will not leave shore without it.
+-> I will come back.
+    Miner: Bring 15 diamond, 10 radium, 6 plasma, and 10 gold. If you are not ready for that, you are not ready for the sea.
+===
+
+title: Sailor
+---
+Sailor: My boat is not a ferry. Past the bay, the sea eats weak ships.
+Sailor: If the Lumber made you the Plank, and the Miner forged the Anchor, then maybe you are worth taking.
+Sailor: Bring me both: the Plank and the Anchor. Then I will let you aboard.
+-> Why do you need both?
+    Sailor: The Plank keeps the hull from breaking. The Anchor keeps the boat from being dragged into the dark water. Missing either one gets us killed.
+-> I have work to do.
+    Sailor: Then prove you are at the end of your journey. I sail only when both repairs are ready.
 ===

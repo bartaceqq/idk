@@ -4,6 +4,8 @@ public class MineStone : MonoBehaviour {
 
     private static InfoHandler cachedInfoHandler;
     private static GetRandomOreType cachedRandomOreType;
+    private static InventoryManager cachedInventoryManager;
+    private static readonly Dictionary<string, InventoryItem> RuntimeRewardItems = new Dictionary<string, InventoryItem>(StringComparer.OrdinalIgnoreCase);
 
     public string type;
     public Material greymat;
@@ -22,6 +24,9 @@ public class MineStone : MonoBehaviour {
     public List<GameObject> orelist = new List<GameObject>();
     public GetRandomOreType getRandomOreType;
     public string currentore;
+    private InventoryManager inventoryManager;
+    private string selectedRewardName = DefaultStoneItemName;
+    private Sprite selectedRewardSprite;
 
     [Header("Auto Detect")]
     [SerializeField] private bool autoPopulateFromChildren = true;
@@ -97,6 +102,10 @@ public class MineStone : MonoBehaviour {
 
             getRandomOreType = cachedRandomOreType; } else { cachedRandomOreType = getRandomOreType; }
 
+        if (inventoryManager == null) { if (cachedInventoryManager == null) { cachedInventoryManager = FindInventoryManagerInScene(); }
+
+            inventoryManager = cachedInventoryManager; } else { cachedInventoryManager = inventoryManager; }
+
         if (inventoryItem == null) { inventoryItem = GetComponent<InventoryItem>(); }
 
         if (inventoryItem == null) { inventoryItem = GetComponentInChildren<InventoryItem>(true); }
@@ -107,6 +116,9 @@ public class MineStone : MonoBehaviour {
     }
     private static GetRandomOreType FindOreTypeProviderInScene() {
         return UnitySceneSearch.FindFirst<GetRandomOreType>();
+    }
+    private static InventoryManager FindInventoryManagerInScene() {
+        return UnitySceneSearch.FindFirst<InventoryManager>();
     }
 
     [ContextMenu("Auto Populate Stone From Children")] private void AutoPopulateStoneStructure() { if (fullstone == null) { fullstone = gameObject; }
@@ -162,11 +174,8 @@ public class MineStone : MonoBehaviour {
             inventoryName = GetInventoryItemName(selectedOre);
             if (selectedOre != null && selectedOre.sprite != null) { inventorySprite = selectedOre.sprite; } }
 
-        if (inventoryItem != null) {
-            inventoryItem.name = inventoryName;
-            inventoryItem.nameofitem = inventoryName;
-            inventoryItem.inventorysprite = inventorySprite; }
-
+        selectedRewardName = inventoryName;
+        selectedRewardSprite = inventorySprite;
         texttoshow = $"{ToDisplayName(inventoryName)} gained";
 
         for (int i = 0; i < orelist.Count; i++) {
@@ -219,13 +228,58 @@ public class MineStone : MonoBehaviour {
         ApplyMaterialToTargets(parts, greymat);
         ApplyOreSelectionAndVisuals(); }
     private void GiveStoneReward() {
-        if (inventoryItem != null && inventoryItem.slotManager != null) { inventoryItem.slotManager.AddItem(inventoryItem); } else { Debug.LogWarning($"{name}: Missing InventoryItem or SlotManager reference.", this); }
+        InventoryItem rewardItem = ResolveRewardInventoryItem();
+        if (!TryAddRewardToInventory(rewardItem)) { Debug.LogWarning($"{name}: Missing inventory target for reward '{GetInventoryItemName(rewardItem)}'.", this); }
 
         if (infoHandler != null) {
-            Sprite infoSprite = inventoryItem != null && inventoryItem.inventorysprite != null
-                ? inventoryItem.inventorysprite
+            Sprite infoSprite = rewardItem != null && rewardItem.inventorysprite != null
+                ? rewardItem.inventorysprite
                 : sprite;
             infoHandler.ShowInfoNow(texttoshow, infoSprite); } else { Debug.LogWarning($"{name}: Missing InfoHandler reference.", this); } }
+    private InventoryItem ResolveRewardInventoryItem() {
+        string rewardName = NormalizeItemName(selectedRewardName);
+        if (string.IsNullOrEmpty(rewardName)) { rewardName = GetInventoryItemName(selectedOre); }
+        if (string.IsNullOrEmpty(rewardName)) { rewardName = DefaultStoneItemName; }
+
+        Sprite rewardSprite = selectedRewardSprite != null ? selectedRewardSprite : sprite;
+
+        if (!Application.isPlaying) { return inventoryItem; }
+
+        if (!RuntimeRewardItems.TryGetValue(rewardName, out InventoryItem rewardItem) || rewardItem == null) {
+            GameObject rewardObject = new GameObject($"RuntimeInventoryItem_{rewardName}");
+            rewardObject.hideFlags = HideFlags.HideAndDontSave;
+            DontDestroyOnLoad(rewardObject);
+            rewardItem = rewardObject.AddComponent<InventoryItem>();
+            RuntimeRewardItems[rewardName] = rewardItem; }
+
+        CopyRewardItemData(inventoryItem, rewardItem, rewardName, rewardSprite);
+        return rewardItem; }
+    private bool TryAddRewardToInventory(InventoryItem rewardItem) {
+        if (rewardItem == null) { return false; }
+
+        ResolveReferences();
+
+        if (inventoryManager != null && inventoryManager.AddItem(rewardItem, 1)) { return true; }
+
+        SlotManager targetSlotManager = rewardItem.slotManager != null
+            ? rewardItem.slotManager
+            : (inventoryItem != null ? inventoryItem.slotManager : null);
+
+        return targetSlotManager != null && targetSlotManager.AddItem(rewardItem, 1); }
+    private static void CopyRewardItemData(InventoryItem source, InventoryItem target, string rewardName, Sprite rewardSprite) {
+        if (target == null) { return; }
+
+        target.name = rewardName;
+        target.nameofitem = rewardName;
+        target.inventorysprite = rewardSprite;
+        target.itemType = InventoryItemType.Usable;
+        target.itemPrefab = null;
+        target.buildRotationEuler = source != null ? source.buildRotationEuler : Vector3.zero;
+        target.buildScale = source != null ? source.buildScale : Vector3.one;
+        target.mingain = source != null ? Mathf.Max(1, source.mingain) : 1;
+        target.maxgain = source != null ? Mathf.Max(target.mingain, source.maxgain) : 1;
+        target.slotManager = source != null ? source.slotManager : null;
+        target.ResolveReferences(); }
     private void BreakStoneApart() {
         Vector3 explosionCenter = ResolveStoneCenter();
 
@@ -410,6 +464,15 @@ public class MineStone : MonoBehaviour {
     private static string GetInventoryItemName(Ore ore) { if (ore == null || ore.oreName == "noore") { return DefaultStoneItemName; }
 
         return ore.oreName; }
+    private static string GetInventoryItemName(InventoryItem item) { if (item == null) { return string.Empty; }
+
+        string itemName = NormalizeItemName(item.nameofitem);
+        if (!string.IsNullOrEmpty(itemName)) { return itemName; }
+
+        return NormalizeItemName(item.name); }
+    private static string NormalizeItemName(string rawName) { if (string.IsNullOrWhiteSpace(rawName)) { return string.Empty; }
+
+        return rawName.Trim(); }
     private static string ToDisplayName(string itemName) { if (string.IsNullOrWhiteSpace(itemName)) { return "Stone"; }
 
         string normalized = itemName.Replace('_', ' ');

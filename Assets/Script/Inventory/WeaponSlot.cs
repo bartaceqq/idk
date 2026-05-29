@@ -129,7 +129,8 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler {
         if (sourceItem != null) {
             bool isTool = sourceItem.itemType == InventoryItemType.Tool;
             bool isSword = sourceItem.itemType == InventoryItemType.Sword;
-            typeAllowed = (allowToolItems && isTool) || (allowSwordItems && isSword); } else { typeAllowed = IsAllowedByResolvedName(resolvedEquipName); }
+            typeAllowed = (allowToolItems && isTool) || (allowSwordItems && isSword);
+            if (!typeAllowed) { typeAllowed = IsAllowedByResolvedName(resolvedEquipName) || IsAllowedByResolvedName(sourceItemName); } } else { typeAllowed = IsAllowedByResolvedName(resolvedEquipName); }
 
         if (!typeAllowed) {
             reason = sourceItem != null
@@ -155,7 +156,8 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler {
             InventoryItem candidate = allItems[i];
             if (candidate == null) { continue; }
 
-            if (string.Equals(NormalizeItemName(candidate.name), sourceName, System.StringComparison.OrdinalIgnoreCase)) { return candidate; } }
+            if (string.Equals(NormalizeItemName(candidate.nameofitem), sourceName, System.StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(NormalizeItemName(candidate.name), sourceName, System.StringComparison.OrdinalIgnoreCase)) { return candidate; } }
 
         return null; }
     private void ResolveReferences() { if (Backgroundimage == null) { Backgroundimage = GetComponent<Image>(); }
@@ -261,28 +263,45 @@ public class WeaponSlot : MonoBehaviour, IDropHandler, IPointerClickHandler {
         ResolveReferences();
         if (itemSwitchScript == null) { return false; }
 
-        List<string> candidates = new List<string>(8);
-        AddCandidateName(candidates, sourceItemName);
+        List<string> identityCandidates = new List<string>(6);
+        List<string> prefabCandidates = new List<string>(2);
+        AddCandidateName(identityCandidates, sourceItemName);
 
         if (sourceItem != null) {
-            AddCandidateName(candidates, sourceItem.nameofitem);
-            AddCandidateName(candidates, sourceItem.name);
+            AddCandidateName(identityCandidates, sourceItem.nameofitem);
+            AddCandidateName(identityCandidates, sourceItem.name);
 
-            if (sourceItem.itemPrefab != null) { AddCandidateName(candidates, sourceItem.itemPrefab.name); } }
+            if (sourceItem.itemPrefab != null) { AddCandidateName(prefabCandidates, sourceItem.itemPrefab.name); } }
 
+        if (TryResolveExactItemName(identityCandidates, out resolvedName)) { return true; }
+
+        if (TryResolveMappedItemName(identityCandidates, out resolvedName)) { return true; }
+
+        if (TryResolveExactItemName(prefabCandidates, out resolvedName)) { return true; }
+
+        if (TryResolveMappedItemName(prefabCandidates, out resolvedName)) { return true; }
+
+        return false; }
+    private bool TryResolveExactItemName(List<string> candidates, out string resolvedName) {
+        resolvedName = string.Empty;
         for (int i = 0; i < candidates.Count; i++) {
             string candidate = candidates[i];
             if (itemSwitchScript.HasItemNamed(candidate)) {
                 resolvedName = candidate;
                 return true; } }
 
+        return false; }
+    private bool TryResolveMappedItemName(List<string> candidates, out string resolvedName) {
+        resolvedName = string.Empty;
         for (int i = 0; i < candidates.Count; i++) {
             string mapped = MapCommonWeaponName(candidates[i]);
             if (string.IsNullOrEmpty(mapped)) { continue; }
 
             if (itemSwitchScript.HasItemNamed(mapped)) {
                 resolvedName = mapped;
-                return true; } }
+                return true; }
+
+            if (itemSwitchScript.TryResolveFirstWeaponByCategory(mapped, out resolvedName)) { return true; } }
 
         return false; }
     private static void AddCandidateName(List<string> candidates, string rawName) {
