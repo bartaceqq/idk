@@ -1,0 +1,144 @@
+Date : 2026-05-29 21:32:15
+Directory : c:\Users\adam1\UnityProjects\idk\Assets\Script
+Total : 92 files,  17162 codes, 7 comments, 109 blanks, all 17278 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| C#       |         91 |     17,148 |          7 |        108 |     17,263 |
+| JSON     |          1 |         14 |          0 |          1 |         15 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++---------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                  | files      | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                     |         92 |     17,162 |          7 |        109 |     17,278 |
+| . (Files)                                                                             |          2 |        582 |          0 |          2 |        584 |
+| Animals                                                                               |          1 |        312 |          0 |          1 |        313 |
+| Chest                                                                                 |          4 |        205 |          0 |          4 |        209 |
+| Crafting                                                                              |          5 |        918 |          0 |          5 |        923 |
+| CutScenes                                                                             |          1 |         68 |          0 |          1 |         69 |
+| Enemies                                                                               |          7 |        745 |          0 |          7 |        752 |
+| Inventory                                                                             |          7 |        577 |          0 |          7 |        584 |
+| InventoryRemake                                                                       |          3 |        270 |          0 |          3 |        273 |
+| Lightning                                                                             |          1 |        119 |          0 |          1 |        120 |
+| Menu                                                                                  |          3 |      1,872 |          0 |          3 |      1,875 |
+| NPCS                                                                                  |          4 |        564 |          0 |          4 |        568 |
+| Optimalization                                                                        |          1 |        120 |          7 |         18 |        145 |
+| Player                                                                                |         28 |      6,993 |          0 |         28 |      7,021 |
+| Player (Files)                                                                        |         18 |      3,817 |          0 |         18 |      3,835 |
+| Player\Gun                                                                            |          1 |        700 |          0 |          1 |        701 |
+| Player\Test                                                                           |          9 |      2,476 |          0 |          9 |      2,485 |
+| Projectile                                                                            |          1 |          6 |          0 |          1 |          7 |
+| Save                                                                                  |          4 |        349 |          0 |          4 |        353 |
+| Spawning                                                                              |          1 |        293 |          0 |          1 |        294 |
+| Stone                                                                                 |          4 |        752 |          0 |          4 |        756 |
+| Terrain                                                                               |          2 |        558 |          0 |          2 |        560 |
+| Tree                                                                                  |          6 |      1,550 |          0 |          6 |      1,556 |
+| Tree (Files)                                                                          |          5 |      1,139 |          0 |          5 |      1,144 |
+| Tree\Rework                                                                           |          1 |        411 |          0 |          1 |        412 |
+| UI                                                                                    |          1 |         80 |          0 |          1 |         81 |
+| Upgrade                                                                               |          2 |        102 |          0 |          2 |        104 |
+| XP                                                                                    |          4 |        127 |          0 |          4 |        131 |
++---------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++---------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                              | language | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Animals\Animalec.cs                    | C#       |        312 |          0 |          1 |        313 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Chest\ChestChecker.cs                  | C#       |         34 |          0 |          1 |         35 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Chest\ChestController.cs               | C#       |         49 |          0 |          1 |         50 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Chest\ChestItemGenerator.cs            | C#       |         83 |          0 |          1 |         84 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Chest\ItemForChestsHandler.cs          | C#       |         39 |          0 |          1 |         40 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Crafting\CraftableItem.cs              | C#       |         89 |          0 |          1 |         90 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Crafting\CraftableSlot.cs              | C#       |         99 |          0 |          1 |        100 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Crafting\CraftingManager.cs            | C#       |        227 |          0 |          1 |        228 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Crafting\CraftingProcessHandler.cs     | C#       |        472 |          0 |          1 |        473 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Crafting\CraftingStation.cs            | C#       |         31 |          0 |          1 |         32 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\CutScenes\StartCutSceneScript.cs       | C#       |         68 |          0 |          1 |         69 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\EnemiesHandler.cs              | C#       |          7 |          0 |          1 |          8 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\NPCDemageScript.cs             | C#       |         79 |          0 |          1 |         80 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\NPCHealthScript.cs             | C#       |         68 |          0 |          1 |         69 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\RandomSkeletonScript.cs        | C#       |         23 |          0 |          1 |         24 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\RandomZombieScript.cs          | C#       |        556 |          0 |          1 |        557 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\SkeletonAnimatopmScript.cs     | C#       |          6 |          0 |          1 |          7 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Enemies\ZombieAnimationScript.cs       | C#       |          6 |          0 |          1 |          7 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\InventoryRemake\InventoryManager.cs    | C#       |        107 |          0 |          1 |        108 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\InventoryRemake\Item.cs                | C#       |          9 |          0 |          1 |         10 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\InventoryRemake\SlotInsideUI.cs        | C#       |        154 |          0 |          1 |        155 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\InventoryAddHandler.cs       | C#       |         17 |          0 |          1 |         18 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\InventoryController.cs       | C#       |         53 |          0 |          1 |         54 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\InventoryItem.cs             | C#       |         30 |          0 |          1 |         31 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\InventoryListHandler.cs      | C#       |         48 |          0 |          1 |         49 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\Slot.cs                      | C#       |        137 |          0 |          1 |        138 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\SlotManager.cs               | C#       |         69 |          0 |          1 |         70 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Inventory\WeaponSlot.cs                | C#       |        223 |          0 |          1 |        224 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Lightning\RandomRainCycleController.cs | C#       |        119 |          0 |          1 |        120 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Menu\FantasyMenuController.cs          | C#       |      1,126 |          0 |          1 |      1,127 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Menu\GameSettings.cs                   | C#       |        668 |          0 |          1 |        669 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Menu\GameSettingsBootstrapper.cs       | C#       |         78 |          0 |          1 |         79 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\NPCS\NPCText.cs                        | C#       |          4 |          0 |          1 |          5 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\NPCS\NpcTradeInventory.cs              | C#       |        372 |          0 |          1 |        373 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\NPCS\StartCommunication.cs             | C#       |         95 |          0 |          1 |         96 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\NPCS\VisualCommunication.cs            | C#       |         93 |          0 |          1 |         94 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Optimalization\Optimalization.cs       | C#       |        120 |          7 |         18 |        145 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\ActionScrip.cs                  | C#       |        824 |          0 |          1 |        825 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\AnimationScript.cs              | C#       |          6 |          0 |          1 |          7 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\AxeAnimationScript.cs           | C#       |         36 |          0 |          1 |         37 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\FPSController.cs                | C#       |        527 |          0 |          1 |        528 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\Gun\GunItem.cs                  | C#       |        700 |          0 |          1 |        701 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\Item.cs                         | C#       |         80 |          0 |          1 |         81 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\ItemSwitchScript.cs             | C#       |        459 |          0 |          1 |        460 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\LevelingManager.cs              | C#       |          7 |          0 |          1 |          8 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\LookingController.cs            | C#       |         83 |          0 |          1 |         84 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\MovementAnimationScript.cs      | C#       |        280 |          0 |          1 |        281 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\PickaxeAnimationScript.cs       | C#       |          5 |          0 |          1 |          6 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\PlayerRootMotionDriver.cs       | C#       |         52 |          0 |          1 |         53 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\RadiusForAttackScript.cs        | C#       |        280 |          0 |          1 |        281 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\RayScript.cs                    | C#       |        718 |          0 |          1 |        719 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\StaminaScript.cs                | C#       |         62 |          0 |          1 |         63 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\StarterItems.cs                 | C#       |         35 |          0 |          1 |         36 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\Sword.cs                        | C#       |         46 |          0 |          1 |         47 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\SwordAnimationScript.cs         | C#       |         29 |          0 |          1 |         30 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\SwordTrailEffect.cs             | C#       |        288 |          0 |          1 |        289 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\Test\FPSControllerTest.cs       | C#       |        187 |          0 |          1 |        188 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\Test\FloorScript.cs             | C#       |         17 |          0 |          1 |         18 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\Test\RayCastScriptTest.cs       | C#       |      1,300 |          0 |          1 |      1,301 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\Test\SnapPoint.cs               | C#       |         21 |          0 |          1 |         22 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\Test\StairScript.cs             | C#       |         17 |          0 |          1 |         18 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\Test\TestHitting.cs             | C#       |        903 |          0 |          1 |        904 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\Test\TreeTest.cs                | C#       |         13 |          0 |          1 |         14 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\Test\WallSnapPoints.cs          | C#       |         12 |          0 |          1 |         13 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Player\Test\XPTest.cs                  | C#       |          6 |          0 |          1 |          7 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Projectile\ProjectileScript.cs         | C#       |          6 |          0 |          1 |          7 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\ResHandler.cs                          | C#       |        533 |          0 |          1 |        534 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Save\BuildPieceKind.cs                 | C#       |          1 |          0 |          1 |          2 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Save\BuildPreviewMarker.cs             | C#       |          2 |          0 |          1 |          3 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Save\GameSaveManager.cs                | C#       |        326 |          0 |          1 |        327 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Save\RuntimeBuildPiece.cs              | C#       |         20 |          0 |          1 |         21 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Spawning\SpawnNpcsAtNight.cs           | C#       |        293 |          0 |          1 |        294 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Stone\GetRandomOreType.cs              | C#       |         71 |          0 |          1 |         72 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Stone\MineStone.cs                     | C#       |        652 |          0 |          1 |        653 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Stone\Ore.cs                           | C#       |         11 |          0 |          1 |         12 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Stone\StoneColliderScript.cs           | C#       |         18 |          0 |          1 |         19 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Terrain\TerrainTreePrefabStreamer.cs   | C#       |        281 |          0 |          1 |        282 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Terrain\TerrainTreeProxySpawner.cs     | C#       |        277 |          0 |          1 |        278 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Tree\ColliderScript.cs                 | C#       |         14 |          0 |          1 |         15 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Tree\CutTree.cs                        | C#       |        240 |          0 |          1 |        241 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Tree\DetailPickupMarker.cs             | C#       |         28 |          0 |          1 |         29 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Tree\Rework\TreeHandler.cs             | C#       |        411 |          0 |          1 |        412 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Tree\TerrainDetailPickupSpawner.cs     | C#       |        186 |          0 |          1 |        187 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Tree\TerrainTreeToPrefabConverter.cs   | C#       |        671 |          0 |          1 |        672 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\UI\InfoHandler.cs                      | C#       |         80 |          0 |          1 |         81 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\UnitySceneSearch.cs                    | C#       |         49 |          0 |          1 |         50 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Upgrade\UpgradeManager.cs              | C#       |         82 |          0 |          1 |         83 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\Upgrade\UpgradeSlot.cs                 | C#       |         20 |          0 |          1 |         21 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\XP\PlayerXPState.cs                    | C#       |         20 |          0 |          1 |         21 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\XP\XPHandler.cs                        | C#       |         49 |          0 |          1 |         50 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\XP\XPLevelTableLoader.cs               | C#       |         44 |          0 |          1 |         45 |
+| c:\Users\adam1\UnityProjects\idk\Assets\Script\XP\XPLevels.json                       | JSON     |         14 |          0 |          1 |         15 |
+| Total                                                                                 |          |     17,162 |          7 |        109 |     17,278 |
++---------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+

@@ -1,17 +1,21 @@
-using System.Collections.Generic; using UnityEngine;
-public class SnapPoint : MonoBehaviour {
+using System.Collections.Generic;
+using UnityEngine;
+public class SnapPoint : MonoBehaviour
+{
     private static readonly List<SnapPoint> InstancesInternal = new List<SnapPoint>(512);
-
     public static IReadOnlyList<SnapPoint> Instances => InstancesInternal;
-
-    private void OnEnable() {
+    private void OnEnable()
+    {
         DisableMarkerColliders();
-
-        if (!InstancesInternal.Contains(this)) { InstancesInternal.Add(this); } }
-
+        if (!InstancesInternal.Contains(this)) { InstancesInternal.Add(this); }
+    }
     private void OnDisable() { InstancesInternal.Remove(this); }
-
-    private void DisableMarkerColliders() {
+    private void DisableMarkerColliders()
+    {
         Collider[] colliders = GetComponentsInChildren<Collider>(true);
-        for (int i = 0; i < colliders.Length; i++) {
-            if (colliders[i] != null) { colliders[i].enabled = false; } } } }
+        for (int i = 0; i < colliders.Length; i++)
+        {
+            if (colliders[i] != null) { colliders[i].enabled = false; }
+        }
+    }
+}

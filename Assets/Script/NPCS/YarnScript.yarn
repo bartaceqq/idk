@@ -5,15 +5,18 @@ Villager: I am busy right now. Talk to the right worker if you need help.
 
 title: Lumber
 ---
-Lumber: You want passage on that boat? Then you need more than a spare board.
-Lumber: The Sailor needs a reinforced Plank. It has to survive deep water, rocks, and whatever waits past the coast.
-Lumber: I can make it, but only with 60 wood, 25 Stick, 12 iron, and 4 flaming_ore to burn the sealant in.
+Lumber: You want passage on that boat? Then you need more than timber.
+Lumber: The Sailor needs a Spyglass tuned for storm light. Without it, he will not risk the black water.
+Lumber: I can trade you one, but I need 60 Wood, 25 Stick, 12 iron, and 4 flaming_ore to reinforce the lens frame.
+-> Trade the materials for the Spyglass <<if has_items("Wood:60|Stick:25|iron:12|flaming_ore:4")>>
+    <<trade_items "Wood:60|Stick:25|iron:12|flaming_ore:4" "Spyglass" 1>>
+    Lumber: Good. Take the Spyglass. Do not crack it before the Sailor sees it.
 -> Why does the fisherman need that?
-    Lumber: Normal boards split before the boat reaches open water. This Plank keeps the hull alive.
+    Lumber: The coast past the bay folds into fog. The Spyglass sees the hidden reef lights before the hull is already dead.
 -> What will you give me?
-    Lumber: The Plank. It is one of the two things the Sailor will demand before letting you aboard.
+    Lumber: The Spyglass. It is one of the two things the Sailor will demand before letting you aboard.
 -> I will come back.
-    Lumber: Come back with 60 wood, 25 Stick, 12 iron, and 4 flaming_ore. Anything less is not end-of-the-world work.
+    Lumber: Come back with 60 Wood, 25 Stick, 12 iron, and 4 flaming_ore. Anything less is not end-of-the-world work.
 ===
 
 title: Miner
@@ -21,6 +24,9 @@ title: Miner
 Miner: The Sailor still needs an Anchor strong enough for the deep current.
 Miner: I can forge one, but not from common metal.
 Miner: Bring me 15 diamond, 10 radium, 6 plasma, and 10 gold. Then I can make something that holds.
+-> Trade the ore for the Anchor <<if has_items("diamond:15|radium:10|plasma:6|gold:10")>>
+    <<trade_items "diamond:15|radium:10|plasma:6|gold:10" "Anchor" 1>>
+    Miner: Done. Take the Anchor. If the chain breaks after this, it means the sea wanted you personally.
 -> Why those materials?
     Miner: Diamond takes the pressure, gold carries the rune lines, radium hardens the Anchor, and plasma wakes it up.
 -> What will you give me?
@@ -32,10 +38,13 @@ Miner: Bring me 15 diamond, 10 radium, 6 plasma, and 10 gold. Then I can make so
 title: Sailor
 ---
 Sailor: My boat is not a ferry. Past the bay, the sea eats weak ships.
-Sailor: If the Lumber made you the Plank, and the Miner forged the Anchor, then maybe you are worth taking.
-Sailor: Bring me both: the Plank and the Anchor. Then I will let you aboard.
+Sailor: If the Lumber traded you the Spyglass, and the Miner forged the Anchor, then maybe you are worth taking.
+Sailor: Bring me both: the Spyglass and the Anchor. Then I will let you aboard.
+-> Hand over the Spyglass and Anchor <<if has_items("Spyglass:1|Anchor:1")>>
+    <<trade_items "Spyglass:1|Anchor:1" "SailBoat" 1>>
+    Sailor: That is what I needed. The boat is yours to use. Do not waste the crossing.
 -> Why do you need both?
-    Sailor: The Plank keeps the hull from breaking. The Anchor keeps the boat from being dragged into the dark water. Missing either one gets us killed.
+    Sailor: The Spyglass finds the safe line through the fog. The Anchor keeps the boat from being dragged into the dark water. Missing either one gets us killed.
 -> I have work to do.
     Sailor: Then prove you are at the end of your journey. I sail only when both repairs are ready.
 ===
