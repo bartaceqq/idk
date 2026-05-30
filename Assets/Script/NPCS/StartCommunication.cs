@@ -8,14 +8,29 @@ public class StartCommunication : MonoBehaviour
     [Header("Yarn Spinner")] public DialogueRunner dialogueRunner;
     public string yarnStartNode = "Start"; public bool stopDialogueWhenOutOfRange = true;
     public bool allowAdvanceWithInteractionKey = true; private bool _stopRequestedDueToRange;
+    private static StartCommunication _activeInteraction;
+    private const float DialogueStartupHoldSeconds = 0.5f;
+    private float _talkingHoldUntil;
+    private bool _dialogueStartRequested;
     private void Awake() { ResolveDialogueRunner(); }
     private void Update()
     {
         bool inRange = GetDistance() <= Range; if (!inRange) { HandleOutOfRange(); return; }
         _stopRequestedDueToRange = false;
-        if (!GameplayUiState.IsMenuOpen && GameSettings.GetKeyDown(GameSettings.Key.Interact, key)) { HandleInteractPressed(); }
-        bool isDialogueRunning = IsDialogueRunning(); SetTalkingAnimation(isDialogueRunning);
-        if (isDialogueRunning) { FaceTarget(player); }
+        if (!GameplayUiState.IsMenuOpen && GameSettings.GetKeyDown(GameSettings.Key.Interact, key) && IsNearestAvailableNpc()) { HandleInteractPressed(); }
+        bool isDialogueRunning = IsDialogueRunning();
+        if (isDialogueRunning && (_activeInteraction == null || _activeInteraction == this))
+        {
+            _activeInteraction = this; _dialogueStartRequested = false;
+        }
+        bool shouldTalk = isDialogueRunning && _activeInteraction == this ||
+        _activeInteraction == this && Time.unscaledTime < _talkingHoldUntil;
+        SetTalkingAnimation(shouldTalk);
+        if (shouldTalk) { FaceTarget(player); }
+        if (_activeInteraction == this && !isDialogueRunning && Time.unscaledTime >= _talkingHoldUntil)
+        {
+            _activeInteraction = null; _dialogueStartRequested = false;
+        }
     }
     private void HandleInteractPressed()
     {
@@ -25,10 +40,15 @@ public class StartCommunication : MonoBehaviour
         }
         if (dialogueRunner.IsDialogueRunning)
         {
+            if (_activeInteraction != null && _activeInteraction != this) { return; }
+            _activeInteraction = this;
             if (allowAdvanceWithInteractionKey) { dialogueRunner.RequestNextLine(); }
             return;
         }
+        if (_dialogueStartRequested) { return; }
         string nodeName = ResolveYarnNodeName(); FaceTarget(player); SetTalkingAnimation(true);
+        _activeInteraction = this; _dialogueStartRequested = true;
+        _talkingHoldUntil = Time.unscaledTime + DialogueStartupHoldSeconds;
         _ = dialogueRunner.StartDialogue(nodeName);
     }
     private string ResolveYarnNodeName()
@@ -62,12 +82,30 @@ public class StartCommunication : MonoBehaviour
     }
     private void HandleOutOfRange()
     {
-        if (stopDialogueWhenOutOfRange && !_stopRequestedDueToRange && IsDialogueRunning() && dialogueRunner != null)
+        if (_activeInteraction == this && stopDialogueWhenOutOfRange && !_stopRequestedDueToRange && IsDialogueRunning() && dialogueRunner != null)
         {
             _stopRequestedDueToRange = true; _ = dialogueRunner.Stop();
         }
+        if (_activeInteraction == this)
+        {
+            _activeInteraction = null; _dialogueStartRequested = false; _talkingHoldUntil = 0f;
+        }
         SetTalkingAnimation(false);
         FaceTarget(tree);
+    }
+    private bool IsNearestAvailableNpc()
+    {
+        if (_activeInteraction != null && _activeInteraction != this) { return false; }
+        StartCommunication[] allNpcs = UnitySceneSearch.FindAll<StartCommunication>(false);
+        float myDistance = GetDistance();
+        for (int i = 0; i < allNpcs.Length; i++)
+        {
+            StartCommunication other = allNpcs[i];
+            if (other == null || other == this || !other.enabled || !other.gameObject.activeInHierarchy) { continue; }
+            float otherDistance = other.GetDistance();
+            if (otherDistance <= other.Range && otherDistance + 0.01f < myDistance) { return false; }
+        }
+        return true;
     }
     private bool ResolveDialogueRunner()
     {
@@ -86,7 +124,11 @@ public class StartCommunication : MonoBehaviour
         transform.LookAt(target.transform); Vector3 rot = transform.eulerAngles; rot.x = 0f;
         transform.eulerAngles = rot;
     }
-    private void OnDisable() { SetTalkingAnimation(false); }
+    private void OnDisable()
+    {
+        if (_activeInteraction == this) { _activeInteraction = null; }
+        _dialogueStartRequested = false; _talkingHoldUntil = 0f; SetTalkingAnimation(false);
+    }
     public float GetDistance()
     {
         if (player == null) { return float.MaxValue; }

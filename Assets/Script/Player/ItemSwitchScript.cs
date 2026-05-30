@@ -15,7 +15,7 @@ KeyCode.Alpha8, KeyCode.Alpha9 }; private static readonly string[] WeaponSlotHot
 GameSettings.Key.WeaponSlot1, GameSettings.Key.WeaponSlot2, GameSettings.Key.WeaponSlot3,
 GameSettings.Key.WeaponSlot4, GameSettings.Key.WeaponSlot5, GameSettings.Key.WeaponSlot6,
 GameSettings.Key.WeaponSlot7, GameSettings.Key.WeaponSlot8,
-GameSettings.Key.WeaponSlot9 }; private void Awake() { RefreshItemPresentations(); }
+GameSettings.Key.WeaponSlot9 }; private void Awake() { EnsureBasicStoneSwordEntry(); RefreshItemPresentations(); }
     private void Update()
     {
         EnsureCurrentSwordTrailEffect();
@@ -169,8 +169,44 @@ GameSettings.Key.WeaponSlot9 }; private void Awake() { RefreshItemPresentations(
     private static void SetItemObjectVisible(Item targetItem, bool visible)
     {
         if (targetItem == null || targetItem.itemobject == null) { return; }
-        Renderer[] renderers = targetItem.itemobject.GetComponentsInChildren<Renderer>(true);
+        GameObject itemObject = targetItem.itemobject;
+        if (visible && !itemObject.activeSelf) { itemObject.SetActive(true); }
+        Renderer[] renderers = itemObject.GetComponentsInChildren<Renderer>(true);
         for (int i = 0; i < renderers.Length; i++) { if (renderers[i] != null) { renderers[i].enabled = visible; } }
+        if (!visible && itemObject.activeSelf) { itemObject.SetActive(false); }
+    }
+
+    private void EnsureBasicStoneSwordEntry()
+    {
+        if (TryResolveItemByName("stone_sword", out _)) { return; }
+        GameObject swordVisual = FindBasicSwordVisual();
+        if (swordVisual == null) { return; }
+        Item stoneSword = swordVisual.GetComponent<Item>();
+        if (stoneSword == null) { stoneSword = swordVisual.AddComponent<Item>(); }
+        stoneSword.ID = 3; stoneSword.name = "stone_sword"; stoneSword.key = KeyCode.Alpha3;
+        stoneSword.itemobject = swordVisual; stoneSword.keepVisibleWhenHolstered = true;
+        if (swordVisual.GetComponent<Sword>() == null) { swordVisual.AddComponent<Sword>(); }
+        int missingIndex = items.FindIndex(candidate => candidate == null);
+        if (missingIndex >= 0) { items[missingIndex] = stoneSword; }
+        else { items.Insert(Mathf.Min(2, items.Count), stoneSword); }
+        SetItemObjectVisible(stoneSword, false);
+    }
+
+    private GameObject FindBasicSwordVisual()
+    {
+        Transform[] transforms = Resources.FindObjectsOfTypeAll<Transform>();
+        GameObject fallback = null;
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            Transform candidateTransform = transforms[i];
+            if (candidateTransform == null) { continue; }
+            GameObject candidate = candidateTransform.gameObject;
+            if (!candidate.scene.IsValid() || candidate.scene.handle != gameObject.scene.handle ||
+                !string.Equals(candidate.name, "Sword", System.StringComparison.Ordinal)) { continue; }
+            if (candidate.transform.root == transform.root) { return candidate; }
+            if (fallback == null) { fallback = candidate; }
+        }
+        return fallback;
     }
     private void EnsureCurrentSwordTrailEffect() { EnsureSwordTrailEffect(item); }
     private void EnsureSwordTrailEffect(Item targetItem)

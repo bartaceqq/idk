@@ -1,0 +1,28 @@
+Cleanup candidates report
+Generated: 2026-05-29 21:55:35
+Nothing was deleted. Folders marked cache/temp are usually recreated by Windows/Unity/apps.
+
+HIGH-CONFIDENCE TEMP/CACHE/GENERATED FOLDERS
+6.61 GB  C:\Users\adam1\UnityProjects\idk\Library  (Unity import cache, recreated by Unity)
+5.77 GB  C:\Users\adam1\AppData\Roaming\Unity\Asset Store-5.x  (Unity Asset Store cache)
+4.23 GB  C:\Users\adam1\.gradle\caches  (Gradle cache, redownloadable)
+2.41 GB  C:\Users\adam1\AppData\Local\Unity\cache  (Unity cache)
+1.23 GB  C:\Users\adam1\AppData\Local\Temp  (user temp)
+0.79 GB  C:\Users\adam1\AppData\Local\pip\Cache  (pip cache)
+0.24 GB  C:\Users\adam1\AppData\Local\npm-cache  (npm cache)
+0.17 GB  C:\Users\adam1\.nuget\packages  (NuGet package cache)
+0.14 GB  C:\Users\adam1\AppData\Local\Microsoft\Edge\User Data\Default\Code Cache
+0.10 GB  C:\Users\adam1\UnityProjects\idk\obj  (generated build/IDE files)
+0.09 GB  C:\Users\adam1\AppData\Local\Microsoft\Edge\User Data\Default\Cache
+0.03 GB  C:\Users\adam1\AppData\Local\D3DSCache  (shader cache)
+0.01 GB  C:\Users\adam1\UnityProjects\idk\Logs  (logs)
+
+MANUAL REVIEW LARGE FOLDERS
+51.76 GB C:\Users\adam1\Desktop\CRACK(VIRSAFE)
+0.58 GB  C:\Users\adam1\Desktop\UnityGameTest
+0.38 GB  C:\Users\adam1\Desktop\Tor Browser
+
+Notes:
+- Do not delete Unity Library while Unity is open. Reopening project after deleting it will take time to reimport.
+- Desktop folders are not guaranteed unused; check them manually before deleting.
+- Folder names containing cracked software can be risky/security-sensitive; only keep files you trust and legally own.
