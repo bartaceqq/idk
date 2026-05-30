@@ -42,9 +42,20 @@ Sailor: The old Spyglass is cracked, and the Anchor will not survive another cro
 Sailor: Bring me a sturdy Spyglass and a reinforced Anchor. Then I will help you get out of here.
 -> Hand over the Spyglass and Anchor <<if has_items("Spyglass:1|Anchor:1")>>
     <<trade_items "Spyglass:1|Anchor:1" "SailBoat" 1>>
+    <<complete_game>>
     Sailor: These will work. The boat is ready. I will help you leave the island.
 -> Why do you need both?
     Sailor: The Spyglass finds a safe line through the fog. The Anchor keeps the boat from being dragged into the rocks.
 -> I have work to do.
     Sailor: Find a sturdy Spyglass and a reinforced Anchor. Come back when you have both.
+===
+
+title: Fisherman
+---
+<<jump Sailor>>
+===
+
+title: Fisher
+---
+<<jump Sailor>>
 ===

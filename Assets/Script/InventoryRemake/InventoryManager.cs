@@ -39,6 +39,7 @@ public class InventoryManager : MonoBehaviour
             if (!IsSameItem(slot, item)) { continue; }
             slot.count += count; slot.Item = item;
             slot.nameofslot = !string.IsNullOrWhiteSpace(item.nameofitem) ? item.nameofitem : item.name;
+            if (slot.image != null) { slot.image.sprite = item.inventorysprite; }
             if (slot.text != null) { slot.text.text = slot.count.ToString(); }
             return true;
         }

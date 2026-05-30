@@ -31,6 +31,8 @@ public class MovementAnimationScript : MonoBehaviour
     private static readonly int WalkingBackWardsBoolHash = Animator.StringToHash("WalkingBackWards");
     private static readonly int WalkingLeftBoolHash = Animator.StringToHash("WalkingLeft");
     private static readonly int WalkingRightBoolHash = Animator.StringToHash("WalkingRight");
+    private static readonly int SprintingLeftBoolHash = Animator.StringToHash("SprintingLeft");
+    private static readonly int SprintingRightBoolHash = Animator.StringToHash("SprintingRight");
     private static readonly int WalkingForwardLeftBoolHash = Animator.StringToHash("WalkingForwardLeft");
     private static readonly int WalkingForwardRightBoolHash = Animator.StringToHash("WalkingForwardRight");
     private static readonly int SprintingForwardLeftBoolHash = Animator.StringToHash("SprintingForwardLeft");
@@ -90,10 +92,37 @@ public class MovementAnimationScript : MonoBehaviour
     public void WalkBackWards(bool status) { SetMovementBool(WalkingBackWardsBoolHash, status, WalkBackwardSpeedHash, walkBackwardAnimationSpeed); }
     public void WalkLeft(bool status) { SetMovementBool(WalkingLeftBoolHash, status, LeftStrafeSpeedHash, leftStrafeAnimationSpeed); }
     public void WalkRight(bool status) { SetMovementBool(WalkingRightBoolHash, status, RightStrafeSpeedHash, rightStrafeAnimationSpeed); }
-    public void WalkForwardLeft(bool status) { SetMovementBool(WalkingForwardLeftBoolHash, status, LeftStrafeSpeedHash, leftStrafeAnimationSpeed); }
-    public void WalkForwardRight(bool status) { SetMovementBool(WalkingForwardRightBoolHash, status, RightStrafeSpeedHash, rightStrafeAnimationSpeed); }
+    public void SprintLeft(bool status) { SetMovementBool(SprintingLeftBoolHash, status, RunSpeedHash, runAnimationSpeed); }
+    public void SprintRight(bool status) { SetMovementBool(SprintingRightBoolHash, status, RunSpeedHash, runAnimationSpeed); }
+    public void WalkForwardLeft(bool status) { SetMovementBool(WalkingForwardLeftBoolHash, status, WalkSpeedHash, walkAnimationSpeed); }
+    public void WalkForwardRight(bool status) { SetMovementBool(WalkingForwardRightBoolHash, status, WalkSpeedHash, walkAnimationSpeed); }
     public void SprintForwardLeft(bool status) { SetMovementBool(SprintingForwardLeftBoolHash, status, RunSpeedHash, runAnimationSpeed); }
     public void SprintForwardRight(bool status) { SetMovementBool(SprintingForwardRightBoolHash, status, RunSpeedHash, runAnimationSpeed); }
+    public void SetLocomotion(bool idle, bool forwardWalk, bool forwardRun, bool backward,
+    bool leftStrafe, bool rightStrafe, bool sprintLeft, bool sprintRight,
+    bool forwardLeftWalk, bool forwardRightWalk, bool forwardLeftRun, bool forwardRightRun)
+    {
+        if (!EnsureAnimator()) { return; }
+        ApplyConfiguredAnimationSpeeds();
+        if (IsBlockingActionState()) { return; }
+        if (forwardWalk || forwardLeftWalk || forwardRightWalk) { SetFloatIfExists(WalkSpeedHash, ResolveConfiguredSpeed(walkAnimationSpeed)); }
+        if (forwardRun || sprintLeft || sprintRight || forwardLeftRun || forwardRightRun) { SetFloatIfExists(RunSpeedHash, ResolveConfiguredSpeed(runAnimationSpeed)); }
+        if (backward) { SetFloatIfExists(WalkBackwardSpeedHash, ResolveConfiguredSpeed(walkBackwardAnimationSpeed)); }
+        if (leftStrafe) { SetFloatIfExists(LeftStrafeSpeedHash, ResolveConfiguredSpeed(leftStrafeAnimationSpeed)); }
+        if (rightStrafe) { SetFloatIfExists(RightStrafeSpeedHash, ResolveConfiguredSpeed(rightStrafeAnimationSpeed)); }
+        animator.SetBool(IdleBoolHash, idle);
+        animator.SetBool(ForewardBoolHash, forwardWalk);
+        animator.SetBool(SprintingBoolHash, forwardRun);
+        animator.SetBool(WalkingBackWardsBoolHash, backward);
+        animator.SetBool(WalkingLeftBoolHash, leftStrafe);
+        animator.SetBool(WalkingRightBoolHash, rightStrafe);
+        animator.SetBool(SprintingLeftBoolHash, sprintLeft);
+        animator.SetBool(SprintingRightBoolHash, sprintRight);
+        animator.SetBool(WalkingForwardLeftBoolHash, forwardLeftWalk);
+        animator.SetBool(WalkingForwardRightBoolHash, forwardRightWalk);
+        animator.SetBool(SprintingForwardLeftBoolHash, forwardLeftRun);
+        animator.SetBool(SprintingForwardRightBoolHash, forwardRightRun);
+    }
     public bool IsBlockingActionState()
     {
         if (!EnsureAnimator() || !animator.isActiveAndEnabled) { return false; }
@@ -117,7 +146,7 @@ public class MovementAnimationScript : MonoBehaviour
     private void SetMovementBool(int parameterHash, bool value, int speedHash, float speedValue)
     {
         if (!EnsureAnimator()) { return; }
-        ApplyConfiguredAnimationSpeeds(); if (value) { SetFloatIfExists(speedHash, speedValue); }
+        ApplyConfiguredAnimationSpeeds(); if (value) { SetFloatIfExists(speedHash, ResolveConfiguredSpeed(speedValue)); }
         if (value && IsBlockingActionState()) { return; }
         animator.SetBool(parameterHash, value);
     }
@@ -156,7 +185,7 @@ public class MovementAnimationScript : MonoBehaviour
             if (parameter.type == AnimatorControllerParameterType.Float &&
             parameter.nameHash == parameterHash)
             {
-                animator.SetFloat(parameterHash, Mathf.Max(0f, value)); return;
+                animator.SetFloat(parameterHash, Mathf.Max(0.01f, value)); return;
             }
         }
     }

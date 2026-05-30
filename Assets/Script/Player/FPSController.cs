@@ -378,21 +378,24 @@ public class FPSController : MonoBehaviour
         }
         bool forwardWalk = _isForwardWalk;
         bool forwardRun = _isForwardRun; bool backward = _isBackwardWalk || _isBackwardRun;
-        bool anyRun = _isForwardRun || _isBackwardRun || _isLeftRun || _isRightRun || _isForwardLeftRun || _isForwardRightRun;
-        OnJump(false); actionScript.Idle(_isIdle); actionScript.Walk(forwardWalk);
-        actionScript.WalkBackwards(backward); actionScript.WalkLeft(_isLeftWalk || _isLeftRun);
-        actionScript.WalkRight(_isRightWalk || _isRightRun);
-        actionScript.WalkForwardLeft(_isForwardLeftWalk);
-        actionScript.WalkForwardRight(_isForwardRightWalk);
-        actionScript.Sprint(anyRun, forwardRun);
-        actionScript.SprintForwardLeft(_isForwardLeftRun);
-        actionScript.SprintForwardRight(_isForwardRightRun);
+        bool leftStrafe = _isLeftWalk;
+        bool rightStrafe = _isRightWalk;
+        bool sprintLeft = _isLeftRun;
+        bool sprintRight = _isRightRun;
+        bool anyRun = _isForwardRun || _isBackwardRun || _isLeftRun || _isRightRun ||
+        _isForwardLeftRun || _isForwardRightRun;
+        OnJump(false);
+        actionScript.UpdateLocomotionAnimations(_isIdle, forwardWalk, forwardRun, backward,
+        leftStrafe, rightStrafe, sprintLeft, sprintRight,
+        _isForwardLeftWalk, _isForwardRightWalk,
+        _isForwardLeftRun, _isForwardRightRun, anyRun);
     }
     private void StopMovementCallbacks()
     {
         actionScript.Idle(false); actionScript.Walk(false);
         actionScript.WalkBackwards(false); actionScript.WalkLeft(false);
-        actionScript.WalkRight(false); actionScript.WalkForwardLeft(false);
+        actionScript.WalkRight(false); actionScript.SprintLeft(false);
+        actionScript.SprintRight(false); actionScript.WalkForwardLeft(false);
         actionScript.WalkForwardRight(false); actionScript.Sprint(false, false);
         actionScript.SprintForwardLeft(false); actionScript.SprintForwardRight(false);
     }
@@ -504,10 +507,46 @@ public class FPSController : MonoBehaviour
         if (actionScript == null) { return; }
         actionScript.WalkBackwards(active); actionScript.Sprint(active, false);
     }
-    public void OnLeftWalk(bool active) { }
-    public void OnLeftRun(bool active) { }
-    public void OnRightWalk(bool active) { }
-    public void OnRightRun(bool active) { }
+    public void OnLeftWalk(bool active)
+    {
+        if (actionScript == null) { return; }
+        actionScript.WalkLeft(active);
+    }
+    public void OnLeftRun(bool active)
+    {
+        if (actionScript == null) { return; }
+        actionScript.SprintLeft(active); actionScript.Sprint(active, false);
+    }
+    public void OnRightWalk(bool active)
+    {
+        if (actionScript == null) { return; }
+        actionScript.WalkRight(active);
+    }
+    public void OnRightRun(bool active)
+    {
+        if (actionScript == null) { return; }
+        actionScript.SprintRight(active); actionScript.Sprint(active, false);
+    }
+    public void OnForwardLeftWalk(bool active)
+    {
+        if (actionScript == null) { return; }
+        actionScript.WalkForwardLeft(active);
+    }
+    public void OnForwardLeftRun(bool active)
+    {
+        if (actionScript == null) { return; }
+        actionScript.SprintForwardLeft(active); actionScript.Sprint(active, false);
+    }
+    public void OnForwardRightWalk(bool active)
+    {
+        if (actionScript == null) { return; }
+        actionScript.WalkForwardRight(active);
+    }
+    public void OnForwardRightRun(bool active)
+    {
+        if (actionScript == null) { return; }
+        actionScript.SprintForwardRight(active); actionScript.Sprint(active, false);
+    }
     private float ResolveEquippedSwordMovementSpeedMultiplier()
     {
         ItemSwitchScript itemSwitchScript = ResolveItemSwitchScript();

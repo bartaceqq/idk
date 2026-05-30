@@ -30,6 +30,12 @@ public sealed class GameSettingsBootstrapper : MonoBehaviour
         }
     }
     private void Start() { StartCoroutine(ApplyAfterSceneStart()); }
+    private void Update()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (Input.GetKeyDown(KeyCode.F10)) { NpcTradeInventory.DevGrantLumberMinerQuestItems(); }
+#endif
+    }
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         EnsureBrightnessOverlay();

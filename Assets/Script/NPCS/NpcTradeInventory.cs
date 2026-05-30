@@ -6,6 +6,9 @@ public static class NpcTradeInventory
 {
     private static readonly Dictionary<string, InventoryItem> RuntimeItems = new Dictionary<string, InventoryItem>(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, Sprite> RuntimeSprites = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
+    private const string QuestIconResourcesPath = "QuestItems/";
+    private const string LumberQuestRequirements = "Wood:60|Stick:25|iron:12|flaming_ore:4";
+    private const string MinerQuestRequirements = "diamond:15|radium:10|plasma:6|gold:10";
     [YarnFunction("has_items")]
     public static bool HasItems(string requirements)
     {
@@ -25,7 +28,9 @@ public static class NpcTradeInventory
     public static void GiveItem(string itemName, int amount)
     {
         InventoryItem item = FindOrCreateItemDefinition(itemName); if (item == null) { return; }
-        if (!TryAddItem(item, Mathf.Max(1, amount))) { Debug.LogWarning($"NpcTradeInventory: Could not add '{itemName}' to inventory."); }
+        int resolvedAmount = Mathf.Max(1, amount);
+        if (!TryAddItem(item, resolvedAmount)) { Debug.LogWarning($"NpcTradeInventory: Could not add '{itemName}' to inventory."); return; }
+        ShowQuestInfo($"Received {resolvedAmount} {NormalizeItemName(itemName)}.", item.inventorysprite);
     }
     [YarnCommand("take_items")]
     public static void TakeItems(string requirements)
@@ -47,10 +52,45 @@ public static class NpcTradeInventory
             Debug.LogWarning($"NpcTradeInventory: Trade failed, missing required items '{requirements}'.");
             return;
         }
-        if (!TryAddItem(rewardItem, Mathf.Max(1, rewardAmount)))
+        int resolvedRewardAmount = Mathf.Max(1, rewardAmount);
+        if (!TryAddItem(rewardItem, resolvedRewardAmount))
         {
             Debug.LogWarning($"NpcTradeInventory: Trade consumed items but could not add reward '{rewardItemName}'.");
+            return;
         }
+        ShowQuestInfo($"Received {resolvedRewardAmount} {NormalizeItemName(rewardItemName)}.", rewardItem.inventorysprite);
+    }
+    [YarnCommand("complete_game")]
+    public static void CompleteGame()
+    {
+        if (!HasItem("SailBoat", 1))
+        {
+            Debug.LogWarning("NpcTradeInventory: final trade did not complete, SailBoat was not added.");
+            return;
+        }
+        const string message = "YOU WON - Fisherman accepted the Spyglass and Anchor.";
+        Debug.Log(message);
+        InventoryItem boatItem = FindOrCreateItemDefinition("SailBoat");
+        ShowQuestInfo("YOU WON! The fisherman accepted the Anchor and Spyglass.", boatItem != null ? boatItem.inventorysprite : null);
+    }
+    [YarnCommand("dev_grant_lumber_miner_quest_items")]
+    public static void DevGrantLumberMinerQuestItems()
+    {
+        Dictionary<string, int> itemsToGrant = ParseRequirements($"{LumberQuestRequirements}|{MinerQuestRequirements}");
+        int grantedItemTypes = 0;
+        foreach (KeyValuePair<string, int> itemToGrant in itemsToGrant)
+        {
+            InventoryItem item = FindOrCreateItemDefinition(itemToGrant.Key);
+            if (item == null || !TryAddItem(item, itemToGrant.Value))
+            {
+                Debug.LogWarning($"NpcTradeInventory: DEV grant could not add '{itemToGrant.Key}'.");
+                continue;
+            }
+            grantedItemTypes++;
+        }
+        Debug.Log("DEV QUEST GRANT: Added Lumber and Miner quest materials to inventory.");
+        InventoryItem iconItem = FindOrCreateItemDefinition("Spyglass");
+        ShowQuestInfo($"DEV: Added {grantedItemTypes} quest material stacks for Lumber and Miner.", iconItem != null ? iconItem.inventorysprite : null);
     }
     public static InventoryItem FindOrCreateItemDefinition(string itemName)
     {
@@ -58,7 +98,12 @@ public static class NpcTradeInventory
         if (string.IsNullOrEmpty(normalizedName)) { return null; }
         InventoryItem sceneItem = FindInventoryItemInScene(normalizedName);
         if (sceneItem != null) { return sceneItem; }
-        if (RuntimeItems.TryGetValue(normalizedName, out InventoryItem runtimeItem) && runtimeItem != null) { return runtimeItem; }
+        if (RuntimeItems.TryGetValue(normalizedName, out InventoryItem runtimeItem) && runtimeItem != null)
+        {
+            Sprite refreshedIcon = GetOrCreateIcon(normalizedName);
+            if (refreshedIcon != null) { runtimeItem.inventorysprite = refreshedIcon; }
+            return runtimeItem;
+        }
         GameObject itemObject = new GameObject($"RuntimeQuestItem_{normalizedName}");
         itemObject.hideFlags = HideFlags.HideAndDontSave;
         UnityEngine.Object.DontDestroyOnLoad(itemObject);
@@ -255,12 +300,79 @@ public static class NpcTradeInventory
     private static Sprite GetOrCreateIcon(string itemName)
     {
         string normalizedName = NormalizeItemName(itemName);
-        if (RuntimeSprites.TryGetValue(normalizedName, out Sprite sprite) && sprite != null) { return sprite; }
-        Texture2D texture = CreateIconTexture(normalizedName);
-        texture.hideFlags = HideFlags.HideAndDontSave;
-        sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
-        sprite.name = $"{normalizedName}_icon"; RuntimeSprites[normalizedName] = sprite;
+        Sprite sprite = FindSceneOreIcon(normalizedName);
+        if (sprite != null)
+        {
+            RuntimeSprites[normalizedName] = sprite;
+            return sprite;
+        }
+        sprite = LoadQuestIconSprite(normalizedName);
+        if (sprite != null)
+        {
+            RuntimeSprites[normalizedName] = sprite;
+            return sprite;
+        }
+        if (RuntimeSprites.TryGetValue(normalizedName, out sprite) && sprite != null) { return sprite; }
+        if (sprite == null)
+        {
+            Texture2D texture = CreateIconTexture(normalizedName);
+            texture.hideFlags = HideFlags.HideAndDontSave;
+            sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
+            sprite.name = $"{normalizedName}_icon";
+        }
+        RuntimeSprites[normalizedName] = sprite;
         return sprite;
+    }
+    private static Sprite FindSceneOreIcon(string itemName)
+    {
+        string token = ToResourceToken(itemName);
+        GetRandomOreType oreTypeProvider = UnitySceneSearch.FindFirst<GetRandomOreType>();
+        if (oreTypeProvider == null) { return null; }
+        switch (token)
+        {
+            case "iron": return oreTypeProvider.ironsprite;
+            case "gold": return oreTypeProvider.goldsprite;
+            case "diamond": return oreTypeProvider.diamondsprite;
+            case "radium": return oreTypeProvider.radiumsprite;
+            case "plasma": return oreTypeProvider.plasmapsprite;
+            case "flamingore": return oreTypeProvider.flaming_oresprite;
+            default: return null;
+        }
+    }
+    private static Sprite LoadQuestIconSprite(string itemName)
+    {
+        string resourceName = NormalizeResourceName(itemName);
+        if (string.IsNullOrEmpty(resourceName)) { return null; }
+        Sprite sprite = Resources.Load<Sprite>(QuestIconResourcesPath + resourceName);
+        if (sprite != null) { return sprite; }
+        Texture2D texture = Resources.Load<Texture2D>(QuestIconResourcesPath + resourceName);
+        if (texture == null) { return null; }
+        sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
+        sprite.name = $"{itemName}_icon"; return sprite;
+    }
+    private static string NormalizeResourceName(string itemName)
+    {
+        string normalizedName = NormalizeItemName(itemName);
+        if (string.IsNullOrEmpty(normalizedName)) { return string.Empty; }
+        string token = ToResourceToken(normalizedName);
+        if (token.Contains("spyglass")) { return "Spyglass"; }
+        if (token.Contains("anchor")) { return "Anchor"; }
+        if (token == "iron") { return "Iron"; }
+        if (token == "gold") { return "Gold"; }
+        if (token == "diamond") { return "Diamond"; }
+        if (token == "radium") { return "Radium"; }
+        if (token == "plasma") { return "Plasma"; }
+        if (token == "flamingore") { return "FlamingOre"; }
+        return normalizedName;
+    }
+    private static string ToResourceToken(string itemName)
+    {
+        return NormalizeItemName(itemName).Replace(" ", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
+    }
+    private static void ShowQuestInfo(string message, Sprite icon)
+    {
+        InfoHandler infoHandler = UnitySceneSearch.FindFirst<InfoHandler>();
+        if (infoHandler != null) { infoHandler.ShowInfoNow(message, icon); }
     }
     private static Texture2D CreateIconTexture(string itemName)
     {

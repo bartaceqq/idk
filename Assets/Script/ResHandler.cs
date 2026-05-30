@@ -47,6 +47,7 @@ public class ResHandler : MonoBehaviour
     [SerializeField, Range(0.1f, 1f)] private float terrainDetailDensityScale = 0.25f;
     [SerializeField, Min(40f)] private float terrainTreeDistance = 360f;
     [SerializeField, Min(20f)] private float terrainBillboardStart = 55f; [Header("Lights")]
+    [Tooltip("Keeps realtime lights enabled and only limits distant non-directional shadows.")]
     [SerializeField] private bool optimizeRealtimeLights = true;
     [SerializeField, Range(0.05f, 1f)] private float lightsUpdateInterval = 0.35f;
     [SerializeField, Min(10f)] private float nonDirectionalLightDistance = 32f;
@@ -152,7 +153,7 @@ public class ResHandler : MonoBehaviour
     }
     public void RegisterManagedRoot(Transform root)
     {
-        if (root == null || IsConvertedTerrainObject(root)) { return; }
+        if (root == null || IsConvertedTerrainObject(root) || IsAlwaysVisibleRoot(root)) { return; }
         if (managedRoots == null) { managedRoots = new Transform[0]; }
         for (int i = 0; i < managedRoots.Length; i++) { if (managedRoots[i] == root) { return; } }
         Transform[] expandedRoots = new Transform[managedRoots.Length + 1];
@@ -176,7 +177,6 @@ public class ResHandler : MonoBehaviour
         }
         TryAddRootByName(found, "Trees&stones"); TryAddRootByName(found, "Trees");
         TryAddRootByName(found, "Stones"); TryAddRootByName(found, "Rocks");
-        TryAddRootByName(found, "Lamps");
         managedRoots = found.Count > 0 ? found.ToArray() : new Transform[0];
     }
     private static void TryAddRootByName(List<Transform> found, string objectName)
@@ -200,7 +200,7 @@ public class ResHandler : MonoBehaviour
             {
                 Transform root = managedRoots[i];
                 if (root == null) { continue; }
-                if (IsConvertedTerrainObject(root)) { continue; }
+                if (IsConvertedTerrainObject(root) || IsAlwaysVisibleRoot(root)) { continue; }
                 Renderer[] renderers = root.GetComponentsInChildren<Renderer>(includeInactiveChildren);
                 for (int r = 0; r < renderers.Length; r++)
                 {
@@ -306,6 +306,22 @@ public class ResHandler : MonoBehaviour
         Transform current = candidate; while (current != null)
         {
             if (current.name.IndexOf("ConvertedTerrainTrees", System.StringComparison.OrdinalIgnoreCase) >= 0) { return true; }
+            current = current.parent;
+        }
+        return false;
+    }
+    private static bool IsAlwaysVisibleRoot(Transform candidate)
+    {
+        if (candidate == null || string.IsNullOrEmpty(candidate.name)) { return false; }
+        return string.Equals(candidate.name, "Lamps", System.StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(candidate.name, "Lights", System.StringComparison.OrdinalIgnoreCase);
+    }
+    private static bool IsUnderAlwaysVisibleRoot(Transform candidate)
+    {
+        Transform current = candidate;
+        while (current != null)
+        {
+            if (IsAlwaysVisibleRoot(current)) { return true; }
             current = current.parent;
         }
         return false;
@@ -416,10 +432,11 @@ public class ResHandler : MonoBehaviour
         {
             Light light = allLights[i];
             if (light == null) { continue; }
+            bool keepVisible = IsUnderAlwaysVisibleRoot(light.transform);
             _managedLights.Add(new ManagedLight
             {
                 light = light,
-                initialEnabled = light.enabled,
+                initialEnabled = keepVisible || light.enabled,
                 originalShadows = light.shadows,
                 type = light.type
             });
@@ -434,7 +451,6 @@ public class ResHandler : MonoBehaviour
         }
         if (targetCamera == null) { return; }
         Vector3 camPos = targetCamera.transform.position;
-        float lightDistSqr = nonDirectionalLightDistance * nonDirectionalLightDistance;
         float shadowDistSqr = nonDirectionalShadowDistance * nonDirectionalShadowDistance;
         int shadowBudget = Mathf.Max(0, maxShadowedNonDirectionalLights); int shadowedCount = 0;
         for (int i = 0; i < _managedLights.Count; i++)
@@ -447,13 +463,7 @@ public class ResHandler : MonoBehaviour
                 if (disableShadowsOnDisabledLights && light.shadows != LightShadows.None) { light.shadows = LightShadows.None; }
                 continue;
             }
-            bool shouldEnable = (light.transform.position - camPos).sqrMagnitude <= lightDistSqr;
-            if (light.enabled != shouldEnable) { light.enabled = shouldEnable; }
-            if (!shouldEnable)
-            {
-                if (disableShadowsOnDisabledLights && light.shadows != LightShadows.None) { light.shadows = LightShadows.None; }
-                continue;
-            }
+            if (!light.enabled) { light.enabled = true; }
             bool canCast = item.originalShadows != LightShadows.None &&
                 (light.transform.position - camPos).sqrMagnitude <= shadowDistSqr &&
                 shadowedCount < shadowBudget;

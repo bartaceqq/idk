@@ -288,6 +288,16 @@ public class ActionScript : MonoBehaviour
         if (movementAnimationScript == null) { return; }
         movementAnimationScript.WalkRight(status);
     }
+    public void SprintLeft(bool status)
+    {
+        if (movementAnimationScript == null) { return; }
+        movementAnimationScript.SprintLeft(status);
+    }
+    public void SprintRight(bool status)
+    {
+        if (movementAnimationScript == null) { return; }
+        movementAnimationScript.SprintRight(status);
+    }
     public void WalkForwardLeft(bool status)
     {
         if (movementAnimationScript == null) { return; }
@@ -307,6 +317,20 @@ public class ActionScript : MonoBehaviour
     {
         if (movementAnimationScript == null) { return; }
         movementAnimationScript.SprintForwardRight(status);
+    }
+    public void UpdateLocomotionAnimations(bool idle, bool forwardWalk, bool forwardRun,
+    bool backward, bool leftStrafe, bool rightStrafe, bool sprintLeft, bool sprintRight,
+    bool forwardLeftWalk, bool forwardRightWalk, bool forwardLeftRun, bool forwardRightRun,
+    bool sprintingForStamina)
+    {
+        if (staminaScript != null)
+        {
+            if (sprintingForStamina) { staminaScript.ReduceStamina(); } else { staminaScript.AddStamina(); }
+        }
+        if (movementAnimationScript == null) { return; }
+        movementAnimationScript.SetLocomotion(idle, forwardWalk, forwardRun, backward,
+        leftStrafe, rightStrafe, sprintLeft, sprintRight, forwardLeftWalk, forwardRightWalk,
+        forwardLeftRun, forwardRightRun);
     }
     public bool IsMovementAnimationLocked() { return Time.time < movementAnimationLockUntil || IsAnimatorInActionState(); }
     public bool IsGameplayInputLocked()
@@ -384,7 +408,8 @@ public class ActionScript : MonoBehaviour
         movementAnimationScript.WalkAnimation_Foreward(false);
         movementAnimationScript.RunAnimation_Foreward(false);
         movementAnimationScript.WalkBackWards(false); movementAnimationScript.WalkLeft(false);
-        movementAnimationScript.WalkRight(false); movementAnimationScript.WalkForwardLeft(false);
+        movementAnimationScript.WalkRight(false); movementAnimationScript.SprintLeft(false);
+        movementAnimationScript.SprintRight(false); movementAnimationScript.WalkForwardLeft(false);
         movementAnimationScript.WalkForwardRight(false);
         movementAnimationScript.SprintForwardLeft(false);
         movementAnimationScript.SprintForwardRight(false);
