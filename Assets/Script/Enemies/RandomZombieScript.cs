@@ -51,6 +51,7 @@ public abstract class CustomEnemyAIBase : MonoBehaviour
     private float _nextStuckCheckTime; private Vector3 _lastStuckCheckPosition;
     private float _stuckRecoveryUntil; private float _stuckTurnSign = 1f;
     private int _attackSequence; private int _damagedAttackSequence;
+    protected int CurrentAttackSequence => _attackSequence;
     protected virtual void Awake()
     {
         DisableUnityNavMeshAgentComponent();
@@ -66,6 +67,10 @@ public abstract class CustomEnemyAIBase : MonoBehaviour
     }
     protected virtual void Update()
     {
+        if (StartCutSceneScript.IsIntroCutsceneBlockingGameplay)
+        {
+            StopMoving(); SetWalkAnimation(false); return;
+        }
         if (Time.time >= _nextThinkTime)
         {
             _nextThinkTime = Time.time + Mathf.Max(0.02f, aiThinkInterval); Think();
@@ -74,6 +79,7 @@ public abstract class CustomEnemyAIBase : MonoBehaviour
     }
     protected abstract void OnEnemyAttack();
     protected abstract void SetWalkAnimation(bool status);
+    protected virtual bool ShouldUseDelayedAttackDamage() { return true; }
     public void LockActions(float seconds)
     {
         float lockUntil = Time.time + Mathf.Max(0f, seconds);
@@ -83,7 +89,8 @@ public abstract class CustomEnemyAIBase : MonoBehaviour
     protected void TriggerEnemyAttack()
     {
         StopMoving(); FacePlayer(); SetWalkAnimation(false); _attackSequence++;
-        OnEnemyAttack(); StartCoroutine(DamagePlayerAfterDelay(_attackSequence));
+        OnEnemyAttack();
+        if (ShouldUseDelayedAttackDamage()) { StartCoroutine(DamagePlayerAfterDelay(_attackSequence)); }
     }
     protected void DamagePlayerFromAnimationEvent()
     {
@@ -98,11 +105,29 @@ public abstract class CustomEnemyAIBase : MonoBehaviour
     }
     private void TryDamagePlayerForAttack(int attackSequence)
     {
-        if (!damagePlayerOnAttack || attackSequence == _damagedAttackSequence || playerDamage <= 0f) { return; }
-        ResolvePlayerTransform(); if (playertransform == null) { return; }
+        if (!CanDamagePlayerForAttack(attackSequence)) { return; }
         float maxDamageDistance = Mathf.Max(0.1f, attackRange + attackRangeBuffer + playerDamageRangePadding);
         if (HorizontalDistance(transform.position, playertransform.position) > maxDamageDistance) { return; }
-        if (PlayerHealth.DamageTarget(playertransform, playerDamage)) { _damagedAttackSequence = attackSequence; }
+        ApplyPlayerDamageForAttack(attackSequence);
+    }
+    protected bool TryDamagePlayerFromPoint(int attackSequence, Vector3 hitPoint, float hitRadius, float targetHeightOffset)
+    {
+        if (!CanDamagePlayerForAttack(attackSequence)) { return false; }
+        float safeRadius = Mathf.Max(0.05f, hitRadius);
+        Vector3 targetPoint = playertransform.position + Vector3.up * Mathf.Max(0f, targetHeightOffset);
+        if ((hitPoint - targetPoint).sqrMagnitude > safeRadius * safeRadius) { return false; }
+        return ApplyPlayerDamageForAttack(attackSequence);
+    }
+    private bool CanDamagePlayerForAttack(int attackSequence)
+    {
+        if (StartCutSceneScript.IsIntroCutsceneBlockingGameplay || !damagePlayerOnAttack ||
+        attackSequence == _damagedAttackSequence || playerDamage <= 0f) { return false; }
+        ResolvePlayerTransform(); return playertransform != null;
+    }
+    private bool ApplyPlayerDamageForAttack(int attackSequence)
+    {
+        if (!PlayerHealth.DamageTarget(playertransform, playerDamage)) { return false; }
+        _damagedAttackSequence = attackSequence; return true;
     }
     private void Think()
     {
@@ -517,7 +542,9 @@ public class RandomZombieScript : CustomEnemyAIBase
     [Header("Throw Visual")] public GameObject thrownItemPrefab; public Transform throwOrigin;
     public float throwSpawnDelay = 0.35f; public float throwArcHeight = 1.2f;
     public float throwTravelTime = 0.7f; public float throwTargetHeightOffset = 1.0f;
-    public float thrownItemLifetimeAfterImpact = 0.1f; protected override void Awake()
+    public float thrownItemLifetimeAfterImpact = 0.1f;
+    [Header("Throw Damage")] public bool damageOnlyOnThrownItemImpact = true;
+    public float thrownItemDamageRadius = 0.45f; protected override void Awake()
     {
         base.Awake(); if (zombieAnimationScript == null)
         {
@@ -525,7 +552,11 @@ public class RandomZombieScript : CustomEnemyAIBase
             if (zombieAnimationScript == null) { zombieAnimationScript = GetComponentInChildren<ZombieAnimationScript>(); }
         }
     }
-    public void Attack() { DamagePlayerFromAnimationEvent(); }
+    public void Attack()
+    {
+        if (!damageOnlyOnThrownItemImpact || thrownItemPrefab == null) { DamagePlayerFromAnimationEvent(); }
+    }
+    protected override bool ShouldUseDelayedAttackDamage() { return !damageOnlyOnThrownItemImpact || thrownItemPrefab == null; }
     protected override void OnEnemyAttack()
     {
         if (zombieAnimationScript != null) { zombieAnimationScript.ThrowAnim(); }
@@ -534,6 +565,7 @@ public class RandomZombieScript : CustomEnemyAIBase
     protected override void SetWalkAnimation(bool status) { if (zombieAnimationScript != null) { zombieAnimationScript.MoveAnim(status); } }
     private IEnumerator ThrowItemRoutine()
     {
+        int attackSequence = CurrentAttackSequence;
         if (throwSpawnDelay > 0f) { yield return new WaitForSeconds(throwSpawnDelay); }
         if (playertransform == null || thrownItemPrefab == null) { yield break; }
         Vector3 startPos = throwOrigin != null ? throwOrigin.position : transform.position + Vector3.up * 1.4f;
@@ -545,13 +577,13 @@ public class RandomZombieScript : CustomEnemyAIBase
         {
             rb.isKinematic = true; rb.useGravity = false;
         }
-        yield return StartCoroutine(MoveProjectileArc(thrownItem.transform, startPos, endPos, throwTravelTime, throwArcHeight));
+        yield return StartCoroutine(MoveProjectileArc(thrownItem.transform, startPos, endPos, throwTravelTime, throwArcHeight, attackSequence));
         if (thrownItem != null)
         {
             if (thrownItemLifetimeAfterImpact > 0f) { Destroy(thrownItem, thrownItemLifetimeAfterImpact); } else { Destroy(thrownItem); }
         }
     }
-    private IEnumerator MoveProjectileArc(Transform projectile, Vector3 startPos, Vector3 endPos, float travelTime, float arcHeight)
+    private IEnumerator MoveProjectileArc(Transform projectile, Vector3 startPos, Vector3 endPos, float travelTime, float arcHeight, int attackSequence)
     {
         if (projectile == null) { yield break; }
         float safeTravelTime = Mathf.Max(0.05f, travelTime); float elapsed = 0f;
@@ -563,9 +595,18 @@ public class RandomZombieScript : CustomEnemyAIBase
             Vector3 nextPos = linearPos + Vector3.up * arcOffset; projectile.position = nextPos;
             Vector3 forward = nextPos - previousPos;
             if (forward.sqrMagnitude > 0.0001f) { projectile.rotation = Quaternion.LookRotation(forward.normalized, Vector3.up); }
+            if (damageOnlyOnThrownItemImpact &&
+            TryDamagePlayerFromPoint(attackSequence, nextPos, thrownItemDamageRadius, throwTargetHeightOffset)) { yield break; }
             previousPos = nextPos; yield return null;
         }
-        if (projectile != null) { projectile.position = endPos; }
+        if (projectile != null)
+        {
+            projectile.position = endPos;
+            if (damageOnlyOnThrownItemImpact)
+            {
+                TryDamagePlayerFromPoint(attackSequence, endPos, thrownItemDamageRadius, throwTargetHeightOffset);
+            }
+        }
     }
     private static void EnsureProjectileVfxIsPlaying(GameObject projectileRoot)
     {

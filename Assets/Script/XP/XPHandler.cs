@@ -47,3 +47,59 @@ if (inventoryController != null) { visible |= inventoryController.UIshown;
 foundSource = true; }
 if (!foundSource) { visible = InventoryManager.IsInventoryOpen || InventoryController.IsInventoryOpen; }
 return visible; } }
+
+public static class XPRewards
+{
+    public const int PickupXP = 5;
+    public const int StoneMinedXP = 45;
+    public const int TreeChoppedXP = 35;
+    public const int MonsterKilledXP = 90;
+    public static void GrantPickupXP(int amount)
+    {
+        GrantXP(Mathf.Max(1, amount) * PickupXP);
+    }
+    public static void GrantStoneMinedXP()
+    {
+        GrantXP(StoneMinedXP);
+    }
+    public static void GrantTreeChoppedXP()
+    {
+        GrantXP(TreeChoppedXP);
+    }
+    public static void GrantMonsterKilledXP(Component source)
+    {
+        int reward = MonsterKilledXP;
+        if (source != null)
+        {
+            string token = source.name.Replace(" ", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
+            if (token.Contains("skeleton")) { reward = 100; }
+            else if (token.Contains("zombie")) { reward = 90; }
+        }
+        GrantXP(reward);
+    }
+    public static void GrantXP(int amount)
+    {
+        if (amount <= 0) { return; }
+        XPHandler[] handlers = UnitySceneSearch.FindAll<XPHandler>();
+        if (handlers == null || handlers.Length == 0) { return; }
+        XPHandler target = ResolveBestHandler(handlers);
+        if (target == null) { return; }
+        target.AddXP(amount);
+        for (int i = 0; i < handlers.Length; i++)
+        {
+            if (handlers[i] != null && handlers[i] != target) { handlers[i].RefreshUI(); }
+        }
+    }
+    private static XPHandler ResolveBestHandler(XPHandler[] handlers)
+    {
+        for (int i = 0; i < handlers.Length; i++)
+        {
+            if (handlers[i] != null && handlers[i].isActiveAndEnabled) { return handlers[i]; }
+        }
+        for (int i = 0; i < handlers.Length; i++)
+        {
+            if (handlers[i] != null) { return handlers[i]; }
+        }
+        return null;
+    }
+}

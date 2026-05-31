@@ -109,7 +109,7 @@ MonoBehaviour:
   m_Name: AnimationPlayableAsset
   m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.AnimationPlayableAsset
   m_Clip: {fileID: 7400000, guid: 23faf0b14d4b20146b9d95364ee040f9, type: 2}
-  m_Position: {x: 6.961908, y: -8.608566, z: -0.2396201}
+  m_Position: {x: -2481, y: 533, z: 264}
   m_EulerAngles: {x: 0, y: 0, z: 0}
   m_UseTrackMatchFields: 1
   m_MatchTargetFields: 63
@@ -1054,7 +1054,7 @@ MonoBehaviour:
   m_Name: AnimationPlayableAsset
   m_EditorClassIdentifier: Unity.Timeline::UnityEngine.Timeline.AnimationPlayableAsset
   m_Clip: {fileID: 7400000, guid: 7f72a428b8ef06148a71b27e258a3369, type: 2}
-  m_Position: {x: 6.9619083, y: -8.608566, z: -0.23962015}
+  m_Position: {x: -2481, y: 530, z: 254}
   m_EulerAngles: {x: 0.028, y: 0, z: 0}
   m_UseTrackMatchFields: 1
   m_MatchTargetFields: 63

@@ -34,7 +34,7 @@ public class MineStone : MonoBehaviour
     [SerializeField, Min(0f)] private float breakLinearDamping = 0.2f;
     [SerializeField, Min(0f)] private float breakAngularDamping = 0.9f;
     [SerializeField, Min(0f)] private float breakRandomTorque = 1.2f; private Ore selectedOre;
-    private int initialCounter; private bool isRebuilding;
+    private int initialCounter; private float mineProgress; private bool isRebuilding;
     private readonly List<GameObject> breakFragments = new List<GameObject>();
     private readonly Dictionary<Transform, TransformSnapshot> initialFragmentTransforms = new Dictionary<Transform, TransformSnapshot>();
     private readonly Dictionary<MeshCollider, bool> cachedBreakMeshColliderConvex = new Dictionary<MeshCollider, bool>();
@@ -73,6 +73,7 @@ public class MineStone : MonoBehaviour
     {
         ResolveReferences(); AutoPopulateStoneStructure(); CacheFragmentDefaults();
         initialCounter = Mathf.Max(1, counter); counter = initialCounter; chosen.Clear();
+        mineProgress = 0f;
         InitializeStoneState();
     }
     private void ResolveReferences()
@@ -174,12 +175,18 @@ public class MineStone : MonoBehaviour
     }
     public void Mine()
     {
+        Mine(0);
+    }
+    public void Mine(int requiredHitsToBreak)
+    {
         ResolveReferences(); EnsureStoneStructureReady();
         if (isRebuilding) { return; }
         if (counter <= 0) { return; }
-        counter--;
+        int previousCounter = counter;
+        ApplyMineProgress(requiredHitsToBreak);
+        int visualSteps = Mathf.Max(1, previousCounter - counter);
         if (parts == null || parts.Count == 0) { Debug.LogWarning($"{name}: No stone parts were auto-detected. Check child names.", this); }
-        if (parts != null && parts.Count > 0)
+        for (int step = 0; step < visualSteps && parts != null && parts.Count > 0; step++)
         {
             if (chosen.Count < parts.Count)
             {
@@ -189,9 +196,22 @@ public class MineStone : MonoBehaviour
                     ApplyMaterialToObject(parts[selectedIndex], blackmaterial);
                 }
             }
-            else { counter = 0; }
+            else { counter = 0; break; }
         }
         if (counter == 0) { GiveStoneReward(); StartCoroutine(HandleStoneBreakAndRebuild()); }
+    }
+    private void ApplyMineProgress(int requiredHitsToBreak)
+    {
+        if (requiredHitsToBreak <= 0)
+        {
+            counter--;
+            mineProgress = Mathf.Max(mineProgress, initialCounter - counter);
+            return;
+        }
+        if (mineProgress <= 0f && counter < initialCounter) { mineProgress = initialCounter - counter; }
+        float progressPerHit = initialCounter / (float)Mathf.Max(1, requiredHitsToBreak);
+        mineProgress += Mathf.Max(1f, progressPerHit);
+        counter = Mathf.Max(0, Mathf.CeilToInt(initialCounter - mineProgress));
     }
     private IEnumerator HandleStoneBreakAndRebuild()
     {
@@ -204,7 +224,7 @@ public class MineStone : MonoBehaviour
     private void RebuildStone()
     {
         ResolveReferences();
-        EnsureStoneStructureReady(); counter = initialCounter; chosen.Clear();
+        EnsureStoneStructureReady(); counter = initialCounter; mineProgress = 0f; chosen.Clear();
         SetStoneVisible(true); ApplyMaterialToTargets(parts, greymat);
         ApplyOreSelectionAndVisuals();
     }
@@ -212,6 +232,7 @@ public class MineStone : MonoBehaviour
     {
         InventoryItem rewardItem = ResolveRewardInventoryItem();
         if (!TryAddRewardToInventory(rewardItem)) { Debug.LogWarning($"{name}: Missing inventory target for reward '{GetInventoryItemName(rewardItem)}'.", this); }
+        XPRewards.GrantStoneMinedXP();
         if (infoHandler != null)
         {
             Sprite infoSprite = rewardItem != null && rewardItem.inventorysprite != null

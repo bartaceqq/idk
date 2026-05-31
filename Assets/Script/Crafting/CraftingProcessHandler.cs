@@ -7,6 +7,19 @@ using UnityEngine.UI;
 using UnityEngine.Events;
 public class CraftingProcessHandler : MonoBehaviour
 {
+    [Serializable]
+    public class RequirementIconBinding
+    {
+        public string itemName; public Sprite sprite;
+    }
+    private struct RequirementPreviewEntry
+    {
+        public string itemName; public int amount;
+        public RequirementPreviewEntry(string itemName, int amount)
+        {
+            this.itemName = itemName; this.amount = amount;
+        }
+    }
     public CraftableItem craftableItem;
     public CraftingManager craftingManager; public InventoryListHandler inventoryListHandler;
     public SlotManager slotManager; public InventoryManager inventoryManager;
@@ -18,31 +31,42 @@ public class CraftingProcessHandler : MonoBehaviour
     [SerializeField] private string craftingLabelPrefix = "CRAFTING";
     [Header("Craft Click Guard")]
     [SerializeField, Min(0f)] private float craftClickCooldownSeconds = 0.2f;
+    [Header("Required Item Preview")]
+    public Image[] requiredItemImages;
+    public TMP_Text[] requiredItemCountLabels;
+    public List<RequirementIconBinding> requirementIconBindings = new List<RequirementIconBinding>();
     private float _craftButtonCooldownUntil; private bool _craftInProgress;
     private Coroutine _craftRoutine; private string _defaultCraftButtonLabel = "CRAFT";
-    private bool _hasCachedDefaultCraftButtonLabel; void Start()
+    private bool _hasCachedDefaultCraftButtonLabel;
+    private readonly Dictionary<string, Sprite> _requirementIconCache = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
+    private bool _requirementIconCacheReady; void Start()
     {
         ResolveReferences();
-        ResolveCraftUiReferences(); EnsureCraftProgressSliderExists(); BindCraftButtonIfNeeded();
+        ResolveCraftUiReferences(); BindCraftButtonIfNeeded();
+        ResolveRequirementPreviewReferences();
         AutoSelectCraftableItem(); UpdateSelectedSlotVisuals(); ResetCraftProgressVisuals();
-        RefreshCraftAvailability();
+        UpdateRequirementPreview(); RefreshCraftAvailability();
     }
     void Update()
     {
         ResolveReferences();
         ResolveCraftUiReferences(); AutoSelectCraftableItem(); UpdateSelectedSlotVisuals();
-        RefreshCraftAvailability();
+        ResolveRequirementPreviewReferences(); UpdateRequirementPreview(); RefreshCraftAvailability();
     }
     public void SelectCraftableItem(CraftableItem selectedCraftableItem)
     {
         craftableItem = selectedCraftableItem; UpdateSelectedSlotVisuals();
-        RefreshCraftAvailability();
+        UpdateRequirementPreview(); RefreshCraftAvailability();
     }
     public void Craft()
     {
         if (IsCraftInteractionLocked()) { return; }
         ResolveReferences();
-        ResolveCraftUiReferences(); EnsureCraftProgressSliderExists();
+        ResolveCraftUiReferences();
+        if (IsSelectedCraftableLocked())
+        {
+            hasenough = false; OnCraftMissingResources(); return;
+        }
         if (!TryBuildRequirementMap(out Dictionary<string, int> requiredResources))
         {
             hasenough = false; OnCraftMissingResources(); return;
@@ -75,6 +99,10 @@ public class CraftingProcessHandler : MonoBehaviour
     private void RefreshCraftAvailability()
     {
         UpdateSelectedSlotVisuals();
+        if (IsSelectedCraftableLocked())
+        {
+            hasenough = false; OnCraftMissingResources(); return;
+        }
         if (!TryBuildRequirementMap(out Dictionary<string, int> requiredResources))
         {
             hasenough = false; OnCraftMissingResources(); return;
@@ -93,6 +121,198 @@ public class CraftingProcessHandler : MonoBehaviour
             bool isSelected = craftableItem != null && slot.craftableItemReference == craftableItem;
             slot.SetSelectedVisual(isSelected);
         }
+    }
+    private bool IsSelectedCraftableLocked()
+    {
+        return craftableItem != null && craftableItem.IsLockedForLevel(ResolveCurrentCraftingLevel());
+    }
+    private int ResolveCurrentCraftingLevel()
+    {
+        if (craftingManager != null) { return craftingManager.GetCurrentCraftingLevel(); }
+        LevelingManager levelingManager = UnitySceneSearch.FindFirst<LevelingManager>();
+        return levelingManager != null ? levelingManager.CurrentLevel : 1;
+    }
+    private void UpdateRequirementPreview()
+    {
+        ResolveRequirementPreviewReferences();
+        if (!TryBuildRequirementPreviewList(out List<RequirementPreviewEntry> requirements))
+        {
+            ClearRequirementPreview(); return;
+        }
+        int slotCount = GetRequirementPreviewSlotCount();
+        for (int i = 0; i < slotCount; i++)
+        {
+            if (i < requirements.Count) { ApplyRequirementPreviewSlot(i, requirements[i]); }
+            else { ClearRequirementPreviewSlot(i); }
+        }
+    }
+    private bool TryBuildRequirementPreviewList(out List<RequirementPreviewEntry> requirements)
+    {
+        requirements = new List<RequirementPreviewEntry>();
+        if (craftableItem == null) { return false; }
+        List<string> neededResources = craftableItem.neededResources;
+        if (neededResources == null || neededResources.Count == 0) { return true; }
+        for (int i = 0; i < neededResources.Count; i++)
+        {
+            if (!TryParseRequirement(neededResources[i], out string neededName, out int neededCount)) { return false; }
+            AddOrMergeRequirementPreview(requirements, neededName, neededCount);
+        }
+        return true;
+    }
+    private static void AddOrMergeRequirementPreview(List<RequirementPreviewEntry> requirements, string itemName, int amount)
+    {
+        if (requirements == null || string.IsNullOrWhiteSpace(itemName) || amount <= 0) { return; }
+        string normalizedName = NormalizeItemToken(itemName);
+        for (int i = 0; i < requirements.Count; i++)
+        {
+            if (!string.Equals(NormalizeItemToken(requirements[i].itemName), normalizedName, StringComparison.OrdinalIgnoreCase)) { continue; }
+            requirements[i] = new RequirementPreviewEntry(requirements[i].itemName, requirements[i].amount + amount); return;
+        }
+        requirements.Add(new RequirementPreviewEntry(itemName.Trim(), amount));
+    }
+    private void ApplyRequirementPreviewSlot(int index, RequirementPreviewEntry requirement)
+    {
+        Sprite icon = ResolveRequirementIcon(requirement.itemName);
+        if (requiredItemImages != null && index >= 0 && index < requiredItemImages.Length && requiredItemImages[index] != null)
+        {
+            Image image = requiredItemImages[index];
+            image.sprite = icon; image.preserveAspect = true; image.enabled = icon != null;
+        }
+        if (requiredItemCountLabels != null && index >= 0 && index < requiredItemCountLabels.Length && requiredItemCountLabels[index] != null)
+        {
+            TMP_Text label = requiredItemCountLabels[index];
+            label.text = Mathf.Max(0, requirement.amount).ToString(); label.enabled = true;
+        }
+    }
+    private void ClearRequirementPreview()
+    {
+        int slotCount = GetRequirementPreviewSlotCount();
+        for (int i = 0; i < slotCount; i++) { ClearRequirementPreviewSlot(i); }
+    }
+    private void ClearRequirementPreviewSlot(int index)
+    {
+        if (requiredItemImages != null && index >= 0 && index < requiredItemImages.Length && requiredItemImages[index] != null)
+        {
+            requiredItemImages[index].sprite = null; requiredItemImages[index].enabled = false;
+        }
+        if (requiredItemCountLabels != null && index >= 0 && index < requiredItemCountLabels.Length && requiredItemCountLabels[index] != null)
+        {
+            requiredItemCountLabels[index].text = "0"; requiredItemCountLabels[index].enabled = true;
+        }
+    }
+    private int GetRequirementPreviewSlotCount()
+    {
+        int imageCount = requiredItemImages != null ? requiredItemImages.Length : 0;
+        int labelCount = requiredItemCountLabels != null ? requiredItemCountLabels.Length : 0;
+        return Mathf.Max(imageCount, labelCount);
+    }
+    private Sprite ResolveRequirementIcon(string itemName)
+    {
+        if (string.IsNullOrWhiteSpace(itemName)) { return null; }
+        EnsureRequirementIconCache();
+        return _requirementIconCache.TryGetValue(NormalizeItemToken(itemName), out Sprite icon) ? icon : null;
+    }
+    private void EnsureRequirementIconCache()
+    {
+        if (_requirementIconCacheReady) { return; }
+        _requirementIconCacheReady = true; _requirementIconCache.Clear();
+        AddOreIconBindings(); AddInventoryItemIconBindings(); AddCraftableItemIconBindings(); AddConfiguredRequirementIconBindings();
+    }
+    private void AddConfiguredRequirementIconBindings()
+    {
+        if (requirementIconBindings == null) { return; }
+        for (int i = 0; i < requirementIconBindings.Count; i++)
+        {
+            RequirementIconBinding binding = requirementIconBindings[i];
+            if (binding == null) { continue; }
+            CacheRequirementIcon(binding.itemName, binding.sprite, true);
+        }
+    }
+    private void AddOreIconBindings()
+    {
+        GetRandomOreType oreTypeProvider = FindFirstInScene<GetRandomOreType>();
+        if (oreTypeProvider == null) { return; }
+        CacheRequirementIcon("iron", oreTypeProvider.ironsprite, false);
+        CacheRequirementIcon("gold", oreTypeProvider.goldsprite, false);
+        CacheRequirementIcon("diamond", oreTypeProvider.diamondsprite, false);
+        CacheRequirementIcon("radium", oreTypeProvider.radiumsprite, false);
+        CacheRequirementIcon("plasma", oreTypeProvider.plasmapsprite, false);
+        CacheRequirementIcon("flaming_ore", oreTypeProvider.flaming_oresprite, false);
+        CacheRequirementIcon("stone", oreTypeProvider.basicstonesprite, false);
+    }
+    private void AddInventoryItemIconBindings()
+    {
+        InventoryItem[] inventoryItems = UnitySceneSearch.FindAll<InventoryItem>();
+        for (int i = 0; i < inventoryItems.Length; i++)
+        {
+            InventoryItem item = inventoryItems[i];
+            if (item == null || item.inventorysprite == null) { continue; }
+            CacheRequirementIcon(item.nameofitem, item.inventorysprite, false);
+            CacheRequirementIcon(item.name, item.inventorysprite, false);
+        }
+    }
+    private void AddCraftableItemIconBindings()
+    {
+        if (craftingManager == null || craftingManager.items == null) { return; }
+        for (int i = 0; i < craftingManager.items.Count; i++)
+        {
+            CraftableItem item = craftingManager.items[i];
+            if (item == null || item.sprite == null) { continue; }
+            CacheRequirementIcon(item.name, item.sprite, false);
+            if (item.craftedInventoryItem != null)
+            {
+                CacheRequirementIcon(item.craftedInventoryItem.nameofitem, item.sprite, false);
+                CacheRequirementIcon(item.craftedInventoryItem.name, item.sprite, false);
+            }
+        }
+    }
+    private void CacheRequirementIcon(string itemName, Sprite sprite, bool overwrite)
+    {
+        if (string.IsNullOrWhiteSpace(itemName) || sprite == null) { return; }
+        string key = NormalizeItemToken(itemName);
+        if (string.IsNullOrEmpty(key)) { return; }
+        if (overwrite || !_requirementIconCache.ContainsKey(key)) { _requirementIconCache[key] = sprite; }
+    }
+    private void ResolveRequirementPreviewReferences()
+    {
+        if (HasRequirementPreviewReferences()) { return; }
+        Transform previewRoot = craftingManager != null ? craftingManager.transform : transform;
+        Transform firstSlot = FindChildByName(previewRoot, "ItemNeeded");
+        Transform secondSlot = FindChildByName(previewRoot, "ItemNeeded (1)");
+        requiredItemImages = new Image[2];
+        requiredItemCountLabels = new TMP_Text[2];
+        AssignRequirementPreviewSlot(0, firstSlot);
+        AssignRequirementPreviewSlot(1, secondSlot);
+    }
+    private bool HasRequirementPreviewReferences()
+    {
+        return requiredItemImages != null && requiredItemImages.Length > 0 && requiredItemImages[0] != null &&
+        requiredItemCountLabels != null && requiredItemCountLabels.Length > 0 && requiredItemCountLabels[0] != null;
+    }
+    private void AssignRequirementPreviewSlot(int index, Transform slotRoot)
+    {
+        if (slotRoot == null || index < 0) { return; }
+        if (index < requiredItemImages.Length)
+        {
+            Transform imageTransform = FindChildByName(slotRoot, "ImageSlot");
+            requiredItemImages[index] = imageTransform != null ? imageTransform.GetComponent<Image>() : slotRoot.GetComponentInChildren<Image>(true);
+        }
+        if (index < requiredItemCountLabels.Length)
+        {
+            Transform countTransform = FindChildByName(slotRoot, "Count");
+            requiredItemCountLabels[index] = countTransform != null ? countTransform.GetComponent<TMP_Text>() : slotRoot.GetComponentInChildren<TMP_Text>(true);
+        }
+    }
+    private static Transform FindChildByName(Transform parent, string childName)
+    {
+        if (parent == null || string.IsNullOrWhiteSpace(childName)) { return null; }
+        Transform[] children = parent.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < children.Length; i++)
+        {
+            Transform child = children[i];
+            if (child != null && child.name == childName) { return child; }
+        }
+        return null;
     }
     private bool HasEnoughResources(Dictionary<string, int> requiredResources)
     {
@@ -228,45 +448,11 @@ public class CraftingProcessHandler : MonoBehaviour
         }
         if (craftProgressSlider == null) { craftProgressSlider = button.GetComponentInChildren<Slider>(true); }
     }
-    private void EnsureCraftProgressSliderExists()
-    {
-        if (craftProgressSlider != null || button == null) { return; }
-        craftProgressSlider = CreateRuntimeCraftProgressSlider(button.transform as RectTransform);
-    }
     private void BindCraftButtonIfNeeded()
     {
         if (button == null) { return; }
         button.onClick.RemoveListener(Craft);
         if (!HasPersistentCraftBinding(button)) { button.onClick.AddListener(Craft); }
-    }
-    private Slider CreateRuntimeCraftProgressSlider(RectTransform parent)
-    {
-        if (parent == null) { return null; }
-        GameObject rootObject = new GameObject("CraftProgressSlider", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Slider));
-        RectTransform rootRect = rootObject.GetComponent<RectTransform>();
-        rootRect.SetParent(parent, false); rootRect.anchorMin = Vector2.zero;
-        rootRect.anchorMax = Vector2.one; rootRect.offsetMin = Vector2.zero;
-        rootRect.offsetMax = Vector2.zero; rootRect.SetSiblingIndex(0);
-        Image backgroundImage = rootObject.GetComponent<Image>();
-        backgroundImage.color = new Color32(28, 24, 18, 200);
-        backgroundImage.raycastTarget = false; backgroundImage.type = Image.Type.Simple;
-        Slider slider = rootObject.GetComponent<Slider>(); slider.interactable = false;
-        slider.direction = Slider.Direction.LeftToRight; slider.minValue = 0f;
-        slider.maxValue = 1f; slider.wholeNumbers = false; slider.targetGraphic = backgroundImage;
-        GameObject fillAreaObject = new GameObject("Fill Area", typeof(RectTransform));
-        RectTransform fillAreaRect = fillAreaObject.GetComponent<RectTransform>();
-        fillAreaRect.SetParent(rootRect, false); fillAreaRect.anchorMin = new Vector2(0f, 0f);
-        fillAreaRect.anchorMax = new Vector2(1f, 1f);
-        fillAreaRect.offsetMin = new Vector2(4f, 4f);
-        fillAreaRect.offsetMax = new Vector2(-4f, -4f);
-        GameObject fillObject = new GameObject("Fill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform fillRect = fillObject.GetComponent<RectTransform>();
-        fillRect.SetParent(fillAreaRect, false); fillRect.anchorMin = new Vector2(0f, 0f);
-        fillRect.anchorMax = new Vector2(1f, 1f); fillRect.offsetMin = Vector2.zero;
-        fillRect.offsetMax = Vector2.zero; Image fillImage = fillObject.GetComponent<Image>();
-        fillImage.color = new Color32(118, 193, 96, 255); fillImage.raycastTarget = false;
-        fillImage.type = Image.Type.Simple; slider.fillRect = fillRect; slider.handleRect = null;
-        slider.value = 0f; return slider;
     }
     private void AutoSelectCraftableItem()
     {

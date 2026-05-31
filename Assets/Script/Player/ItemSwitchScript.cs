@@ -5,6 +5,7 @@ public class ItemSwitchScript : MonoBehaviour
 {
     public List<Item> items = new List<Item>(); public int currentitemid;
     public string currentitemname; public bool requireWeaponSlotAssignment = true;
+    public bool enableSwordBladeTrail = false;
     public Item item;
     private readonly HashSet<string> equippedItemNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
     private ActionScript _actionScript; private Coroutine _pendingSwordTransition;
@@ -15,17 +16,18 @@ KeyCode.Alpha8, KeyCode.Alpha9 }; private static readonly string[] WeaponSlotHot
 GameSettings.Key.WeaponSlot1, GameSettings.Key.WeaponSlot2, GameSettings.Key.WeaponSlot3,
 GameSettings.Key.WeaponSlot4, GameSettings.Key.WeaponSlot5, GameSettings.Key.WeaponSlot6,
 GameSettings.Key.WeaponSlot7, GameSettings.Key.WeaponSlot8,
-GameSettings.Key.WeaponSlot9 }; private void Awake() { EnsureBasicStoneSwordEntry(); RefreshItemPresentations(); }
+GameSettings.Key.WeaponSlot9 }; private void Awake() { EnsureSceneWeaponItemsRegistered(); EnsureBasicStoneSwordEntry(); RefreshItemPresentations(); }
     private void Update()
     {
         EnsureCurrentSwordTrailEffect();
         if (_isSwordTransitioning) { return; }
-        if (GameplayUiState.IsGameplayInputBlocked) { return; }
+        if (DialogueState.IsConversationRunning) { return; }
         ActionScript resolvedActionScript = ResolveActionScript();
         if (resolvedActionScript != null &&
         (resolvedActionScript.IsGameplayInputLocked() || resolvedActionScript.IsSwordBlockActive())) { return; }
         EnsureCurrentSelectionIsAllowed();
         if (requireWeaponSlotAssignment) { if (TryHandleWeaponSlotHotkeys()) { return; } return; }
+        if (GameplayUiState.IsMenuOpen) { return; }
         TryHandleLegacyItemHotkeys();
     }
     private bool TryHandleWeaponSlotHotkeys()
@@ -63,7 +65,9 @@ GameSettings.Key.WeaponSlot9 }; private void Awake() { EnsureBasicStoneSwordEntr
         {
             UnequipCurrentItem(); return;
         }
-        if (!TryResolveItemByName(normalized, out Item resolvedItem) || !CanUseItem(resolvedItem)) { return; }
+        if (!TryResolveItemByName(normalized, out Item resolvedItem)) { return; }
+        string resolvedName = NormalizeItemName(resolvedItem.name);
+        if (!string.IsNullOrEmpty(resolvedName)) { equippedItemNames.Add(resolvedName); }
         SwitchToItem(resolvedItem);
     }
     public void ApplyEquippedItemNames(IEnumerable<string> names)
@@ -176,6 +180,43 @@ GameSettings.Key.WeaponSlot9 }; private void Awake() { EnsureBasicStoneSwordEntr
         if (!visible && itemObject.activeSelf) { itemObject.SetActive(false); }
     }
 
+    private void EnsureSceneWeaponItemsRegistered()
+    {
+        Transform searchRoot = transform.root != null ? transform.root : transform;
+        Item[] discoveredItems = searchRoot.GetComponentsInChildren<Item>(true);
+        for (int i = 0; i < discoveredItems.Length; i++) { RegisterSceneWeaponItem(discoveredItems[i]); }
+    }
+    private void RegisterSceneWeaponItem(Item sceneItem)
+    {
+        if (sceneItem == null) { return; }
+        string itemName = NormalizeItemName(sceneItem.name);
+        if (string.IsNullOrEmpty(itemName)) { itemName = NormalizeItemName(sceneItem.gameObject.name); }
+        if (string.IsNullOrEmpty(itemName)) { return; }
+        string category = MapCommonWeaponName(itemName);
+        if (string.IsNullOrEmpty(category)) { return; }
+        sceneItem.name = itemName;
+        if (sceneItem.itemobject == null) { sceneItem.itemobject = sceneItem.gameObject; }
+        sceneItem.ID = ResolveLegacyWeaponId(category);
+        sceneItem.key = ResolveLegacyWeaponKey(category);
+        if (string.Equals(category, "Sword", System.StringComparison.OrdinalIgnoreCase) &&
+        sceneItem.gameObject.GetComponent<Sword>() == null) { sceneItem.gameObject.AddComponent<Sword>(); }
+        if (!items.Contains(sceneItem)) { items.Add(sceneItem); }
+    }
+    private static int ResolveLegacyWeaponId(string weaponCategory)
+    {
+        if (string.Equals(weaponCategory, "Axe", System.StringComparison.OrdinalIgnoreCase)) { return 1; }
+        if (string.Equals(weaponCategory, "Pickaxe", System.StringComparison.OrdinalIgnoreCase)) { return 2; }
+        if (string.Equals(weaponCategory, "Sword", System.StringComparison.OrdinalIgnoreCase)) { return 3; }
+        return 0;
+    }
+    private static KeyCode ResolveLegacyWeaponKey(string weaponCategory)
+    {
+        if (string.Equals(weaponCategory, "Axe", System.StringComparison.OrdinalIgnoreCase)) { return KeyCode.Alpha1; }
+        if (string.Equals(weaponCategory, "Pickaxe", System.StringComparison.OrdinalIgnoreCase)) { return KeyCode.Alpha2; }
+        if (string.Equals(weaponCategory, "Sword", System.StringComparison.OrdinalIgnoreCase)) { return KeyCode.Alpha3; }
+        return KeyCode.None;
+    }
+
     private void EnsureBasicStoneSwordEntry()
     {
         if (TryResolveItemByName("stone_sword", out _)) { return; }
@@ -213,7 +254,19 @@ GameSettings.Key.WeaponSlot9 }; private void Awake() { EnsureBasicStoneSwordEntr
     {
         if (targetItem == null || targetItem.itemobject == null) { return; }
         if (!IsSwordItem(targetItem)) { return; }
+        if (!enableSwordBladeTrail)
+        {
+            RemoveSwordTrailEffect(targetItem);
+            return;
+        }
         if (targetItem.itemobject.GetComponent<SwordTrailEffect>() == null) { targetItem.itemobject.AddComponent<SwordTrailEffect>(); }
+    }
+    private static void RemoveSwordTrailEffect(Item targetItem)
+    {
+        if (targetItem == null || targetItem.itemobject == null) { return; }
+        SwordTrailEffect trailEffect = targetItem.itemobject.GetComponent<SwordTrailEffect>();
+        if (trailEffect == null) { return; }
+        Destroy(trailEffect);
     }
     private void StartSwordTransition(Item swordItem, Item nextItem)
     {
@@ -411,7 +464,7 @@ GameSettings.Key.WeaponSlot9 }; private void Awake() { EnsureBasicStoneSwordEntr
     {
         resolvedItem = null; string normalized = NormalizeItemName(itemNameToResolve);
         if (string.IsNullOrEmpty(normalized)) { return false; }
-        for (int i = 0; i < items.Count; i++)
+        for (int i = items.Count - 1; i >= 0; i--)
         {
             Item candidate = items[i];
             if (candidate == null) { continue; }

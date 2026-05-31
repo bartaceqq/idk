@@ -174,13 +174,14 @@ public class RayScript : MonoBehaviour
         _nextPickaxeSwingTime = Time.time + swingCooldown;
         if (TryGetClosestStoneTarget(out MineStone stoneTarget))
         {
+            int requiredHitsToBreak = ResolveEquippedToolRequiredHits();
             float mineDelay = pickaxeHitDelaySeconds > 0f ? pickaxeHitDelaySeconds : cutDelaySeconds;
             if (!useDelayedPickaxeHit || mineDelay <= 0f)
             {
                 SpawnStoneImpact(stoneTarget, interactionOrigin);
-                stoneTarget.Mine();
+                stoneTarget.Mine(requiredHitsToBreak);
             }
-            else { StartCoroutine(TriggerAfterDelayPickaxe(stoneTarget, interactionOrigin, mineDelay)); }
+            else { StartCoroutine(TriggerAfterDelayPickaxe(stoneTarget, interactionOrigin, mineDelay, requiredHitsToBreak)); }
         }
         return swingCooldown;
     }
@@ -226,6 +227,10 @@ public class RayScript : MonoBehaviour
     {
         if (dedicatedCooldown > 0f) { return dedicatedCooldown; }
         return Mathf.Max(0.01f, swingCooldownSeconds);
+    }
+    private int ResolveEquippedToolRequiredHits()
+    {
+        return ToolTierUtility.ResolveRequiredHitsToBreak(ResolveEquippedItemName(), 0);
     }
     private float ResolveSwordActionCooldown(float fallbackCooldown)
     {
@@ -347,6 +352,7 @@ public class RayScript : MonoBehaviour
             Debug.LogWarning("RayScript: No InventoryAddHandler found for pickups.", this); return;
         }
         if (!inventoryAddHandler.AddItemToInventoryAmount(inventoryItem, amount)) { return; }
+        XPRewards.GrantPickupXP(amount);
         ShowPickupInfo(inventoryItem, amount);
         DetailPickupMarker marker = pickableObject.GetComponent<DetailPickupMarker>();
         if (marker == null && inventoryItem != null) { marker = inventoryItem.GetComponent<DetailPickupMarker>(); }
@@ -568,11 +574,11 @@ public class RayScript : MonoBehaviour
         yield return new WaitForSeconds(delaySeconds);
         if (treeHandler != null) { treeHandler.Chop(attacker); }
     }
-    private IEnumerator TriggerAfterDelayPickaxe(MineStone mineStone, Transform attacker, float delaySeconds)
+    private IEnumerator TriggerAfterDelayPickaxe(MineStone mineStone, Transform attacker, float delaySeconds, int requiredHitsToBreak)
     {
         yield return new WaitForSeconds(delaySeconds); if (mineStone != null)
         {
-            SpawnStoneImpact(mineStone, attacker); mineStone.Mine();
+            SpawnStoneImpact(mineStone, attacker); mineStone.Mine(requiredHitsToBreak);
         }
     }
     private void SpawnStoneImpact(MineStone mineStone, Transform attacker)

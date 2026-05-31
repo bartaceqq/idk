@@ -15,7 +15,7 @@ public class NPCHealthScript : MonoBehaviour
     public void Die()
     {
         if (_isDead) { return; }
-        _isDead = true; PlayDeathAnimation(); StopEnemyBehaviour();
+        _isDead = true; XPRewards.GrantMonsterKilledXP(this); PlayDeathAnimation(); StopEnemyBehaviour();
     }
     private void PlayDeathAnimation()
     {

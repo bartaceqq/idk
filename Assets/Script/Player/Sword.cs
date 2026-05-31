@@ -26,14 +26,7 @@ public class Sword : MonoBehaviour
     }
     private float ResolveTierDamage()
     {
-        string token = ResolveTierName();
-        if (token.Contains("flamingore")) { return 130f; }
-        if (token.Contains("plasma")) { return 110f; }
-        if (token.Contains("radium")) { return 95f; }
-        if (token.Contains("diamond")) { return 80f; }
-        if (token.Contains("gold")) { return 65f; }
-        if (token.Contains("iron")) { return 52f; }
-        return 0f;
+        return ToolTierUtility.ResolveSwordDamage(ResolveTierName(), 0f);
     }
     private string ResolveTierName()
     {
@@ -42,5 +35,40 @@ public class Sword : MonoBehaviour
         string source = ownerItem != null && !string.IsNullOrWhiteSpace(ownerItem.name) ? ownerItem.name : gameObject.name;
         return string.IsNullOrWhiteSpace(source) ? string.Empty
         : source.Trim().Replace(" ", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
+    }
+}
+
+public static class ToolTierUtility
+{
+    public static int ResolveRequiredHitsToBreak(string itemName, int fallbackHits)
+    {
+        string token = Normalize(itemName);
+        if (token.Contains("flamingore")) { return 1; }
+        if (token.Contains("plasma")) { return 2; }
+        if (token.Contains("radium")) { return 3; }
+        if (token.Contains("diamond")) { return 4; }
+        if (token.Contains("gold")) { return 5; }
+        if (token.Contains("iron")) { return 6; }
+        if (token.Contains("stone")) { return 7; }
+        return fallbackHits;
+    }
+
+    public static float ResolveSwordDamage(string itemName, float fallbackDamage)
+    {
+        string token = Normalize(itemName);
+        if (token.Contains("flamingore")) { return 160f; }
+        if (token.Contains("plasma")) { return 130f; }
+        if (token.Contains("radium")) { return 105f; }
+        if (token.Contains("diamond")) { return 85f; }
+        if (token.Contains("gold")) { return 70f; }
+        if (token.Contains("iron")) { return 55f; }
+        if (token.Contains("stone")) { return 40f; }
+        return fallbackDamage;
+    }
+
+    private static string Normalize(string itemName)
+    {
+        return string.IsNullOrWhiteSpace(itemName) ? string.Empty
+        : itemName.Trim().Replace(" ", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
     }
 }

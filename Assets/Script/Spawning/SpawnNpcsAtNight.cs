@@ -4,6 +4,8 @@ using UnityEngine;
 public class SpawnNpcsAtNight : MonoBehaviour
 {
     [Header("Prefabs")] public GameObject zombie; public GameObject skeleton;
+    [Tooltip("Scene-assigned zombie/skeleton objects are used only as templates, never as live monsters.")]
+    public bool hideSceneSpawnSourceObjects = true;
     [Header("Spawn Area")] public Terrain[] terrains; public int monstersPerTerrain = 20;
     public int maxSpawnAttemptsPerMonster = 25;
     [Tooltip("Legacy name: now used as the physics ground probe radius, not a NavMesh radius.")] public float navMeshSampleRadius = 12f;
@@ -21,7 +23,10 @@ public class SpawnNpcsAtNight : MonoBehaviour
     [Header("Day Settings")] public bool spawnDuringDay = true;
     public bool spawnOnStartIfAlreadyDay = true; public bool spawnEveryDay = true;
     public bool clearPreviousSpawnedOnNewDay = true;
-    [Range(0f, 1f)] public float dayMonsterRatio = 0.25f; [Header("Sword Hit Feedback")]
+    [Min(0)] public int maxDayMonstersPerTerrain = 1;
+    [Range(0f, 1f)] public float dayMonsterRatio = 0.01f; [Header("Sword Hit Feedback")]
+    [Tooltip("Prevents enemies from spawning while the intro timeline/cutscene still owns the player.")]
+    public bool waitForIntroCutsceneToFinish = true;
     [Tooltip("Adds the same sword-hit behavior used by the practice capsule onto spawned monsters.")] public bool applyPracticeCapsuleHitFeedbackToMonsters = true;
     public TestHitting practiceCapsuleHitTemplate; public Material fallbackMonsterHitMaterial;
     [Header("Enemy References")] public LookingController lookingController;
@@ -29,22 +34,36 @@ public class SpawnNpcsAtNight : MonoBehaviour
     private readonly List<GameObject> _spawnedEnemies = new List<GameObject>();
     private bool _wasNightLastFrame; private bool _spawnedThisNight;
     private bool _spawnedThisDay; private bool _spawnedAtLeastOnce;
-    private Transform _playerNormal; private Transform _playerBuilding; private void Start()
+    private bool _waitingForIntroCutscene;
+    private Transform _playerNormal; private Transform _playerBuilding;
+    private void Awake()
+    {
+        HideSpawnSourceObjects();
+    }
+    private void Start()
     {
         ResolveReferences(); ResolveTerrains(); ApplyMonsterHitFeedback(zombie);
-        ApplyMonsterHitFeedback(skeleton); bool isNight = IsNightNow();
-        _wasNightLastFrame = isNight; if (isNight && spawnOnStartIfAlreadyNight)
+        ApplyMonsterHitFeedback(skeleton); _wasNightLastFrame = IsNightNow();
+        if (ShouldWaitForIntroCutscene())
         {
-            SpawnNightWave(); _spawnedThisNight = true;
-            _spawnedAtLeastOnce = true;
+            _waitingForIntroCutscene = true; return;
         }
-        else if (!isNight && spawnDuringDay && spawnOnStartIfAlreadyDay)
-        {
-            SpawnDayWave(); _spawnedThisDay = true; _spawnedAtLeastOnce = true;
-        }
+        HandleInitialSpawn();
     }
     private void Update()
     {
+        if (ShouldWaitForIntroCutscene())
+        {
+            _waitingForIntroCutscene = true;
+            _wasNightLastFrame = IsNightNow();
+            return;
+        }
+        if (_waitingForIntroCutscene)
+        {
+            _waitingForIntroCutscene = false;
+            HandleInitialSpawn();
+            return;
+        }
         bool isNight = IsNightNow(); if (isNight && !_wasNightLastFrame)
         {
             _spawnedThisDay = false;
@@ -68,10 +87,27 @@ public class SpawnNpcsAtNight : MonoBehaviour
         }
         _wasNightLastFrame = isNight;
     }
+    private void HandleInitialSpawn()
+    {
+        bool isNight = IsNightNow();
+        _wasNightLastFrame = isNight; if (isNight && spawnOnStartIfAlreadyNight)
+        {
+            SpawnNightWave(); _spawnedThisNight = true;
+            _spawnedAtLeastOnce = true;
+        }
+        else if (!isNight && spawnDuringDay && spawnOnStartIfAlreadyDay)
+        {
+            SpawnDayWave(); _spawnedThisDay = true; _spawnedAtLeastOnce = true;
+        }
+    }
     public void SpawnNightWave() { SpawnWave(isNightWave: true); }
     public void SpawnDayWave() { SpawnWave(isNightWave: false); }
     private void SpawnWave(bool isNightWave)
     {
+        if (ShouldWaitForIntroCutscene())
+        {
+            _waitingForIntroCutscene = true; return;
+        }
         ResolveReferences(); ResolveTerrains();
         PruneMissingSpawnedEnemies(); if (terrains == null || terrains.Length == 0)
         {
@@ -105,7 +141,9 @@ public class SpawnNpcsAtNight : MonoBehaviour
                 GameObject prefab = GetRandomEnemyPrefab(); if (prefab == null) { continue; }
                 Quaternion spawnRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
                 GameObject enemy = Instantiate(prefab, spawnPos, spawnRotation, spawnedParent);
-                ConfigureSpawnedEnemy(enemy); _spawnedEnemies.Add(enemy); spawnedOnThisTerrain++;
+                ConfigureSpawnedEnemy(enemy);
+                if (!enemy.activeSelf) { enemy.SetActive(true); }
+                _spawnedEnemies.Add(enemy); spawnedOnThisTerrain++;
                 totalSpawned++;
             }
             if (spawnedOnThisTerrain < monstersPerTerrainForWave)
@@ -124,7 +162,23 @@ public class SpawnNpcsAtNight : MonoBehaviour
         if (!spawnDuringDay) { return 0; }
         float ratio = Mathf.Clamp01(dayMonsterRatio);
         if (ratio <= 0f || baseCount <= 0) { return 0; }
-        return Mathf.Max(1, Mathf.RoundToInt(baseCount * ratio));
+        int dayCount = Mathf.Max(1, Mathf.RoundToInt(baseCount * ratio));
+        return maxDayMonstersPerTerrain > 0 ? Mathf.Min(dayCount, maxDayMonstersPerTerrain) : dayCount;
+    }
+    private bool ShouldWaitForIntroCutscene()
+    {
+        return waitForIntroCutsceneToFinish && StartCutSceneScript.IsIntroCutsceneBlockingGameplay;
+    }
+    private void HideSpawnSourceObjects()
+    {
+        if (!hideSceneSpawnSourceObjects) { return; }
+        HideSpawnSourceObject(zombie);
+        HideSpawnSourceObject(skeleton);
+    }
+    private static void HideSpawnSourceObject(GameObject source)
+    {
+        if (source == null || !source.scene.IsValid() || !source.scene.isLoaded) { return; }
+        source.SetActive(false);
     }
     public void ClearSpawnedEnemies()
     {

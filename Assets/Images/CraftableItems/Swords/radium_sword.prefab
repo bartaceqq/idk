@@ -60,7 +60,7 @@ MonoBehaviour:
   craftAmount: 1
   placed: 0
   locked: 0
-  minlvl: 1
+  minlvl: 5
 --- !u!114 &7719126996830460419
 MonoBehaviour:
   m_ObjectHideFlags: 0

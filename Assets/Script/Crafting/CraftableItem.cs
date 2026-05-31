@@ -12,8 +12,17 @@ public class CraftableItem : MonoBehaviour
     public Vector3 buildScale = Vector3.one; public int craftAmount = 1;
     [Header("Availability")] public bool placed = false; public bool locked = false;
     public int minlvl = 1; private InventoryItem runtimeCraftedInventoryItem;
+    public int GetRequiredLevel()
+    {
+        return Mathf.Max(1, minlvl);
+    }
+    public bool IsLockedForLevel(int currentLevel)
+    {
+        return locked || Mathf.Max(1, currentLevel) < GetRequiredLevel();
+    }
     private void OnValidate()
     {
+        minlvl = Mathf.Max(1, minlvl);
         craftAmount = Mathf.Max(1, craftAmount); ValidateBuildScale();
         if (craftedInventoryItem != null) { SyncCraftResultToInventoryItem(craftedInventoryItem, null); }
         if (!RequiresPrefab() || ResolveCraftPrefab() != null) { ValidateSwordPrefab(); return; }

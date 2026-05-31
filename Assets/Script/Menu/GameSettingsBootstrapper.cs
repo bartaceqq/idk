@@ -5,8 +5,7 @@ using UnityEngine.UI;
 [DefaultExecutionOrder(-10000)]
 public sealed class GameSettingsBootstrapper : MonoBehaviour
 {
-    private static GameSettingsBootstrapper instance; private Canvas brightnessCanvas;
-    private Image brightnessOverlay;
+    private static GameSettingsBootstrapper instance; private Image brightnessOverlay;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void RuntimeBootstrap()
     {
@@ -32,8 +31,9 @@ public sealed class GameSettingsBootstrapper : MonoBehaviour
     private void Start() { StartCoroutine(ApplyAfterSceneStart()); }
     private void Update()
     {
+        NpcTradeInventory.UpdatePendingEndSceneLoad();
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-        if (Input.GetKeyDown(KeyCode.F10)) { NpcTradeInventory.DevGrantLumberMinerQuestItems(); }
+        if (Input.GetKeyDown(KeyCode.F10)) { NpcTradeInventory.DevGrantFinalQuestItems(); }
 #endif
     }
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -50,29 +50,22 @@ public sealed class GameSettingsBootstrapper : MonoBehaviour
     {
         yield return null;
         GameSettings.ApplyAllSettings(); ApplyBrightnessOverlay();
+        UISquareGraphicGuard.ApplyToOpenScenes();
+        yield return null;
+        UISquareGraphicGuard.ApplyToOpenScenes();
     }
     private void EnsureBrightnessOverlay()
     {
-        if (brightnessOverlay != null) { return; }
-        GameObject canvasObject = new GameObject("Brightness Overlay Canvas");
-        canvasObject.transform.SetParent(transform, false);
-        brightnessCanvas = canvasObject.AddComponent<Canvas>();
-        brightnessCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        brightnessCanvas.sortingOrder = short.MaxValue;
-        CanvasScaler scaler = canvasObject.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f); scaler.matchWidthOrHeight = 0.5f;
-        GraphicRaycaster raycaster = canvasObject.AddComponent<GraphicRaycaster>();
-        raycaster.enabled = false; GameObject imageObject = new GameObject("Brightness Overlay");
-        imageObject.transform.SetParent(canvasObject.transform, false);
-        brightnessOverlay = imageObject.AddComponent<Image>();
+        Scene activeScene = SceneManager.GetActiveScene();
+        if (brightnessOverlay != null && brightnessOverlay.gameObject.scene == activeScene) { return; }
+        Image sceneOverlay = FindSceneBrightnessOverlay();
+        if (sceneOverlay == null) { return; }
+        brightnessOverlay = sceneOverlay;
         brightnessOverlay.raycastTarget = false;
-        RectTransform rect = brightnessOverlay.rectTransform; rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one; rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
     }
     private void ApplyBrightnessOverlay()
     {
+        ClearOtherBrightnessOverlays(brightnessOverlay);
         if (brightnessOverlay == null) { return; }
         float brightness = GameSettings.Brightness;
         if (brightness < 1f)
@@ -80,5 +73,34 @@ public sealed class GameSettingsBootstrapper : MonoBehaviour
             brightnessOverlay.color = new Color(0f, 0f, 0f, Mathf.Clamp01((1f - brightness) * 0.7f));
         }
         else { brightnessOverlay.color = new Color(1f, 0.94f, 0.78f, Mathf.Clamp01((brightness - 1f) * 0.22f)); }
+    }
+    private static void ClearOtherBrightnessOverlays(Image activeOverlay)
+    {
+        Image[] images = Resources.FindObjectsOfTypeAll<Image>();
+        for (int i = 0; i < images.Length; i++)
+        {
+            Image image = images[i];
+            if (image == null || image == activeOverlay || image.gameObject == null) { continue; }
+            if (!image.gameObject.scene.IsValid()) { continue; }
+            if (image.name != "Brightness Overlay") { continue; }
+            image.raycastTarget = false;
+            image.color = Color.clear;
+        }
+    }
+    private static Image FindSceneBrightnessOverlay()
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        Image fallback = null;
+        Image[] images = Resources.FindObjectsOfTypeAll<Image>();
+        for (int i = 0; i < images.Length; i++)
+        {
+            Image image = images[i];
+            if (image == null || image.gameObject == null) { continue; }
+            if (!image.gameObject.scene.IsValid()) { continue; }
+            if (image.name != "Brightness Overlay") { continue; }
+            if (image.gameObject.scene == activeScene) { return image; }
+            if (fallback == null || image.gameObject.activeInHierarchy) { fallback = image; }
+        }
+        return fallback;
     }
 }

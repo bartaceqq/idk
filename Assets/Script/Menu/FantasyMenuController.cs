@@ -151,7 +151,7 @@ public sealed class FantasyMenuController : MonoBehaviour
         menuSceneName = SceneManager.GetActiveScene().name; CachePersistentRoots();
         PersistUiRoots(); if (randomizeMenuCameraOnStart) { RandomizeMenuCameraView(); }
         GameSettings.EnsureDefaults(); BindUi(); PopulateResolutionChoices(); LoadSettingsToUi();
-        ShowMain();
+        ShowMain(); FixMenuCircleGraphics();
     }
     private void OnEnable() { GameSettings.SettingsChanged += OnExternalSettingsChanged; }
     private void OnDisable() { GameSettings.SettingsChanged -= OnExternalSettingsChanged; }
@@ -165,6 +165,7 @@ public sealed class FantasyMenuController : MonoBehaviour
     {
         if (isLoadingScene)
         {
+            FixMenuCircleGraphics();
             AnimateLoadingVisuals();
             return;
         }
@@ -208,22 +209,6 @@ public sealed class FantasyMenuController : MonoBehaviour
         if (settingsFooterRow == null) { return; }
         if (settingsSaveButton == null) { settingsSaveButton = FindButtonByName(settingsFooterRow, "Settings Save Button"); }
         if (settingsExitGameButton == null) { settingsExitGameButton = FindButtonByName(settingsFooterRow, "Settings Exit Game Button"); }
-        if (settingsSaveButton == null && settingsApplyButton != null)
-        {
-            settingsSaveButton = Instantiate(settingsApplyButton, settingsFooterRow);
-            settingsSaveButton.name = "Settings Save Button";
-            SetButtonLabel(settingsSaveButton, "Save");
-        }
-        if (settingsExitGameButton == null)
-        {
-            Button source = settingsBackButton != null ? settingsBackButton : exitButton;
-            if (source != null)
-            {
-                settingsExitGameButton = Instantiate(source, settingsFooterRow);
-                settingsExitGameButton.name = "Settings Exit Game Button";
-                SetButtonLabel(settingsExitGameButton, "Exit Game");
-            }
-        }
         ConfigureSettingsFooterLayout();
     }
     private void ConfigureSettingsFooterLayout()
@@ -262,45 +247,20 @@ public sealed class FantasyMenuController : MonoBehaviour
         for (int i = 0; i < transforms.Length; i++) { if (string.Equals(transforms[i].name, name, StringComparison.Ordinal)) { return transforms[i]; } }
         return null;
     }
-    private static void SetButtonLabel(Button button, string labelText)
-    {
-        if (button == null) { return; }
-        TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
-        if (label != null) { label.text = labelText; }
-    }
     private void EnsureDistanceTab()
     {
-        if (distanceTabButton == null && graphicsTabButton != null)
-        {
-            distanceTabButton = Instantiate(graphicsTabButton, graphicsTabButton.transform.parent);
-            distanceTabButton.name = "Distance Tab"; SetButtonLabel(distanceTabButton, "Distance");
-        }
+        Transform searchRoot = settingsScreen != null ? settingsScreen.transform : transform;
+        if (distanceTabButton == null) { distanceTabButton = FindButtonByName(searchRoot, "Distance Tab"); }
         if (distanceTabImage == null && distanceTabButton != null) { distanceTabImage = distanceTabButton.image; }
-        if (distanceTabContent != null || graphicsTabContent == null || viewDistanceSlider == null) { return; }
+        if (distanceTabContent == null)
+        {
+            Transform existingContent = FindChildByName(searchRoot, "Distance Tab Content");
+            if (existingContent != null) { distanceTabContent = existingContent.gameObject; }
+        }
+        if (viewDistanceSlider == null) { return; }
         Transform viewDistanceRow = FindSettingsRow(viewDistanceSlider.transform);
         if (viewDistanceRow == null) { return; }
-        RectTransform sourceRect = graphicsTabContent.GetComponent<RectTransform>();
-        if (sourceRect == null || sourceRect.parent == null) { return; }
-        GameObject contentObject = new GameObject("Distance Tab Content", typeof(RectTransform));
-        RectTransform contentRect = contentObject.GetComponent<RectTransform>();
-        contentRect.SetParent(sourceRect.parent, false);
-        CopyRectTransformLayout(sourceRect, contentRect);
-        VerticalLayoutGroup layout = contentObject.AddComponent<VerticalLayoutGroup>();
-        layout.spacing = 12f; layout.padding = new RectOffset(0, 0, 0, 0);
-        layout.childControlHeight = true; layout.childControlWidth = true;
-        layout.childForceExpandHeight = false; layout.childForceExpandWidth = true;
-        layout.childAlignment = TextAnchor.UpperLeft;
         SetSettingsRowLabel(viewDistanceRow, "Object Range");
-        viewDistanceRow.SetParent(contentRect, false); viewDistanceRow.gameObject.SetActive(true);
-        distanceTabContent = contentObject;
-    }
-    private static void CopyRectTransformLayout(RectTransform source, RectTransform target)
-    {
-        target.anchorMin = source.anchorMin; target.anchorMax = source.anchorMax;
-        target.pivot = source.pivot; target.offsetMin = source.offsetMin;
-        target.offsetMax = source.offsetMax; target.localScale = source.localScale;
-        target.localRotation = source.localRotation;
-        target.anchoredPosition = source.anchoredPosition; target.sizeDelta = source.sizeDelta;
     }
     private static void SetSettingsRowLabel(Transform row, string labelText)
     {
@@ -382,6 +342,7 @@ public sealed class FantasyMenuController : MonoBehaviour
         if (slider == null) { return; }
         slider.minValue = minValue; slider.maxValue = maxValue;
         slider.wholeNumbers = wholeNumbers; slider.value = value;
+        UISquareGraphicGuard.FixSliderHandle(slider);
     }
     private void BindKeybindButton(Button button, string keyId, KeyCode fallback)
     {
@@ -902,6 +863,7 @@ public sealed class FantasyMenuController : MonoBehaviour
         ShowTab(currentTab); SetStatus(string.Empty);
         if (backgroundImage != null) { backgroundImage.enabled = false; }
         LoadSettingsToUi();
+        FixMenuCircleGraphics();
         GameplayUiState.SetExternalMenuOpen(true);
     }
     private void CloseGameplaySettingsOverlay()
@@ -1072,6 +1034,7 @@ public sealed class FantasyMenuController : MonoBehaviour
         if (menuEventSystemRoot != null) { menuEventSystemRoot.SetActive(true); }
         SetPanelState(false, false, false); SetBackground(null, new Color(0f, 0f, 0f, 1f));
         if (loadingScreen != null) { loadingScreen.SetActive(true); }
+        FixMenuCircleGraphics();
         if (loadingTitleText != null) { loadingTitleText.text = "LOADING"; }
         if (loadingMessageText != null)
         {
@@ -1097,6 +1060,11 @@ public sealed class FantasyMenuController : MonoBehaviour
             int dots = Mathf.FloorToInt(Time.unscaledTime * 2.5f) % 4;
             loadingMessageText.text = loadingBaseMessage + new string('.', dots);
         }
+    }
+    private void FixMenuCircleGraphics()
+    {
+        if (menuCanvasRoot != null) { UISquareGraphicGuard.ApplyToHierarchy(menuCanvasRoot); }
+        UISquareGraphicGuard.FixSliderHandle(loadingProgressSlider);
     }
     private void QuitGame()
     {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Yarn.Unity;
 public static class NpcTradeInventory
 {
@@ -9,6 +10,10 @@ public static class NpcTradeInventory
     private const string QuestIconResourcesPath = "QuestItems/";
     private const string LumberQuestRequirements = "Wood:60|Stick:25|iron:12|flaming_ore:4";
     private const string MinerQuestRequirements = "diamond:15|radium:10|plasma:6|gold:10";
+    private const string DevF10ExtraItems = "iron:5|gold:5|diamond:5|radium:5|plasma:5|flaming_ore:5|Stick:20|LittleStone:20";
+    private const string EndSceneName = "End";
+    private static bool PendingEndSceneLoad;
+    private static float pendingEndSceneLoadAt;
     [YarnFunction("has_items")]
     public static bool HasItems(string requirements)
     {
@@ -72,6 +77,34 @@ public static class NpcTradeInventory
         Debug.Log(message);
         InventoryItem boatItem = FindOrCreateItemDefinition("SailBoat");
         ShowQuestInfo("YOU WON! The fisherman accepted the Anchor and Spyglass.", boatItem != null ? boatItem.inventorysprite : null);
+        QueueEndSceneLoad();
+    }
+    [YarnCommand("load_end_scene")]
+    public static void QueueEndSceneLoad()
+    {
+        PendingEndSceneLoad = true;
+        pendingEndSceneLoadAt = Time.unscaledTime + 0.25f;
+    }
+    public static void UpdatePendingEndSceneLoad()
+    {
+        if (!PendingEndSceneLoad || Time.unscaledTime < pendingEndSceneLoadAt || DialogueState.IsConversationRunning) { return; }
+        PendingEndSceneLoad = false;
+        Time.timeScale = 1f;
+        if (Application.CanStreamedLevelBeLoaded(EndSceneName))
+        {
+            SceneManager.LoadScene(EndSceneName);
+            return;
+        }
+        Debug.LogWarning("NpcTradeInventory: End scene is not in Build Settings, cannot load ending.");
+    }
+    [YarnCommand("dev_grant_final_quest_items")]
+    public static void DevGrantFinalQuestItems()
+    {
+        GiveDevItem("Spyglass", 1);
+        GiveDevItem("Anchor", 1);
+        GiveDevItems(DevF10ExtraItems);
+        InventoryItem iconItem = FindOrCreateItemDefinition("Spyglass");
+        ShowQuestInfo("DEV: Added Spyglass, Anchor, ores, sticks, and stones.", iconItem != null ? iconItem.inventorysprite : null);
     }
     [YarnCommand("dev_grant_lumber_miner_quest_items")]
     public static void DevGrantLumberMinerQuestItems()
@@ -91,6 +124,19 @@ public static class NpcTradeInventory
         Debug.Log("DEV QUEST GRANT: Added Lumber and Miner quest materials to inventory.");
         InventoryItem iconItem = FindOrCreateItemDefinition("Spyglass");
         ShowQuestInfo($"DEV: Added {grantedItemTypes} quest material stacks for Lumber and Miner.", iconItem != null ? iconItem.inventorysprite : null);
+    }
+    private static void GiveDevItem(string itemName, int amount)
+    {
+        InventoryItem item = FindOrCreateItemDefinition(itemName);
+        if (item == null || !TryAddItem(item, Mathf.Max(1, amount))) { Debug.LogWarning($"NpcTradeInventory: DEV grant could not add '{itemName}'."); }
+    }
+    private static void GiveDevItems(string requirements)
+    {
+        Dictionary<string, int> itemsToGrant = ParseRequirements(requirements);
+        foreach (KeyValuePair<string, int> itemToGrant in itemsToGrant)
+        {
+            GiveDevItem(itemToGrant.Key, itemToGrant.Value);
+        }
     }
     public static InventoryItem FindOrCreateItemDefinition(string itemName)
     {

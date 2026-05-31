@@ -44,6 +44,7 @@ Sailor: Bring me a sturdy Spyglass and a reinforced Anchor. Then I will help you
     <<trade_items "Spyglass:1|Anchor:1" "SailBoat" 1>>
     <<complete_game>>
     Sailor: These will work. The boat is ready. I will help you leave the island.
+    <<load_end_scene>>
 -> Why do you need both?
     Sailor: The Spyglass finds a safe line through the fog. The Anchor keeps the boat from being dragged into the rocks.
 -> I have work to do.

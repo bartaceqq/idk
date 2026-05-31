@@ -55,6 +55,7 @@ public class TreeHandler : MonoBehaviour
         }
         hasFallen = true;
         if (inventoryAddHandler != null && inventoryItem != null) { inventoryAddHandler.AddItemToInventory(inventoryItem); } else { Debug.LogWarning($"{name}: Missing InventoryAddHandler or InventoryItem reference.", this); }
+        XPRewards.GrantTreeChoppedXP();
         TreeFall(attacker); StartCoroutine(destroyaftertime());
     }
     private void ResolveReferences()
