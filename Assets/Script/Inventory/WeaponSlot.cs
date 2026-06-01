@@ -168,15 +168,18 @@ if (string.IsNullOrEmpty(normalized) || candidates.Contains(normalized)) { retur
 candidates.Add(normalized); } private static string MapCommonWeaponName(string rawName) {
 string normalized = NormalizeItemName(rawName);
 if (string.IsNullOrEmpty(normalized)) { return string.Empty; }
-string token = normalized.Replace(" ", string.Empty).ToLowerInvariant();
+string token = normalized.Replace(" ", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
 if (token.Contains("pickaxe") || token.Contains("pick")) { return "Pickaxe"; }
 if (token.Contains("sword")) { return "Sword"; }
-if (token.Contains("axe")) { return "Axe"; } return string.Empty; }
+if (token.Contains("axe")) { return "Axe"; }
+return string.Empty; }
 private bool IsAllowedByResolvedName(string resolvedName) {
 string mapped = MapCommonWeaponName(resolvedName);
 if (string.IsNullOrEmpty(mapped)) { return false; }
 if (string.Equals(mapped, "Sword", System.StringComparison.OrdinalIgnoreCase)) { return allowSwordItems; }
-return allowToolItems; }
+if (string.Equals(mapped, "Axe", System.StringComparison.OrdinalIgnoreCase) ||
+string.Equals(mapped, "Pickaxe", System.StringComparison.OrdinalIgnoreCase)) { return allowToolItems; }
+return false; }
 private static Slot ResolveDraggedLegacySlot(PointerEventData eventData) { if (eventData == null || eventData.pointerDrag == null) { return null; }
 Slot direct = eventData.pointerDrag.GetComponent<Slot>();
 if (direct != null) { return direct; }

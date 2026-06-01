@@ -126,7 +126,8 @@ public class ActionScript : MonoBehaviour
     {
         if (movementAnimationScript != null) { movementAnimationScript.RunAnimation_Foreward(status && playAnimation); }
         if (staminaScript == null) { return; }
-        if (status) { staminaScript.ReduceStamina(); } else { staminaScript.AddStamina(); }
+        if (status) { staminaScript.ReduceStamina(); }
+        else if (playAnimation) { staminaScript.AddStamina(); }
     }
     public void Idle(bool status) { movementAnimationScript.IdleAnimation(status); }
     public void Mine() { TryMine(); }

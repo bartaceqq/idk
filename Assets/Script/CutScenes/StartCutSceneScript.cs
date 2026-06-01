@@ -7,6 +7,7 @@ public class StartCutSceneScript : MonoBehaviour
     public static bool IntroCutsceneFinished { get; private set; } = true;
     public static bool IsIntroCutsceneBlockingGameplay => activeIntroCutscene != null && !IntroCutsceneFinished;
     private static StartCutSceneScript activeIntroCutscene;
+    private static bool skipNextIntroCutscenes;
     [Header("Cutscenes")] public PlayableDirector playableDirectorcrashing;
     public PlayableDirector lookingoutaftercrash; public bool skipAllCutscenes;
     public bool skipFirstCutscene; public bool skipSecondCutscene;
@@ -35,6 +36,12 @@ public class StartCutSceneScript : MonoBehaviour
         Time.timeScale = 1f;
         canvasWasActive = canvas != null && canvas.activeSelf;
 
+        if (skipNextIntroCutscenes)
+        {
+            skipNextIntroCutscenes = false;
+            skipAllCutscenes = true;
+        }
+
         if (skipAllCutscenes)
         {
             OnCutscenesFinished(); return;
@@ -53,6 +60,11 @@ public class StartCutSceneScript : MonoBehaviour
             ResumeCrashVfx();
         }
         OnCutscenesFinished();
+    }
+    public static void SkipNextIntroCutscenes()
+    {
+        skipNextIntroCutscenes = true;
+        IntroCutsceneFinished = true;
     }
     private IEnumerator PlayCutscene(PlayableDirector director)
     {

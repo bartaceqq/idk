@@ -116,7 +116,12 @@ public static class MainMenuSceneBuilder
         public Button SprintKeyButton;
         public Button InteractKeyButton;
         public Button AttackKeyButton;
+        public Button BlockKeyButton;
         public Button InventoryKeyButton;
+        public Button HealKeyButton;
+        public Button SwordCombo1KeyButton;
+        public Button SwordCombo2KeyButton;
+        public Button SwordCombo3KeyButton;
         public TMP_Text KeybindInfoText;
     }
 
@@ -643,7 +648,12 @@ public static class MainMenuSceneBuilder
         refs.SprintKeyButton = CreateKeybindRow(parent, font, panelSprite, "Sprint", "Left Shift");
         refs.InteractKeyButton = CreateKeybindRow(parent, font, panelSprite, "Interact", "E");
         refs.AttackKeyButton = CreateKeybindRow(parent, font, panelSprite, "Attack", "Mouse 1");
+        refs.BlockKeyButton = CreateKeybindRow(parent, font, panelSprite, "Block", "Mouse 2");
         refs.InventoryKeyButton = CreateKeybindRow(parent, font, panelSprite, "Inventory", "I");
+        refs.HealKeyButton = CreateKeybindRow(parent, font, panelSprite, "Heal", "6");
+        refs.SwordCombo1KeyButton = CreateKeybindRow(parent, font, panelSprite, "Sword Combo 1", "3");
+        refs.SwordCombo2KeyButton = CreateKeybindRow(parent, font, panelSprite, "Sword Combo 2", "4");
+        refs.SwordCombo3KeyButton = CreateKeybindRow(parent, font, panelSprite, "Sword Combo 3", "5");
 
         RectTransform infoRow = CreateRect("Keybind Info Row", parent);
         LayoutElement infoLayout = infoRow.gameObject.AddComponent<LayoutElement>();
@@ -1727,7 +1737,12 @@ public static class MainMenuSceneBuilder
         SetObject(serializedController, "sprintKeyButton", settingsRefs.SprintKeyButton);
         SetObject(serializedController, "interactKeyButton", settingsRefs.InteractKeyButton);
         SetObject(serializedController, "attackKeyButton", settingsRefs.AttackKeyButton);
+        SetObject(serializedController, "blockKeyButton", settingsRefs.BlockKeyButton);
         SetObject(serializedController, "inventoryKeyButton", settingsRefs.InventoryKeyButton);
+        SetObject(serializedController, "healKeyButton", settingsRefs.HealKeyButton);
+        SetObject(serializedController, "swordCombo1KeyButton", settingsRefs.SwordCombo1KeyButton);
+        SetObject(serializedController, "swordCombo2KeyButton", settingsRefs.SwordCombo2KeyButton);
+        SetObject(serializedController, "swordCombo3KeyButton", settingsRefs.SwordCombo3KeyButton);
         SetObject(serializedController, "keybindInfoText", settingsRefs.KeybindInfoText);
 
         serializedController.ApplyModifiedPropertiesWithoutUndo();

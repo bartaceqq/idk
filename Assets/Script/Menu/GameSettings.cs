@@ -13,7 +13,8 @@ public static class GameSettings
         public const string MoveLeft = "MoveLeft"; public const string MoveRight = "MoveRight";
         public const string Jump = "Jump"; public const string Sprint = "Sprint";
         public const string Crouch = "Crouch"; public const string Interact = "Interact";
-        public const string Attack = "Attack"; public const string Inventory = "Inventory";
+        public const string Attack = "Attack"; public const string Block = "Block"; public const string Inventory = "Inventory";
+        public const string Heal = "Heal";
         public const string Crafting = "Crafting"; public const string Upgrade = "Upgrade";
         public const string BuildMode = "BuildMode"; public const string Emote = "Emote";
         public const string WeaponSlot1 = "WeaponSlot1";
@@ -30,7 +31,7 @@ public static class GameSettings
         public const string SwordSpecial3 = "SwordSpecial3";
     }
     public const string Prefix = "onemorenight.settings.";
-    private const string VersionKey = Prefix + "version"; private const int Version = 2;
+    private const string VersionKey = Prefix + "version"; private const int Version = 4;
     public const float ViewDistanceMin = 0.2f; public const float ViewDistanceMax = 8f;
     public const float DefaultViewDistance = 2f;
     public const float LockedTerrainDetailDistance = 100f;
@@ -39,11 +40,11 @@ public static class GameSettings
 { Key.MoveForward, KeyCode.W }, { Key.MoveBackward, KeyCode.S },
 { Key.MoveLeft, KeyCode.A }, { Key.MoveRight, KeyCode.D }, { Key.Jump, KeyCode.Space },
 { Key.Sprint, KeyCode.LeftShift }, { Key.Crouch, KeyCode.C }, { Key.Interact, KeyCode.E },
-{ Key.Attack, KeyCode.Mouse0 }, { Key.Inventory, KeyCode.I }, { Key.Crafting, KeyCode.T },
+{ Key.Attack, KeyCode.Mouse0 }, { Key.Block, KeyCode.Mouse1 }, { Key.Inventory, KeyCode.I }, { Key.Heal, KeyCode.Alpha6 }, { Key.Crafting, KeyCode.T },
 { Key.Upgrade, KeyCode.K }, { Key.BuildMode, KeyCode.B }, { Key.Emote, KeyCode.H },
 { Key.WeaponSlot1, KeyCode.Alpha1 }, { Key.WeaponSlot2, KeyCode.Alpha2 },
 { Key.WeaponSlot3, KeyCode.Alpha3 }, { Key.WeaponSlot4, KeyCode.Alpha4 },
-{ Key.WeaponSlot5, KeyCode.Alpha5 }, { Key.WeaponSlot6, KeyCode.Alpha6 },
+{ Key.WeaponSlot5, KeyCode.Alpha5 }, { Key.WeaponSlot6, KeyCode.None },
 { Key.WeaponSlot7, KeyCode.Alpha7 }, { Key.WeaponSlot8, KeyCode.Alpha8 },
 { Key.WeaponSlot9, KeyCode.Alpha9 }, { Key.SwordSpecial1, KeyCode.Alpha3 },
 { Key.SwordSpecial2, KeyCode.Alpha4 }, { Key.SwordSpecial3, KeyCode.Alpha5 } };
@@ -180,6 +181,12 @@ public static class GameSettings
     private static void MigrateSettings(int storedVersion)
     {
         if (storedVersion < 2 && ViewDistance < DefaultViewDistance) { ViewDistance = DefaultViewDistance; }
+        if (storedVersion < 3)
+        {
+            if (GetKey(Key.WeaponSlot6, KeyCode.Alpha6) == KeyCode.Alpha6) { SetKey(Key.WeaponSlot6, KeyCode.None, false); }
+            SetKey(Key.Heal, KeyCode.Alpha6, false);
+        }
+        if (storedVersion < 4) { SetKey(Key.Block, KeyCode.Mouse1, false); }
         PlayerPrefs.SetInt(VersionKey, Version); PlayerPrefs.Save();
     }
     public static void ResetToDefaults()

@@ -1,13 +1,20 @@
+using System.Collections;
+using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class PlayerHealth : MonoBehaviour
 {
     public float maxHealth = 100f; public float currentHealth = 100f;
     public float healDelaySeconds = 10f; public float healPerSecond = 8f;
+    public bool blockDamageWhileSwordBlocking = true;
+    [Header("Death")] public float deathFadeInSeconds = 0.75f;
+    public float deathMessageHoldSeconds = 1.25f; public float deathFadeOutSeconds = 0.45f;
+    public string deathMessage = "YOU DIED";
     public bool healFromZero = true; public Image healthFill;
     private static PlayerHealth _instance; private float _lastDamageTime;
-    private float _nextBarResolveTime;
+    private float _nextBarResolveTime; private bool _deathSequenceStarted;
     public float NormalizedHealth => maxHealth <= 0f ? 0f : Mathf.Clamp01(currentHealth / maxHealth);
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void EnsureScenePlayerHealth() { FindOrCreate(); }
@@ -37,8 +44,10 @@ public class PlayerHealth : MonoBehaviour
     public void TakeDamage(float damage)
     {
         if (damage <= 0f || maxHealth <= 0f) { return; }
+        if (blockDamageWhileSwordBlocking && IsSwordBlockActive()) { return; }
         currentHealth = Mathf.Clamp(currentHealth - damage, 0f, maxHealth);
         _lastDamageTime = Time.time; UpdateHealthBar();
+        if (currentHealth <= 0f) { StartDeathSequence(); }
     }
     public void Heal(float amount)
     {
@@ -59,6 +68,89 @@ public class PlayerHealth : MonoBehaviour
         if (_instance != null) { return _instance; }
         GameObject host = ResolveHealthHost();
         return host != null ? host.AddComponent<PlayerHealth>() : null;
+    }
+    private void StartDeathSequence()
+    {
+        if (_deathSequenceStarted) { return; }
+        _deathSequenceStarted = true;
+        GameObject runnerObject = new GameObject("Death Sequence Runner");
+        DontDestroyOnLoad(runnerObject);
+        DeathSequenceRunner runner = runnerObject.AddComponent<DeathSequenceRunner>();
+        runner.Begin(deathMessage, deathFadeInSeconds, deathMessageHoldSeconds, deathFadeOutSeconds);
+    }
+    private static GameObject CreateDeathOverlay(out CanvasGroup canvasGroup, out TMP_Text messageText)
+    {
+        GameObject root = new GameObject("Death Screen Overlay");
+        DontDestroyOnLoad(root);
+        Canvas canvas = root.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay; canvas.sortingOrder = short.MaxValue;
+        CanvasScaler scaler = root.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        root.AddComponent<GraphicRaycaster>();
+        canvasGroup = root.AddComponent<CanvasGroup>();
+        canvasGroup.alpha = 0f; canvasGroup.blocksRaycasts = true; canvasGroup.interactable = false;
+
+        GameObject backgroundObject = new GameObject("Black Background");
+        backgroundObject.transform.SetParent(root.transform, false);
+        Image background = backgroundObject.AddComponent<Image>();
+        background.color = Color.black;
+        RectTransform backgroundRect = background.rectTransform;
+        backgroundRect.anchorMin = Vector2.zero; backgroundRect.anchorMax = Vector2.one;
+        backgroundRect.offsetMin = Vector2.zero; backgroundRect.offsetMax = Vector2.zero;
+
+        GameObject textObject = new GameObject("Death Message");
+        textObject.transform.SetParent(root.transform, false);
+        TextMeshProUGUI text = textObject.AddComponent<TextMeshProUGUI>();
+        text.fontSize = 96f; text.alignment = TextAlignmentOptions.Center;
+        text.color = Color.white; text.fontStyle = FontStyles.Bold;
+        RectTransform textRect = text.rectTransform;
+        textRect.anchorMin = Vector2.zero; textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = Vector2.zero; textRect.offsetMax = Vector2.zero;
+        messageText = text;
+        return root;
+    }
+    private sealed class DeathSequenceRunner : MonoBehaviour
+    {
+        private string message;
+        private float fadeInSeconds;
+        private float holdSeconds;
+        private float fadeOutSeconds;
+        public void Begin(string deathText, float fadeIn, float hold, float fadeOut)
+        {
+            message = deathText; fadeInSeconds = fadeIn; holdSeconds = hold; fadeOutSeconds = fadeOut;
+            StartCoroutine(Run());
+        }
+        private IEnumerator Run()
+        {
+            GameplayUiState.SetExternalMenuOpen(true);
+            Time.timeScale = 1f;
+            GameObject overlay = CreateDeathOverlay(out CanvasGroup canvasGroup, out TMP_Text messageText);
+            if (messageText != null) { messageText.text = string.IsNullOrWhiteSpace(message) ? "YOU DIED" : message; }
+            float fadeIn = Mathf.Max(0.01f, fadeInSeconds);
+            for (float elapsed = 0f; elapsed < fadeIn; elapsed += Time.unscaledDeltaTime)
+            {
+                if (canvasGroup != null) { canvasGroup.alpha = Mathf.Clamp01(elapsed / fadeIn); }
+                yield return null;
+            }
+            if (canvasGroup != null) { canvasGroup.alpha = 1f; }
+            yield return new WaitForSecondsRealtime(Mathf.Max(0f, holdSeconds));
+
+            StartCutSceneScript.SkipNextIntroCutscenes();
+            Scene activeScene = SceneManager.GetActiveScene();
+            AsyncOperation loadOperation = SceneManager.LoadSceneAsync(activeScene.name);
+            if (loadOperation != null) { while (!loadOperation.isDone) { yield return null; } }
+
+            float fadeOut = Mathf.Max(0.01f, fadeOutSeconds);
+            for (float elapsed = 0f; elapsed < fadeOut; elapsed += Time.unscaledDeltaTime)
+            {
+                if (canvasGroup != null) { canvasGroup.alpha = 1f - Mathf.Clamp01(elapsed / fadeOut); }
+                yield return null;
+            }
+            if (overlay != null) { Destroy(overlay); }
+            GameplayUiState.SetExternalMenuOpen(false);
+            Destroy(gameObject);
+        }
     }
     private static PlayerHealth ResolveTargetHealth(Transform target)
     {
@@ -82,6 +174,15 @@ public class PlayerHealth : MonoBehaviour
         catch (UnityException) { }
         FPSController fpsController = UnitySceneSearch.FindFirst<FPSController>();
         return fpsController != null ? fpsController.gameObject : null;
+    }
+    private bool IsSwordBlockActive()
+    {
+        ActionScript actionScript = GetComponent<ActionScript>();
+        if (actionScript == null) { actionScript = GetComponentInParent<ActionScript>(); }
+        if (actionScript == null) { actionScript = GetComponentInChildren<ActionScript>(true); }
+        if (actionScript == null && transform.root != null) { actionScript = transform.root.GetComponentInChildren<ActionScript>(true); }
+        if (actionScript == null) { actionScript = UnitySceneSearch.FindFirst<ActionScript>(); }
+        return actionScript != null && actionScript.IsSwordBlockActive();
     }
     private void ResolveHealthBar(bool immediate)
     {

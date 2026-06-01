@@ -124,8 +124,21 @@ public class CraftingManager : MonoBehaviour
         slots.AddRange(GetComponentsInChildren<CraftableSlot>(true));
         AddUniqueCraftableItems(configuredItems);
         AddUniqueCraftableItems(GetComponentsInChildren<CraftableItem>(true));
+        AddUniqueCraftableItems(LoadResourceCraftableItems());
         slots.RemoveAll(slot => slot == null); items.RemoveAll(item => item == null);
         slots.Sort(CompareSlotsForPlacement);
+    }
+    private static IEnumerable<CraftableItem> LoadResourceCraftableItems()
+    {
+        GameObject[] prefabs = Resources.LoadAll<GameObject>("CraftableItems");
+        if (prefabs == null) { yield break; }
+        for (int i = 0; i < prefabs.Length; i++)
+        {
+            GameObject prefab = prefabs[i];
+            if (prefab == null) { continue; }
+            CraftableItem craftable = prefab.GetComponent<CraftableItem>();
+            if (craftable != null) { yield return craftable; }
+        }
     }
     private void AddUniqueCraftableItems(IEnumerable<CraftableItem> craftables)
     {

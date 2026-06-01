@@ -12,7 +12,8 @@ public class ItemSwitchScript : MonoBehaviour
     private bool _isSwordTransitioning;
     private static readonly KeyCode[] WeaponSlotHotkeys = { KeyCode.Alpha1, KeyCode.Alpha2,
 KeyCode.Alpha3, KeyCode.Alpha4, KeyCode.Alpha5, KeyCode.Alpha6, KeyCode.Alpha7,
-KeyCode.Alpha8, KeyCode.Alpha9 }; private static readonly string[] WeaponSlotHotkeyIds = {
+KeyCode.Alpha8, KeyCode.Alpha9 };
+private static readonly string[] WeaponSlotHotkeyIds = {
 GameSettings.Key.WeaponSlot1, GameSettings.Key.WeaponSlot2, GameSettings.Key.WeaponSlot3,
 GameSettings.Key.WeaponSlot4, GameSettings.Key.WeaponSlot5, GameSettings.Key.WeaponSlot6,
 GameSettings.Key.WeaponSlot7, GameSettings.Key.WeaponSlot8,
@@ -37,6 +38,7 @@ GameSettings.Key.WeaponSlot9 }; private void Awake() { EnsureSceneWeaponItemsReg
         for (int i = 0; i < slotCount; i++)
         {
             KeyCode hotkey = GameSettings.GetKey(WeaponSlotHotkeyIds[i], WeaponSlotHotkeys[i]);
+            if (hotkey == KeyCode.None) { continue; }
             if (ShouldReserveSwordSpecialHotkey(hotkey)) { continue; }
             if (!Input.GetKeyDown(hotkey)) { continue; }
             WeaponSlot slot = orderedSlots[i];
@@ -95,6 +97,13 @@ GameSettings.Key.WeaponSlot9 }; private void Awake() { EnsureSceneWeaponItemsReg
             if (string.Equals(NormalizeItemName(candidate.name), normalized, System.StringComparison.OrdinalIgnoreCase)) { return true; }
         }
         return false;
+    }
+    public void UnequipIfCurrentItemName(string itemNameToClear)
+    {
+        string normalized = NormalizeItemName(itemNameToClear);
+        if (string.IsNullOrEmpty(normalized)) { return; }
+        if (!string.Equals(NormalizeItemName(currentitemname), normalized, System.StringComparison.OrdinalIgnoreCase)) { return; }
+        UnequipCurrentItem();
     }
     public bool TryResolveFirstWeaponByCategory(string weaponCategory, out string resolvedName)
     {
@@ -232,7 +241,6 @@ GameSettings.Key.WeaponSlot9 }; private void Awake() { EnsureSceneWeaponItemsReg
         else { items.Insert(Mathf.Min(2, items.Count), stoneSword); }
         SetItemObjectVisible(stoneSword, false);
     }
-
     private GameObject FindBasicSwordVisual()
     {
         Transform[] transforms = Resources.FindObjectsOfTypeAll<Transform>();
@@ -484,9 +492,8 @@ GameSettings.Key.WeaponSlot9 }; private void Awake() { EnsureSceneWeaponItemsReg
     }
     private bool ShouldReserveSwordSpecialHotkey(KeyCode key)
     {
-        if (key != KeyCode.Alpha3 &&
-    key != KeyCode.Alpha4 && key != KeyCode.Alpha5 &&
-    key != GameSettings.GetKey(GameSettings.Key.SwordSpecial1, KeyCode.Alpha3) &&
+        if (key == KeyCode.None) { return false; }
+        if (key != GameSettings.GetKey(GameSettings.Key.SwordSpecial1, KeyCode.Alpha3) &&
     key != GameSettings.GetKey(GameSettings.Key.SwordSpecial2, KeyCode.Alpha4) &&
     key != GameSettings.GetKey(GameSettings.Key.SwordSpecial3, KeyCode.Alpha5)) { return false; }
         return IsSwordEquipped();
@@ -508,7 +515,7 @@ GameSettings.Key.WeaponSlot9 }; private void Awake() { EnsureSceneWeaponItemsReg
     {
         string normalized = NormalizeItemName(rawName);
         if (string.IsNullOrEmpty(normalized)) { return string.Empty; }
-        string token = normalized.Replace(" ", string.Empty).ToLowerInvariant();
+        string token = normalized.Replace(" ", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
         if (token.Contains("sword")) { return "Sword"; }
         if (token.Contains("pickaxe") || token.Contains("pick")) { return "Pickaxe"; }
         if (token.Contains("axe")) { return "Axe"; }

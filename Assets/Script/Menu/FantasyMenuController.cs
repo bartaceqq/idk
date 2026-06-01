@@ -123,7 +123,12 @@ public sealed class FantasyMenuController : MonoBehaviour
     [SerializeField] private Button sprintKeyButton;
     [SerializeField] private Button interactKeyButton;
     [SerializeField] private Button attackKeyButton;
+    [SerializeField] private Button blockKeyButton;
     [SerializeField] private Button inventoryKeyButton;
+    [SerializeField] private Button healKeyButton;
+    [SerializeField] private Button swordCombo1KeyButton;
+    [SerializeField] private Button swordCombo2KeyButton;
+    [SerializeField] private Button swordCombo3KeyButton;
     [SerializeField] private TMP_Text keybindInfoText;
     private SettingsTab currentTab = SettingsTab.Display;
     private GameSettings.ResolutionChoice[] resolutionChoices = Array.Empty<GameSettings.ResolutionChoice>();
@@ -325,7 +330,43 @@ public sealed class FantasyMenuController : MonoBehaviour
         BindKeybindButton(sprintKeyButton, GameSettings.Key.Sprint, KeyCode.LeftShift);
         BindKeybindButton(interactKeyButton, GameSettings.Key.Interact, KeyCode.E);
         BindKeybindButton(attackKeyButton, GameSettings.Key.Attack, KeyCode.Mouse0);
+        blockKeyButton = EnsureKeybindButton(blockKeyButton, "Block", "Mouse 2");
         BindKeybindButton(inventoryKeyButton, GameSettings.Key.Inventory, KeyCode.I);
+        healKeyButton = EnsureKeybindButton(healKeyButton, "Heal", "6");
+        swordCombo1KeyButton = EnsureKeybindButton(swordCombo1KeyButton, "Sword Combo 1", "3");
+        swordCombo2KeyButton = EnsureKeybindButton(swordCombo2KeyButton, "Sword Combo 2", "4");
+        swordCombo3KeyButton = EnsureKeybindButton(swordCombo3KeyButton, "Sword Combo 3", "5");
+        BindKeybindButton(blockKeyButton, GameSettings.Key.Block, KeyCode.Mouse1);
+        BindKeybindButton(healKeyButton, GameSettings.Key.Heal, KeyCode.Alpha6);
+        BindKeybindButton(swordCombo1KeyButton, GameSettings.Key.SwordSpecial1, KeyCode.Alpha3);
+        BindKeybindButton(swordCombo2KeyButton, GameSettings.Key.SwordSpecial2, KeyCode.Alpha4);
+        BindKeybindButton(swordCombo3KeyButton, GameSettings.Key.SwordSpecial3, KeyCode.Alpha5);
+    }
+    private Button EnsureKeybindButton(Button existingButton, string label, string defaultBinding)
+    {
+        if (existingButton != null) { return existingButton; }
+        Transform templateRow = inventoryKeyButton != null ? FindSettingsRow(inventoryKeyButton.transform) : null;
+        if (templateRow == null || templateRow.parent == null) { return null; }
+        Transform parent = templateRow.parent;
+        GameObject rowObject = Instantiate(templateRow.gameObject, parent);
+        rowObject.name = $"{label} Row";
+        rowObject.transform.SetSiblingIndex(GetKeybindInsertIndex(parent));
+        TMP_Text[] texts = rowObject.GetComponentsInChildren<TMP_Text>(true);
+        if (texts.Length > 0) { texts[0].text = label; }
+        if (texts.Length > 1) { texts[texts.Length - 1].text = defaultBinding; }
+        Button button = rowObject.GetComponentInChildren<Button>(true);
+        if (button != null) { button.name = $"{label} Button"; }
+        return button;
+    }
+    private static int GetKeybindInsertIndex(Transform parent)
+    {
+        if (parent == null) { return 0; }
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            Transform child = parent.GetChild(i);
+            if (child != null && string.Equals(child.name, "Keybind Info Row", StringComparison.Ordinal)) { return i; }
+        }
+        return parent.childCount;
     }
     private void BindSlider(Slider slider, UnityAction<float> action)
     {
@@ -984,7 +1025,10 @@ public sealed class FantasyMenuController : MonoBehaviour
     private IEnumerator WarmupLoadedScene(Scene scene)
     {
         SetLoadingStage("Warming shaders"); SetLoadingProgress(0.92f); yield return null;
-        Shader.WarmupAllShaders(); yield return null; SetLoadingStage("Preparing materials");
+#if UNITY_EDITOR
+        Shader.WarmupAllShaders(); yield return null;
+#endif
+        SetLoadingStage("Preparing materials");
         TouchSceneRenderers(scene); SetLoadingProgress(0.95f);
         yield return new WaitForEndOfFrame();
         bool previousForceLoadAll = Texture.streamingTextureForceLoadAll;

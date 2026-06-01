@@ -210,7 +210,13 @@ public class CraftingProcessHandler : MonoBehaviour
     {
         if (string.IsNullOrWhiteSpace(itemName)) { return null; }
         EnsureRequirementIconCache();
-        return _requirementIconCache.TryGetValue(NormalizeItemToken(itemName), out Sprite icon) ? icon : null;
+        string normalizedName = NormalizeItemToken(itemName);
+        if (_requirementIconCache.TryGetValue(normalizedName, out Sprite icon)) { return icon; }
+        foreach (KeyValuePair<string, Sprite> pair in _requirementIconCache)
+        {
+            if (pair.Value != null && RequirementMatchesItemName(pair.Key, normalizedName)) { return pair.Value; }
+        }
+        return null;
     }
     private void EnsureRequirementIconCache()
     {
@@ -325,7 +331,10 @@ public class CraftingProcessHandler : MonoBehaviour
             availableByName = BuildAvailableByName(list);
         }
         if (availableByName.Count == 0) { return false; }
-        foreach (KeyValuePair<string, int> required in requiredResources) { if (!availableByName.TryGetValue(required.Key, out int availableAmount) || availableAmount < required.Value) { return false; } }
+        foreach (KeyValuePair<string, int> required in requiredResources)
+        {
+            if (GetAvailableAmountForRequirement(availableByName, required.Key) < required.Value) { return false; }
+        }
         return true;
     }
     private bool CanReceiveCraftedItem()
@@ -415,6 +424,17 @@ public class CraftingProcessHandler : MonoBehaviour
             if (availableByName.TryGetValue(key, out int currentAmount)) { availableByName[key] = currentAmount + pair.Value; } else { availableByName[key] = pair.Value; }
         }
         return availableByName;
+    }
+    private static int GetAvailableAmountForRequirement(Dictionary<string, int> availableByName, string requiredName)
+    {
+        if (availableByName == null || string.IsNullOrWhiteSpace(requiredName)) { return 0; }
+        if (availableByName.TryGetValue(requiredName, out int exactAmount)) { return exactAmount; }
+        int total = 0;
+        foreach (KeyValuePair<string, int> available in availableByName)
+        {
+            if (RequirementMatchesItemName(available.Key, requiredName)) { total += Mathf.Max(0, available.Value); }
+        }
+        return total;
     }
     private void ResolveReferences()
     {
@@ -628,6 +648,7 @@ public class CraftingProcessHandler : MonoBehaviour
         string required = NormalizeItemToken(requiredName);
         if (string.IsNullOrEmpty(required)) { return false; }
         string slotName = NormalizeItemToken(GetBestSlotName(slot));
+        if (RequirementMatchesItemName(slotName, required)) { return true; }
         return string.Equals(slotName, required, StringComparison.OrdinalIgnoreCase);
     }
     private static string GetBestSlotName(SlotInsideUI slot)
@@ -642,6 +663,20 @@ public class CraftingProcessHandler : MonoBehaviour
     {
         if (string.IsNullOrWhiteSpace(raw)) { return string.Empty; }
         return raw.Trim().Replace('_', ' ').ToLowerInvariant();
+    }
+    private static string NormalizeCompactItemToken(string raw)
+    {
+        return NormalizeItemToken(raw).Replace(" ", string.Empty);
+    }
+    private static bool RequirementMatchesItemName(string itemName, string requiredName)
+    {
+        string item = NormalizeCompactItemToken(itemName);
+        string required = NormalizeCompactItemToken(requiredName);
+        if (string.IsNullOrEmpty(item) || string.IsNullOrEmpty(required)) { return false; }
+        if (string.Equals(item, required, StringComparison.OrdinalIgnoreCase)) { return true; }
+        if (required == "anymushroom" || required == "mushroom") { return item.Contains("mushroom"); }
+        if (required == "anyflower" || required == "flower") { return item.Contains("flower"); }
+        return false;
     }
     private static void ClearInventoryManagerSlot(SlotInsideUI slot)
     {

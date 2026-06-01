@@ -148,7 +148,8 @@ public class FPSController : MonoBehaviour
         bool jumpBuffered = (Time.time - _lastJumpPressedTime) <= Mathf.Max(0f, jumpBufferSeconds);
         bool jumpWithGroundGrace = isGroundedBeforeMove || (Time.time - _lastGroundedTime) <= Mathf.Max(0f, coyoteTimeSeconds);
         bool canStartJump = jumpBuffered && jumpWithGroundGrace && Time.time >= _nextJumpAllowedTime;
-        if (canStartJump)
+        bool jumpStarted = canStartJump && TryConsumeJumpStamina();
+        if (jumpStarted)
         {
             _velocity.y = jumpSpeed;
             _nextJumpAllowedTime = Time.time + Mathf.Max(0f, jumpInputCooldownSeconds);
@@ -156,7 +157,11 @@ public class FPSController : MonoBehaviour
             _jumpAnimationLockUntil = Time.time + Mathf.Max(0f, jumpAnimationLockSeconds);
             TriggerJumpAnimation(isRunning);
         }
-        else if (isGroundedBeforeMove) { _velocity.y = -groundedStickForce; } else { _velocity.y -= gravity * Time.deltaTime; }
+        else
+        {
+            if (canStartJump) { _lastJumpPressedTime = -100f; }
+            if (isGroundedBeforeMove) { _velocity.y = -groundedStickForce; } else { _velocity.y -= gravity * Time.deltaTime; }
+        }
         Vector3 finalVelocity = new Vector3(move.x, _velocity.y, move.z);
         _cc.Move(finalVelocity * Time.deltaTime);
         bool landedThisFrame = !isGroundedBeforeMove && _cc.isGrounded; if (_cc.isGrounded)
@@ -398,6 +403,11 @@ public class FPSController : MonoBehaviour
         actionScript.SprintRight(false); actionScript.WalkForwardLeft(false);
         actionScript.WalkForwardRight(false); actionScript.Sprint(false, false);
         actionScript.SprintForwardLeft(false); actionScript.SprintForwardRight(false);
+    }
+    private bool TryConsumeJumpStamina()
+    {
+        if (actionScript == null || actionScript.staminaScript == null) { return true; }
+        return actionScript.staminaScript.Jump();
     }
     private void HandleEmoteInput(bool uiBlocking, bool movementInputLocked,
     Vector2 moveInput, bool runPressed,

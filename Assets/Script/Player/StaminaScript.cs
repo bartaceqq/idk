@@ -3,7 +3,7 @@ using UnityEngine.UI;
 public class StaminaScript : MonoBehaviour
 {
     public bool enoughstamina; public Image image; public float valuereduce = 0.6f;
-    public float valueadd = -1f; public float swordSwingCost = 0.5f;
+    public float valueadd = -1f; public float jumpCost = 0.12f; public float swordSwingCost = 0.5f;
     public float axeSwingCost = 0.12f; public float pickaxeSwingCost = 0.15f;
     public float staminaRechargeDelaySeconds = 0.35f;
     public float minimumStaminaThreshold = 0.001f; private float _staminaRechargeBlockedUntil;
@@ -32,6 +32,7 @@ public class StaminaScript : MonoBehaviour
         image.fillAmount = Mathf.Clamp01(image.fillAmount - delta); UpdateEnoughStaminaState();
     }
     public bool SwordSwing() { return TryConsumeStamina(swordSwingCost); }
+    public bool Jump() { return TryConsumeStamina(jumpCost); }
     public bool AxeSwing() { return TryConsumeStamina(axeSwingCost); }
     public bool PickaxeSwing() { return TryConsumeStamina(pickaxeSwingCost); }
     public bool TryConsumeStamina(float amount) { return TryConsumeStamina(amount, staminaRechargeDelaySeconds); }

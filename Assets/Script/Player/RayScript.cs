@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 public class RayScript : MonoBehaviour
 {
+    private const string HealingPouchItemName = "healing_pouch";
     private static InfoHandler cachedInfoHandler;
     private static InventoryAddHandler cachedInventoryAddHandler;
     public ParticleSystem stoneparticle; public ItemSwitchScript itemSwitchScript;
@@ -17,6 +18,7 @@ public class RayScript : MonoBehaviour
     public float pickaxeHitDelaySeconds = 0.65f; public bool useDelayedPickaxeHit = true;
     public float swingCooldownSeconds = 1f; public float axeSwingCooldownSeconds = 0.22f;
     public float pickaxeSwingCooldownSeconds = 0.28f;
+    public float healingItemCooldownSeconds = 0.5f;
     public float swordAttackCooldownSeconds = 2.5f; public float swordHitDelaySeconds = 1.10f;
     public float swordHeavyAttackCooldownSeconds = 3.3f;
     public float swordHeavyHitDelaySeconds = 1.45f;
@@ -47,7 +49,7 @@ public class RayScript : MonoBehaviour
     [HideInInspector] public bool blockAttackInput; private float _nextSwingTime;
     private float _nextAxeSwingTime; private float _nextPickaxeSwingTime;
     private float _nextAxeSoundAllowedTime; private float _nextPickaxeSoundAllowedTime;
-    private float _nextSwordSoundAllowedTime;
+    private float _nextSwordSoundAllowedTime; private float _nextHealingItemTime;
     private readonly Collider[] _proximityHits = new Collider[128];
     private int _pickableLayer = -1; private float _nextPickableScanTime;
     private void Awake()
@@ -59,18 +61,19 @@ public class RayScript : MonoBehaviour
     private void Update()
     {
         UpdateNearestPickable(); bool swordEquipped = IsSwordEquipped();
-        bool rightMouseHeld = Input.GetMouseButton(1);
+        bool blockHeld = GameSettings.GetMouseButtonHeld(GameSettings.Key.Block, 1);
         if (GameplayUiState.IsGameplayInputBlocked)
         {
             UpdateSwordBlockState(false, false);
             return;
         }
         if (blockAttackInput) { UpdateSwordBlockState(false, false); return; }
-        UpdateSwordBlockState(swordEquipped, rightMouseHeld);
+        UpdateSwordBlockState(swordEquipped, blockHeld);
         if (actionScript != null && actionScript.IsSwordBlockActive()) { return; }
         if (actionScript != null && actionScript.IsGameplayInputLocked()) { return; }
+        if (GameSettings.GetKeyDown(GameSettings.Key.Heal, KeyCode.Alpha6) && TryUseHealingPouch()) { return; }
         bool leftClick = GameSettings.GetMouseButtonDown(GameSettings.Key.Attack, 0);
-        bool rightClick = Input.GetMouseButtonDown(1);
+        bool rightClick = GameSettings.GetMouseButtonDown(GameSettings.Key.Block, 1);
         int swordSpecialIndex = GetSwordSpecialHotkeyIndex();
         if ((!leftClick && !rightClick && swordSpecialIndex < 0) || Time.time < _nextSwingTime) { return; }
         float cooldown = HandleCurrentItemAction(leftClick, rightClick, swordSpecialIndex);
@@ -223,6 +226,17 @@ public class RayScript : MonoBehaviour
         StartCoroutine(TriggerMeleeAttackAfterDelay(unarmedHitDelaySeconds));
         return unarmedAttackCooldownSeconds;
     }
+    private bool TryUseHealingPouch()
+    {
+        if (Time.time < _nextHealingItemTime) { return false; }
+        PlayerHealth playerHealth = PlayerHealth.FindOrCreate();
+        if (playerHealth == null || playerHealth.maxHealth <= 0f) { return false; }
+        if (playerHealth.currentHealth >= playerHealth.maxHealth) { return false; }
+        if (!TryConsumeInventoryItem(HealingPouchItemName)) { return false; }
+        playerHealth.Heal(playerHealth.maxHealth * 0.4f);
+        _nextHealingItemTime = Time.time + Mathf.Max(0.01f, healingItemCooldownSeconds);
+        return true;
+    }
     private float ResolveToolSwingCooldown(float dedicatedCooldown)
     {
         if (dedicatedCooldown > 0f) { return dedicatedCooldown; }
@@ -293,11 +307,78 @@ public class RayScript : MonoBehaviour
     {
         string normalized = NormalizeItemName(rawName);
         if (string.IsNullOrEmpty(normalized)) { return string.Empty; }
-        string token = normalized.Replace(" ", string.Empty).ToLowerInvariant();
+        string token = normalized.Replace(" ", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
         if (token.Contains("pickaxe") || token.Contains("pick")) { return "Pickaxe"; }
         if (token.Contains("sword")) { return "Sword"; }
         if (token.Contains("axe")) { return "Axe"; }
         return string.Empty;
+    }
+    private bool TryConsumeInventoryItem(string itemName)
+    {
+        InventoryManager inventoryManager = UnitySceneSearch.FindFirst<InventoryManager>();
+        if (inventoryManager == null || inventoryManager.slotlist == null) { return false; }
+        for (int i = 0; i < inventoryManager.slotlist.Count; i++)
+        {
+            SlotInsideUI slot = inventoryManager.slotlist[i];
+            if (slot == null || !slot.occupied || slot.count <= 0) { continue; }
+            if (!InventorySlotMatchesItem(slot, itemName)) { continue; }
+            slot.count--;
+            if (slot.count <= 0) { ClearInventorySlot(slot); }
+            else { UpdateInventorySlotCount(slot); }
+            if (!InventoryContainsItem(inventoryManager, itemName)) { ClearWeaponSlotsForItem(itemName); }
+            return true;
+        }
+        return false;
+    }
+    private static bool InventoryContainsItem(InventoryManager inventoryManager, string itemName)
+    {
+        if (inventoryManager == null || inventoryManager.slotlist == null) { return false; }
+        for (int i = 0; i < inventoryManager.slotlist.Count; i++)
+        {
+            SlotInsideUI slot = inventoryManager.slotlist[i];
+            if (slot != null && slot.occupied && slot.count > 0 && InventorySlotMatchesItem(slot, itemName)) { return true; }
+        }
+        return false;
+    }
+    private void ClearWeaponSlotsForItem(string itemName)
+    {
+        WeaponSlot[] weaponSlots = UnitySceneSearch.FindAll<WeaponSlot>();
+        for (int i = 0; i < weaponSlots.Length; i++)
+        {
+            WeaponSlot slot = weaponSlots[i];
+            if (slot == null || !ItemNamesMatch(slot.GetAssignedItemName(), itemName)) { continue; }
+            slot.ClearEquippedItem();
+        }
+        if (itemSwitchScript != null) { itemSwitchScript.UnequipIfCurrentItemName(itemName); }
+    }
+    private static bool InventorySlotMatchesItem(SlotInsideUI slot, string itemName)
+    {
+        if (slot == null) { return false; }
+        if (ItemNamesMatch(slot.nameofslot, itemName)) { return true; }
+        if (slot.Item != null && ItemNamesMatch(slot.Item.nameofitem, itemName)) { return true; }
+        return slot.Item != null && ItemNamesMatch(slot.Item.name, itemName);
+    }
+    private static bool ItemNamesMatch(string left, string right)
+    {
+        string leftToken = NormalizeComparableItemName(left);
+        string rightToken = NormalizeComparableItemName(right);
+        return !string.IsNullOrEmpty(leftToken) && string.Equals(leftToken, rightToken, System.StringComparison.OrdinalIgnoreCase);
+    }
+    private static string NormalizeComparableItemName(string rawName)
+    {
+        return NormalizeItemName(rawName).Replace(" ", string.Empty).Replace("_", string.Empty).ToLowerInvariant();
+    }
+    private static void ClearInventorySlot(SlotInsideUI slot)
+    {
+        if (slot == null) { return; }
+        slot.count = 0; slot.occupied = false; slot.nameofslot = string.Empty; slot.Item = null;
+        if (slot.image != null) { slot.image.sprite = null; slot.image.enabled = false; }
+        if (slot.text != null) { slot.text.text = "0"; }
+    }
+    private static void UpdateInventorySlotCount(SlotInsideUI slot)
+    {
+        if (slot == null) { return; }
+        if (slot.text != null) { slot.text.text = Mathf.Max(0, slot.count).ToString(); }
     }
     private void CachePickableLayer()
     {
