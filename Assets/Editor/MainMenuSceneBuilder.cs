@@ -47,6 +47,8 @@ public static class MainMenuSceneBuilder
     {
         public Button BackButton;
         public Button ApplyButton;
+        public Button SaveButton;
+        public Button ExitGameButton;
         public Button DisplayTabButton;
         public Button KeybindTabButton;
         public Button AudioTabButton;
@@ -509,8 +511,12 @@ public static class MainMenuSceneBuilder
         footerLayout.childForceExpandWidth = false;
         footerLayout.childAlignment = TextAnchor.MiddleCenter;
 
+        refs.SaveButton = CreateFlatButton(footerRow, "Settings Save Button", "Save", font, false, 56f, 200f);
+        refs.SaveButton.gameObject.SetActive(false);
         refs.BackButton = CreateFlatButton(footerRow, "Settings Back Button", "Back", font, false, 56f, 200f);
         refs.ApplyButton = CreateFlatButton(footerRow, "Settings Apply Button", "Apply", font, true, 56f, 200f);
+        refs.ExitGameButton = CreateFlatButton(footerRow, "Settings Exit Game Button", "Exit", font, false, 56f, 200f);
+        refs.ExitGameButton.gameObject.SetActive(false);
 
         return refs;
     }
@@ -1654,6 +1660,8 @@ public static class MainMenuSceneBuilder
 
         SetObject(serializedController, "settingsBackButton", settingsRefs.BackButton);
         SetObject(serializedController, "settingsApplyButton", settingsRefs.ApplyButton);
+        SetObject(serializedController, "settingsSaveButton", settingsRefs.SaveButton);
+        SetObject(serializedController, "settingsExitGameButton", settingsRefs.ExitGameButton);
         SetObject(serializedController, "displayTabButton", settingsRefs.DisplayTabButton);
         SetObject(serializedController, "keybindTabButton", settingsRefs.KeybindTabButton);
         SetObject(serializedController, "audioTabButton", settingsRefs.AudioTabButton);

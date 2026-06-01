@@ -185,10 +185,10 @@ public sealed class FantasyMenuController : MonoBehaviour
         BindButton(newGameButton, () => LoadGameplayScene(true));
         BindButton(continueButton, ContinueGame); BindButton(loadGameButton, LoadSavedGame);
         BindButton(settingsButton, ShowSettings); BindButton(creditsButton, ShowCredits);
-        BindButton(exitButton, QuitGame); BindButton(settingsBackButton, ShowMain);
+        BindButton(exitButton, QuitGame); BindButton(settingsBackButton, OnSettingsBackPressed);
         BindButton(settingsApplyButton, ApplySettings);
         BindButton(settingsSaveButton, SaveCurrentGameFromSettings);
-        BindButton(settingsExitGameButton, QuitGame);
+        BindButton(settingsExitGameButton, SaveAndQuitGameFromSettings);
         BindButton(displayTabButton, () => ShowTab(SettingsTab.Display));
         BindButton(keybindTabButton, () => ShowTab(SettingsTab.Keybind));
         BindButton(audioTabButton, () => ShowTab(SettingsTab.Audio));
@@ -214,7 +214,21 @@ public sealed class FantasyMenuController : MonoBehaviour
         if (settingsFooterRow == null) { return; }
         if (settingsSaveButton == null) { settingsSaveButton = FindButtonByName(settingsFooterRow, "Settings Save Button"); }
         if (settingsExitGameButton == null) { settingsExitGameButton = FindButtonByName(settingsFooterRow, "Settings Exit Game Button"); }
+        if (settingsSaveButton == null) { settingsSaveButton = CreateSettingsFooterButton("Settings Save Button", "Save", settingsApplyButton); }
+        if (settingsExitGameButton == null) { settingsExitGameButton = CreateSettingsFooterButton("Settings Exit Game Button", "Exit", settingsBackButton); }
         ConfigureSettingsFooterLayout();
+    }
+    private Button CreateSettingsFooterButton(string objectName, string label, Button template)
+    {
+        if (settingsFooterRow == null || template == null) { return null; }
+        GameObject buttonObject = Instantiate(template.gameObject, settingsFooterRow);
+        buttonObject.name = objectName;
+        Button button = buttonObject.GetComponent<Button>();
+        TMP_Text text = buttonObject.GetComponentInChildren<TMP_Text>(true);
+        if (text != null) { text.text = label; }
+        if (button != null) { button.onClick.RemoveAllListeners(); }
+        buttonObject.SetActive(false);
+        return button;
     }
     private void ConfigureSettingsFooterLayout()
     {
@@ -457,6 +471,15 @@ public sealed class FantasyMenuController : MonoBehaviour
         UpdateSettingsFooterContextButtons(false); SetPanelState(false, true, false);
         SetBackground(settingsBackgroundSprite, settingsBackgroundTint); ShowTab(currentTab);
         GameplayUiState.SetExternalMenuOpen(true);
+    }
+    private void OnSettingsBackPressed()
+    {
+        if (IsInGameplayScene())
+        {
+            CloseGameplaySettingsOverlay();
+            return;
+        }
+        ShowMain();
     }
     private void ShowCredits()
     {
@@ -972,6 +995,11 @@ public sealed class FantasyMenuController : MonoBehaviour
             return;
         }
         SetSettingsStatus(message);
+    }
+    private void SaveAndQuitGameFromSettings()
+    {
+        if (IsInGameplayScene()) { GameSaveManager.SaveCurrentGame(out _); }
+        QuitGame();
     }
     private void LoadSceneByName(string sceneName, string loadingMessage)
     {
